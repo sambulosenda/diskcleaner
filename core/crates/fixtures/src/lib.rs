@@ -73,6 +73,7 @@ pub fn build(root: &Path, now: SystemTime) -> Result<Manifest, FixtureError> {
     layout::js::build(&mut b)?;
     layout::devtools::build(&mut b)?;
     layout::toolchains::build(&mut b)?;
+    layout::ai_models::build(&mut b)?;
     layout::traps::build(&mut b)?;
     b.finish()
 }

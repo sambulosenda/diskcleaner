@@ -163,6 +163,18 @@ const IPHONE_BACKUP: OwnerApp = OwnerApp {
     bundles: &[],
 };
 
+const OLLAMA: OwnerApp = OwnerApp {
+    name: "Ollama",
+    programs: &["ollama", "Ollama"],
+    bundles: &["Ollama.app"],
+};
+
+const LM_STUDIO: OwnerApp = OwnerApp {
+    name: "LM Studio",
+    programs: &["LM Studio", "lms"],
+    bundles: &["LM Studio.app"],
+};
+
 /// The apps that may be using the items `rule_id` finds. Empty if none.
 pub fn owner_apps(rule_id: &str) -> &'static [OwnerApp] {
     match rule_id {
@@ -186,6 +198,8 @@ pub fn owner_apps(rule_id: &str) -> &'static [OwnerApp] {
         "rust.cargo_registry_cache" | "rust.cargo_registry_src" => &[CARGO],
         "rust.toolchain" => &[RUSTUP],
         "ios.device_backup" => &[IPHONE_BACKUP],
+        "ollama.models" => &[OLLAMA],
+        "lm_studio.model" | "lm_studio.model_legacy" => &[LM_STUDIO],
         id if id.starts_with("rust.target") => &[CARGO],
         _ => &[],
     }
@@ -209,6 +223,8 @@ mod tests {
             "xcode.simulator_device",
             "android.emulator",
             "jetbrains.cache",
+            "ollama.models",
+            "lm_studio.model",
         ] {
             for app in owner_apps(id) {
                 assert!(

@@ -15,6 +15,7 @@ fn read(name: &str) -> String {
 #[test]
 fn gives_the_same_rules_as_load_dir() {
     let names = [
+        "ai_models.toml",
         "ai_tools.toml",
         "android.toml",
         "editors.toml",
