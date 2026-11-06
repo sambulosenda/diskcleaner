@@ -180,4 +180,25 @@ final class RustCoreClient: CoreClient {
     func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview {
         try await offMain { try $0.previewAndroidCleanup(itemIds: itemIds) }
     }
+
+    func startDuplicateSearch(mode: Mode) async {
+        _ = try? await offMain { $0.startDuplicateSearch(mode: mode) }
+    }
+
+    func duplicateSearchProgress() async -> DuplicateSearch {
+        do {
+            return try await offMain { $0.duplicateSearchProgress() }
+        } catch {
+            // No core: say why in plain words, as a failed scan would.
+            return .failed(reason: AppModel.message(for: error))
+        }
+    }
+
+    func cancelDuplicateSearch() async {
+        _ = try? await offMain { $0.cancelDuplicateSearch() }
+    }
+
+    func previewDuplicateCleanup(copyIds: [String]) async throws -> CleanupPreview {
+        try await offMain { try $0.previewDuplicateCleanup(copyIds: copyIds) }
+    }
 }

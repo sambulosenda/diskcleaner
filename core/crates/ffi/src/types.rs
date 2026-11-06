@@ -871,6 +871,7 @@ impl From<&analysers::libraries::LibrarySize> for LibrarySize {
             needs_access: s.needs_access,
         }
     }
+}
 
 /// One copy of a file the duplicate finder found.
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]

@@ -177,4 +177,10 @@ private final class FailingCore: CoreClient {
         AndroidOverview(sdkFound: false, parts: [], projects: [], totalBytes: 0, unusedBytes: 0, note: nil)
     }
     func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview { throw CoreError.HomeNotFound }
+    func startDuplicateSearch(mode: Mode) async {}
+    func duplicateSearchProgress() async -> DuplicateSearch {
+        .failed(reason: AppModel.message(for: CoreError.HomeNotFound))
+    }
+    func cancelDuplicateSearch() async {}
+    func previewDuplicateCleanup(copyIds: [String]) async throws -> CleanupPreview { throw CoreError.HomeNotFound }
 }

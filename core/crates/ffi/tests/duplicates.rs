@@ -78,8 +78,14 @@ fn search(core: &RoomyCore, mode: Mode) -> DuplicateReport {
     }
 }
 
+/// The group holding a copy called `name`. A group is named after its
+/// oldest copy, and the test files may all have the same date.
 fn group<'a>(report: &'a DuplicateReport, name: &str) -> &'a DuplicateGroup {
-    report.groups.iter().find(|g| g.name == name).unwrap()
+    report
+        .groups
+        .iter()
+        .find(|g| g.copies.iter().any(|c| c.name == name))
+        .unwrap()
 }
 
 fn locations(g: &DuplicateGroup) -> Vec<String> {
@@ -114,9 +120,7 @@ fn contents(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
 fn finds_copies_by_content_in_the_users_own_folders_only() {
     let s = setup();
     let report = search(&s.core, Mode::Simple);
-    let mut names: Vec<&str> = report.groups.iter().map(|g| g.name.as_str()).collect();
-    names.sort();
-    assert_eq!(names, ["cat.jpg", "holiday.mov"], "{report:?}");
+    assert_eq!(report.groups.len(), 2, "{report:?}");
     assert_eq!(
         locations(group(&report, "holiday.mov")),
         ["Desktop", "Downloads", "Movies"]
@@ -202,7 +206,7 @@ fn moves_only_the_ticked_copies_keeps_one_and_can_put_back() {
     assert!(history[0]
         .items
         .iter()
-        .all(|i| i.title == "Copy of holiday.mov"));
+        .all(|i| i.title == format!("Copy of {}", movie.name)));
     // Put back restores every file exactly.
     let back = s.core.put_back_cleanup(result.cleanup.unwrap()).unwrap();
     assert!(back.items.iter().all(|i| i.done), "{:?}", back.items);

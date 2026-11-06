@@ -256,6 +256,8 @@ final class AppModel: ObservableObject {
 
     /// The ⌘K palette. It only shows screens and asks this model to act; it never moves files.
     private(set) lazy var palette = CommandPaletteModel(app: self)
+    /// The duplicate finder. Its Review opens the same cleanup review as every other screen.
+    private(set) lazy var duplicates = DuplicatesModel(app: self, pollInterval: pollInterval)
 
     let client: CoreClient
     private let defaults: UserDefaults
@@ -667,6 +669,30 @@ final class AppModel: ObservableObject {
                     return
                 }
                 self.cleanupState = .ready(preview)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.cleanupState = .failed(Self.cleanupMessage(for: error))
+            }
+        }
+    }
+
+    /// Opens the cleanup review for a dry run another screen asks for (the duplicate finder): sends the
+    /// kept folders, then runs `preview`. Nothing moves until the user confirms in the review, which then
+    /// works exactly like any cleanup, with put back and History.
+    func reviewCleanup(using preview: @escaping @MainActor (CoreClient) async throws -> CleanupPreview) {
+        guard cleanupState == .closed else { return }
+        let client = self.client
+        let kept = protectedFolders
+        cleanupState = .checking
+        cleanupTask = Task { [weak self] in
+            do {
+                _ = try await client.setProtectedFolders(kept)
+                let result = try await preview(client)
+                guard !Task.isCancelled, let self else {
+                    if let plan = result.plan { await client.discardCleanup(plan: plan) }
+                    return
+                }
+                self.cleanupState = .ready(result)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError), let self else { return }
                 self.cleanupState = .failed(Self.cleanupMessage(for: error))
