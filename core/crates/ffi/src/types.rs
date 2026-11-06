@@ -584,3 +584,73 @@ impl From<history::Cleanup> for HistoryEntry {
         }
     }
 }
+
+/// Where an installed app is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum AppLocation {
+    /// The main `/Applications` folder. Roomy's safety rules keep it out of
+    /// everything outside the home folder, so the user moves the app itself
+    /// to the Bin in Finder; Roomy moves what it left behind.
+    Applications,
+    /// `~/Applications`. Roomy can move the app itself too.
+    HomeApplications,
+}
+
+/// One installed app, as the uninstaller lists it.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AppSummary {
+    /// Id to send back to `review_app` and `preview_uninstall`. Valid until
+    /// the next `list_apps`.
+    pub app_id: String,
+    /// The app's name.
+    pub name: String,
+    /// The app's version, if it says.
+    pub version: Option<String>,
+    /// The app's bundle id, for example `com.tinyspeck.slackmacgap`.
+    pub bundle_id: String,
+    /// Allocated bytes of the app itself.
+    pub size_bytes: u64,
+    /// Where the app is.
+    pub location: AppLocation,
+    /// The app bundle's location, for "Show in Finder". An app in an
+    /// Applications folder is not personal, so this is given in both modes.
+    /// Display only; never sent back.
+    pub bundle_path: String,
+    /// Whether the app (or anything inside it) is running now.
+    pub is_open: bool,
+}
+
+/// One thing the uninstaller can move to the Trash for an app.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AppPart {
+    /// Id to send to `preview_uninstall`.
+    pub item_id: String,
+    /// Short name, for example "Caches".
+    pub title: String,
+    /// What it is, in plain words.
+    pub explain: String,
+    /// Allocated bytes, measured just now.
+    pub size_bytes: u64,
+    /// Whether the app should tick it to begin with. Never true for data the
+    /// app keeps for itself (Application Support, containers) or for
+    /// anything matched less surely than by the bundle id.
+    pub preselected: bool,
+    /// Whether it was matched by the app's bundle id. When false, it was
+    /// matched by a similar name and the user should check it.
+    pub sure: bool,
+    /// Developer mode only: the place as a display string starting `~`.
+    pub path: Option<String>,
+}
+
+/// What the uninstaller found for one app.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AppReview {
+    /// The app.
+    pub app: AppSummary,
+    /// The app itself (when it is in `~/Applications`) and what it left in
+    /// the home folder, the app first, then largest first.
+    pub parts: Vec<AppPart>,
+    /// Plain words to show above the list, if there is something to say,
+    /// for example that another copy of the app is installed.
+    pub note: Option<String>,
+}

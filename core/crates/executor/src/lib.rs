@@ -12,7 +12,8 @@
 //! 4. checks the size (within 1%) and modification time still match the plan
 //!    (validation step 7), and that the item is still the same file or folder;
 //! 5. runs the extra checks in [`Guards`]: the user's protected folders, the
-//!    owner app being open, unsaved git work, and changes in the last few
+//!    owner app being open (for the app uninstaller, any program inside the
+//!    app or the item), unsaved git work, and changes in the last few
 //!    minutes;
 //! 6. moves it into `~/.Trash` with a move that never replaces anything.
 //!
@@ -449,6 +450,7 @@ impl Context {
         safety::validate(&self.home, self.dev, path, item.selected_individually())?;
         guards.check_folders(path)?;
         guards.check_owners(item.owners())?;
+        guards.check_app(item.belongs_to(), path)?;
         let (parent_fd, name) = self.open_parent(path)?;
         let before =
             sys::stat_at(&parent_fd, &name).map_err(|_| ItemRefusal::ChangedSinceReview)?;

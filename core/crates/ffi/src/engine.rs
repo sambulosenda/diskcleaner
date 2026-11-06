@@ -16,9 +16,9 @@ use scanner::{ScanError, ScanOptions};
 use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
-    Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult, FullDiskAccess,
-    HistoryEntry, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PutBackResult, ScanHandle,
-    ScanPhase, ScanProgress, Sort, Tier,
+    AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult,
+    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
+    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -34,7 +34,7 @@ const SOMETHING_WENT_WRONG: &str = "Something went wrong during the scan. Please
 #[derive(uniffi::Object)]
 pub struct RoomyCore {
     /// The folder every scan reads. Never comes from the app in production.
-    home: PathBuf,
+    pub(crate) home: PathBuf,
     /// The built-in rules, validated when the core was made.
     rules: Arc<Vec<Rule>>,
     /// The next handle number. Starts at 1.
@@ -59,6 +59,11 @@ pub struct RoomyCore {
     guard_overrides: Mutex<GuardOverrides>,
     /// The Docker screen's state: where `docker` is and the waiting plan.
     pub(crate) docker: crate::docker::DockerSlot,
+    /// The app uninstaller's list of apps and its latest review.
+    apps: Mutex<crate::uninstall::AppsState>,
+    /// Test-only: the folders to look for apps in, instead of
+    /// `/Applications` and `~/Applications`.
+    app_folders: Mutex<Option<Vec<PathBuf>>>,
 }
 
 /// Test-only changes to the extra checks, set by Rust tests only.
@@ -131,6 +136,8 @@ impl RoomyCore {
             guard_overrides: Mutex::new(GuardOverrides::default()),
             docker: crate::docker::DockerSlot::new(&home),
             home,
+            apps: Mutex::new(crate::uninstall::AppsState::default()),
+            app_folders: Mutex::new(None),
         }))
     }
 
@@ -153,6 +160,12 @@ impl RoomyCore {
     /// The home folder this core works on.
     pub(crate) fn home(&self) -> &Path {
         &self.home
+    }
+
+    /// Rust-only, for tests: looks for apps in exactly these folders,
+    /// instead of `/Applications` and `~/Applications`.
+    pub fn set_app_folders_for_testing(&self, folders: Vec<PathBuf>) {
+        *lock(&self.app_folders) = Some(folders);
     }
 
     /// The extra checks for one preview or run, read just now.
@@ -362,6 +375,60 @@ impl RoomyCore {
         // A newer cleanup replaces the older undo, even if nothing moved.
         *lock(&self.last_cleanup) = ran.last;
         Ok(ran.result)
+    }
+
+    /// The app uninstaller: every app in `/Applications` and
+    /// `~/Applications`, except Apple's and Roomy itself, sorted by name,
+    /// each with its size. Reads folder listings, each app's `Info.plist`
+    /// and metadata only. Each call gives new app ids, and forgets the
+    /// earlier list and review.
+    pub fn list_apps(&self) -> Vec<AppSummary> {
+        let folders = lock(&self.app_folders)
+            .clone()
+            .unwrap_or_else(|| crate::uninstall::app_folders(&self.home));
+        let running = self.guards().running;
+        crate::uninstall::list(&mut lock(&self.apps), &self.home, &folders, &running)
+    }
+
+    /// The app uninstaller: what the app `app_id` (from `list_apps`) left in
+    /// the home folder, measured just now, plus the app itself when it is in
+    /// `~/Applications`. Read only. Replaces the earlier review.
+    ///
+    /// Throws `unknown_app` for an id that is not from the latest list.
+    pub fn review_app(&self, app_id: String, mode: Mode) -> Result<AppReview, CoreError> {
+        let running = self.guards().running;
+        crate::uninstall::review(&mut lock(&self.apps), &self.home, &app_id, mode, &running)
+    }
+
+    /// The app uninstaller's dry run: checks the ticked parts of the latest
+    /// review (ids from `review_app`) exactly as a cleanup would, and says
+    /// what would move to the Trash. Moves nothing. The plan it keeps is
+    /// carried out by `run_cleanup` and can be put back with
+    /// `put_back_cleanup`, like any cleanup. Replaces any earlier plan.
+    ///
+    /// Throws `unknown_app` if `app_id` is not the app last reviewed,
+    /// `unknown_item` for a part id that is not in that review,
+    /// `nothing_selected` for no parts, and `cleanup_unavailable` while the
+    /// app is open.
+    pub fn preview_uninstall(
+        &self,
+        app_id: String,
+        part_ids: Vec<String>,
+    ) -> Result<CleanupPreview, CoreError> {
+        *lock(&self.pending_plan) = None;
+        let id = self.next_plan_id.fetch_add(1, Ordering::Relaxed);
+        let guards = self.guards();
+        let prepared = crate::uninstall::prepare(
+            &lock(&self.apps),
+            &self.home,
+            &app_id,
+            &part_ids,
+            id,
+            &guards,
+            std::time::SystemTime::now(),
+        )?;
+        *lock(&self.pending_plan) = prepared.plan;
+        Ok(prepared.preview)
     }
 
     /// Sets the folders the user asked Roomy to keep. Nothing inside one of

@@ -7,6 +7,7 @@
 //! would move is what the executor would move if nothing changes meanwhile.
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::time::SystemTime;
 
 use executor::ItemRefusal;
@@ -31,17 +32,19 @@ const PREVIEW_FAILED: &str = "Roomy couldn't check these items. Please scan agai
 const INSIDE_ANOTHER: &str = "It is inside another item you chose.";
 
 /// What one ticked item looks like on its way through the preview.
-struct Entry {
-    item_id: String,
-    title: String,
-    size_bytes: u64,
-    path: Option<String>,
+pub(crate) struct Entry {
+    pub item_id: String,
+    pub title: String,
+    /// The name History and the result screen use, if not `title`.
+    pub history_title: Option<String>,
+    pub size_bytes: u64,
+    pub path: Option<String>,
     /// Which device it belongs to, for an iPhone or iPad backup.
-    device_backup: Option<DeviceBackup>,
+    pub device_backup: Option<DeviceBackup>,
     /// The request, while the item is still in the running.
-    request: Option<ItemRequest>,
+    pub request: Option<ItemRequest>,
     /// Why it would not move, once that is known.
-    wont_move: Option<String>,
+    pub wont_move: Option<String>,
 }
 
 /// A preview, plus the plan to keep for the run (if anything would move).
@@ -69,13 +72,29 @@ pub(crate) fn prepare(
     guards: &executor::Guards,
     now: SystemTime,
 ) -> Result<Prepared, CoreError> {
-    let mut entries = entries_for(f, choices)?;
+    let entries = entries_for(f, choices)?;
+    check_entries(&f.home, f.root_dev, entries, plan_id, guards, now)
+}
+
+/// Checks `entries` exactly as a cleanup would just before acting, and
+/// keeps a plan of the ones that would move. Shared by the cleanup preview
+/// and the app uninstaller.
+///
+/// `home` and `dev` are the home folder and its volume.
+pub(crate) fn check_entries(
+    home: &Path,
+    dev: u64,
+    mut entries: Vec<Entry>,
+    plan_id: u64,
+    guards: &executor::Guards,
+    now: SystemTime,
+) -> Result<Prepared, CoreError> {
     if entries.is_empty() {
         return Err(CoreError::NothingSelected);
     }
     // Plan-time path checks (safety steps 1 to 6). One refused item would
     // refuse the whole plan, so drop it, note why, and build again.
-    let Some(plan) = build_dropping_refused(f, &mut entries, plan_id, now)? else {
+    let Some(plan) = build_dropping_refused(home, dev, &mut entries, plan_id, now)? else {
         return Ok(finish(entries, None));
     };
     // The executor's checks just before acting (steps 1 to 7, then the
@@ -100,7 +119,7 @@ pub(crate) fn prepare(
         }
     }
     // The plan kept for the run holds only the items that passed.
-    let plan = build_dropping_refused(f, &mut entries, plan_id, now)?;
+    let plan = build_dropping_refused(home, dev, &mut entries, plan_id, now)?;
     Ok(finish(entries, plan))
 }
 
@@ -121,6 +140,7 @@ fn entries_for(f: &Finished, choices: &[CleanupChoice]) -> Result<Vec<Entry>, Co
         entries.push(Entry {
             item_id: choice.item_id.clone(),
             title: item.title.clone(),
+            history_title: None,
             size_bytes: item.size_bytes,
             path: match f.mode {
                 crate::Mode::Developer => display_path(&f.home, &item.path),
@@ -138,7 +158,8 @@ fn entries_for(f: &Finished, choices: &[CleanupChoice]) -> Result<Vec<Entry>, Co
 /// refuses is marked and left out, and the plan is built again. Returns
 /// `None` if no entry is left.
 fn build_dropping_refused(
-    f: &Finished,
+    home: &Path,
+    dev: u64,
     entries: &mut [Entry],
     plan_id: u64,
     now: SystemTime,
@@ -149,7 +170,7 @@ fn build_dropping_refused(
         if requests.is_empty() {
             return Ok(None);
         }
-        let (id, why) = match Plan::build(plan_id, &f.home, f.root_dev, requests, now) {
+        let (id, why) = match Plan::build(plan_id, home, dev, requests, now) {
             Ok(plan) => return Ok(Some(plan)),
             Err(PlanError::Refused {
                 recommendation_id,
@@ -182,7 +203,10 @@ fn finish(entries: Vec<Entry>, plan: Option<Plan>) -> Prepared {
     let titles: HashMap<String, String> = entries
         .iter()
         .filter(|e| e.wont_move.is_none())
-        .map(|e| (e.item_id.clone(), e.title.clone()))
+        .map(|e| {
+            let title = e.history_title.clone().unwrap_or_else(|| e.title.clone());
+            (e.item_id.clone(), title)
+        })
         .collect();
     let items: Vec<CleanupPreviewItem> = entries
         .into_iter()

@@ -19,7 +19,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use planner::OwnerApp;
+use planner::{AppBundle, OwnerApp};
 
 use crate::ItemRefusal;
 
@@ -104,6 +104,36 @@ impl Guards {
                     app: app.name.to_string(),
                 });
             }
+        }
+        Ok(())
+    }
+
+    /// For an item of the app uninstaller: refuses it if any program inside
+    /// the app's bundle, or inside the item itself (a helper the app keeps
+    /// in its data folder), is running, or if that can't be told.
+    pub(crate) fn check_app(
+        &self,
+        app: Option<&AppBundle>,
+        item: &Path,
+    ) -> Result<(), ItemRefusal> {
+        let Some(app) = app else {
+            return Ok(());
+        };
+        let programs = match &self.running {
+            Running::Known(programs) => programs,
+            Running::Unknown => {
+                return Err(ItemRefusal::AppNotChecked {
+                    app: app.name.clone(),
+                })
+            }
+        };
+        let open = programs
+            .iter()
+            .any(|p| is_within(p, &app.bundle) || is_within(p, item));
+        if open {
+            return Err(ItemRefusal::AppOpen {
+                app: app.name.clone(),
+            });
         }
         Ok(())
     }
@@ -224,6 +254,43 @@ mod tests {
             })
         );
         assert_eq!(g.check_owners(&[]), Ok(()));
+    }
+
+    #[test]
+    fn an_app_being_removed_is_open_if_anything_in_its_bundle_or_item_runs() {
+        let app = AppBundle {
+            name: "Slack".into(),
+            bundle: PathBuf::from("/Applications/Slack.app"),
+        };
+        let item = Path::new("/Users/sam/Library/Application Support/Slack");
+        let running = |p: &str| guards(Running::Known(vec![PathBuf::from(p)]), &[]);
+        let open = Err(ItemRefusal::AppOpen {
+            app: "Slack".into(),
+        });
+        assert_eq!(
+            running("/Applications/Slack.app/Contents/MacOS/Slack").check_app(Some(&app), item),
+            open
+        );
+        assert_eq!(
+            running("/applications/slack.app/Contents/Frameworks/Helper")
+                .check_app(Some(&app), item),
+            open
+        );
+        assert_eq!(
+            running("/Users/sam/Library/Application Support/Slack/bin/agent")
+                .check_app(Some(&app), item),
+            open
+        );
+        let other = running("/Applications/Slack Helper.app/Contents/MacOS/x");
+        assert_eq!(other.check_app(Some(&app), item), Ok(()));
+        assert_eq!(other.check_app(None, item), Ok(()));
+        assert_eq!(
+            guards(Running::Unknown, &[]).check_app(Some(&app), item),
+            Err(ItemRefusal::AppNotChecked {
+                app: "Slack".into()
+            })
+        );
+        assert_eq!(guards(Running::Unknown, &[]).check_app(None, item), Ok(()));
     }
 
     #[test]

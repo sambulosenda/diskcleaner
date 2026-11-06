@@ -24,6 +24,7 @@ mod run;
 #[cfg(feature = "testing")]
 mod testing;
 mod types;
+mod uninstall;
 mod views;
 
 use std::ffi::CString;
@@ -38,11 +39,11 @@ pub use engine::RoomyCore;
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{
-    Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupHandle,
-    CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup,
-    FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode,
-    Overview, PlanHandle, PrivateArea, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort,
-    Tier, UnreadableArea,
+    Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
+    CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
+    CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
+    HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea,
+    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");
@@ -94,6 +95,10 @@ pub enum CoreError {
     /// data changed. Nothing was removed. `reason` is plain words, no path.
     #[error("{reason}")]
     DockerUnavailable { reason: String },
+    /// The app uninstaller was given an app id that is not from the latest
+    /// `list_apps` (or, for `preview_uninstall`, not the app last reviewed).
+    #[error("Roomy lost track of this app. Please look again.")]
+    UnknownApp,
 }
 
 /// Space on the volume that holds a given path, in bytes.

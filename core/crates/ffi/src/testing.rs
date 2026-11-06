@@ -25,6 +25,12 @@ impl RoomyCore {
         self.set_recent_change_window_for_testing(std::time::Duration::ZERO);
         self.set_running_programs_for_testing(Some(Vec::new()));
     }
+
+    /// Makes the app uninstaller look for apps only in the test home's
+    /// `Applications` folder, never the test machine's `/Applications`.
+    pub fn use_home_applications_only_for_testing(&self) {
+        self.set_app_folders_for_testing(vec![self.home.join("Applications")]);
+    }
 }
 
 /// Builds the T04 fixture home in `dir` (empty or not there yet) and returns

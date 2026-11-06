@@ -22,6 +22,18 @@ pub struct OwnerApp {
     pub bundles: &'static [&'static str],
 }
 
+/// An installed app, named at run time, that the app uninstaller is
+/// removing. Unlike [`OwnerApp`], which is a fixed table for cleanup rules,
+/// this comes from the app's own bundle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppBundle {
+    /// The app's name, shown to the user, for example "Slack".
+    pub name: String,
+    /// Where the app's bundle is, for example `/Applications/Slack.app`.
+    /// Read only: used to tell whether a program inside it is running.
+    pub bundle: std::path::PathBuf,
+}
+
 const XCODE: OwnerApp = OwnerApp {
     name: "Xcode",
     programs: &["Xcode", "xcodebuild"],
