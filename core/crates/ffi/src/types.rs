@@ -174,6 +174,69 @@ pub struct Overview {
     /// folders first, ties in `PrivateArea` order. Adds up to
     /// `unreadable_count`.
     pub unreadable_areas: Vec<UnreadableArea>,
+    /// The scan read again only the folders that changed since the
+    /// previous scan in this mode, and reused the rest (F12).
+    #[uniffi(default = false)]
+    pub quick_rescan: bool,
+}
+
+/// What grew or shrank since the previous scan in the same mode (F11).
+/// Holds no paths.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ScanChanges {
+    /// When the previous scan finished, in seconds since 1970 (UTC).
+    pub previous_scan_at: i64,
+    /// Allocated bytes in the whole home folder then.
+    pub scanned_bytes_before: u64,
+    /// Allocated bytes in the whole home folder now.
+    pub scanned_bytes_now: u64,
+    /// Categories that changed by at least 10 MB, biggest change first.
+    pub categories: Vec<CategoryChange>,
+    /// Items that changed by at least 10 MB, biggest change first, at most
+    /// 20.
+    pub items: Vec<ItemChange>,
+}
+
+/// One category's size then and now.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CategoryChange {
+    /// The category.
+    pub category: Category,
+    /// Allocated bytes at the previous scan.
+    pub bytes_before: u64,
+    /// Allocated bytes now.
+    pub bytes_now: u64,
+}
+
+/// How an item changed since the previous scan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum ChangeKind {
+    /// Not there at the previous scan.
+    New,
+    /// Bigger than at the previous scan.
+    Grew,
+    /// Smaller than at the previous scan.
+    Shrank,
+    /// There at the previous scan, not now (for example, cleaned up).
+    Gone,
+}
+
+/// One item's size then and now.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ItemChange {
+    /// The item's id in this scan, to open its detail. `None` for an item
+    /// that is gone.
+    pub item_id: Option<String>,
+    /// Its title.
+    pub title: String,
+    /// Its category.
+    pub category: Category,
+    /// How it changed.
+    pub kind: ChangeKind,
+    /// Allocated bytes at the previous scan (0 if new).
+    pub bytes_before: u64,
+    /// Allocated bytes now (0 if gone).
+    pub bytes_now: u64,
 }
 
 /// A part of the home folder that macOS may keep private. The app turns it

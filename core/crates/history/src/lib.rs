@@ -9,10 +9,18 @@
 //! in their own table, with the full stdout and stderr the command printed,
 //! as `docs/safety/allowed-commands.md` asks. That output is Docker's own
 //! words; nothing reads it back to act on it.
+//!
+//! A short record of each finished scan is kept too (see [`scans`]): each
+//! item's id, title, category and size, so the Overview can say what grew
+//! or shrank since the last scan. Again no paths, and nothing acts on it.
 
 use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection, OptionalExtension};
+
+pub mod scans;
+
+pub use scans::{ScanSnapshot, SnapshotItem, KEEP_SCANS_PER_MODE};
 
 /// Where the database lives, relative to the home folder. The last folder
 /// is made if it is missing; the ones above it must already exist.
@@ -53,11 +61,26 @@ CREATE TABLE IF NOT EXISTS command_runs (
     stdout TEXT NOT NULL,
     stderr TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS scans (
+    id INTEGER PRIMARY KEY,
+    finished_at INTEGER NOT NULL,
+    mode TEXT NOT NULL,
+    scanned_bytes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS scan_items (
+    scan_id INTEGER NOT NULL REFERENCES scans(id),
+    item_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, item_id)
+);
 ";
 
 /// The layout version, stored in `PRAGMA user_version`. Version 2 added
-/// `command_runs`; a version 1 database gains it when opened.
-const SCHEMA_VERSION: i64 = 2;
+/// `command_runs`, version 3 `scans` and `scan_items`; an older database
+/// gains them when opened.
+const SCHEMA_VERSION: i64 = 3;
 
 /// Something went wrong reading or writing the History database.
 #[derive(Debug, thiserror::Error)]

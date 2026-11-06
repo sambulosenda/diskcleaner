@@ -33,12 +33,16 @@ struct OverviewContent: View {
                     CategoryLegend(overview: overview)
                 }
                 WorthReviewingList(items: model.worthReviewing(in: overview), searchText: model.searchText)
+                if let changes = model.scanChanges {
+                    ChangesSinceLastScan(changes: changes)
+                }
                 ReviewAndCleanButton()
                 if model.shouldOfferAccess(for: overview) {
                     UnscannedAreasBox(overview: overview)
                 }
                 Divider()
-                OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount)
+                OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,
+                               quickRescan: overview.quickRescan)
             }
             .padding(28)
             .frame(maxWidth: 900, alignment: .leading)
@@ -207,10 +211,14 @@ struct ReviewAndCleanButton: View {
 struct OverviewFooter: View {
     let scannedAt: Date
     let unreadableCount: UInt64
+    var quickRescan = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Last scan: \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
+            if quickRescan {
+                Text("Roomy measured again only the folders that changed since the scan before.")
+            }
             UnmeasuredNote(unreadableCount: unreadableCount)
         }
         .font(.footnote)
@@ -265,5 +273,106 @@ struct FullDiskAccessExplanation: View {
         .font(.callout)
         .padding(16)
         .frame(width: 360)
+    }
+}
+
+/// "Since your last scan": how much the home folder grew or shrank, and the items that changed most.
+struct ChangesSinceLastScan: View {
+    let changes: ScanChanges
+    /// How many changed items to show.
+    static let rowLimit = 5
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Since your last scan")
+                .font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+            Text(Self.summary(for: changes))
+                .foregroundStyle(.secondary)
+            if changes.items.isEmpty {
+                Text("Nothing changed by more than 10 MB.")
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            } else {
+                let rows = Array(changes.items.prefix(Self.rowLimit))
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { index, change in
+                        ChangeRow(change: change)
+                        if index < rows.count - 1 {
+                            Divider().padding(.leading, 48)
+                        }
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color(nsColor: .separatorColor))
+                )
+            }
+        }
+    }
+
+    /// "On 5 Nov 2026 at 14:02 your home folder took 61 GB. It's 4.2 GB bigger now."
+    static func summary(for changes: ScanChanges) -> String {
+        let then = Date(timeIntervalSince1970: TimeInterval(changes.previousScanAt))
+        let when = then.formatted(date: .abbreviated, time: .shortened)
+        let before = changes.scannedBytesBefore, now = changes.scannedBytesNow
+        let start = "At your scan on \(when), your home folder took \(Format.bytes(before))."
+        let change = before > now ? before - now : now - before
+        if change < 10_000_000 {
+            return "\(start) It's about the same size now."
+        }
+        let difference = Format.bytes(change)
+        return now > before ? "\(start) It's \(difference) bigger now." : "\(start) It's \(difference) smaller now."
+    }
+}
+
+/// One item that changed: what it is, how it changed, and by how much.
+struct ChangeRow: View {
+    let change: ItemChange
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: change.category.symbol)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(change.title)
+                    .font(.body.weight(.medium))
+                Text(change.kind.label)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 12)
+            Text(Self.difference(for: change))
+                .font(.body.monospacedDigit())
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(change.title), \(change.kind.label), \(Self.difference(for: change))")
+    }
+
+    /// "+4.2 GB" or "−1.1 GB".
+    static func difference(for change: ItemChange) -> String {
+        let (before, now) = (change.bytesBefore, change.bytesNow)
+        return now >= before ? "+\(Format.bytes(now - before))" : "\u{2212}\(Format.bytes(before - now))"
+    }
+}
+
+extension ChangeKind {
+    /// Plain words for how an item changed.
+    var label: String {
+        switch self {
+        case .new: return "New since your last scan"
+        case .grew: return "Bigger than at your last scan"
+        case .shrank: return "Smaller than at your last scan"
+        case .gone: return "No longer there"
+        }
     }
 }

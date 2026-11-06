@@ -131,6 +131,7 @@ private final class FailingCore: CoreClient {
     func cancelScan(handle: ScanHandle) async {}
     func closeScan(handle: ScanHandle) async {}
     func overview(handle: ScanHandle) async throws -> Overview { throw CoreError.HomeNotFound }
+    func scanChanges(handle: ScanHandle) async -> ScanChanges? { nil }
     func listItems(handle: ScanHandle, category: Roomy.Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary] {
         throw CoreError.HomeNotFound
     }

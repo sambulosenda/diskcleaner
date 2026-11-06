@@ -38,7 +38,9 @@ final class RustCoreClient: CoreClient {
     func startScan(mode: Mode) async -> ScanHandle {
         // With no core, hand back a handle the core would never issue; `scanProgress` then reports
         // why the core could not start.
-        (try? await offMain { $0.startScan(mode: mode) }) ?? ScanHandle(id: 0)
+        // `startRescan` reads again only what changed since the last scan when the core can be sure, and
+        // otherwise scans everything, exactly like `startScan`.
+        (try? await offMain { $0.startRescan(mode: mode) }) ?? ScanHandle(id: 0)
     }
 
     func scanProgress(handle: ScanHandle) async throws -> ScanProgress {
@@ -55,6 +57,11 @@ final class RustCoreClient: CoreClient {
 
     func overview(handle: ScanHandle) async throws -> Overview {
         try await offMain { try $0.overview(handle: handle) }
+    }
+
+    func scanChanges(handle: ScanHandle) async -> ScanChanges? {
+        // `try?` folds "no previous scan" and "the core couldn't say" into the same `nil`.
+        try? await offMain { try $0.scanChanges(handle: handle) }
     }
 
     func libraries(handle: ScanHandle) async throws -> [LibrarySize] {

@@ -18,6 +18,7 @@
 //! being cleaned) and the test-only commands behind the `testing` feature.
 
 mod backup;
+mod changes;
 mod cleanup;
 mod docker;
 mod embedded_rules;
@@ -48,12 +49,12 @@ pub use low_space::{
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{
-    Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
-    CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
-    CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
-    HistoryItemState, ItemDetail, ItemSummary, LibraryKind, LibrarySize, Mode, Overview,
-    PlanHandle, PrivateArea, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
-    UnreadableArea,
+    Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryChange, CategoryTotal,
+    Caution, ChangeKind, CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview,
+    CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess,
+    HistoryEntry, HistoryItem, HistoryItemState, ItemChange, ItemDetail, ItemSummary, LibraryKind,
+    LibrarySize, Mode, Overview, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle,
+    ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

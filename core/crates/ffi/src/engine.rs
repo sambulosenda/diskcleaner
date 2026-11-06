@@ -2,7 +2,17 @@
 //! read-only commands in `docs/command-contract.md`.
 //!
 //! Nothing here modifies the filesystem. The scanner reads folder listings
-//! and metadata; everything after that works on the in-memory result.
+//! and metadata; everything after that works on the in-memory result. The
+//! one write is History's own database, where each finished scan leaves a
+//! short record (item ids, titles, categories and sizes, no paths) so the
+//! next scan can say what changed.
+//!
+//! Faster rescans (F12): the core keeps the last scan's folder tree in
+//! memory, with the macOS file event id from just before it started.
+//! `start_rescan` asks the event log what changed since, and reads only
+//! those folders again. Whenever that can't be trusted (no event log, a
+//! different mode, the tree is over an hour old, events were dropped, hard
+//! links in a changed folder...) it does a full scan instead.
 
 use std::collections::HashMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -11,14 +21,14 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use rules::Rule;
-use scanner::{ScanError, ScanOptions};
+use scanner::{RescanError, ScanError, ScanOptions, ScanResult};
 
 use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult,
     FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LibrarySize, Mode, Overview, PlanHandle,
-    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -29,6 +39,30 @@ const HOME_UNREADABLE: &str = "Roomy could not read your home folder.";
 const COULD_NOT_START: &str = "Roomy could not start the scan. Please try again.";
 /// Shown for anything unexpected, including a bug in the core.
 const SOMETHING_WENT_WRONG: &str = "Something went wrong during the scan. Please try again.";
+
+/// A kept folder tree older than this is not reused: the next rescan is a
+/// full one, so sizes never drift for long if the event log missed
+/// something.
+const RESCAN_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(60 * 60);
+
+/// The History database, shared with the scan threads.
+type HistorySlot = Arc<Mutex<Option<history::History>>>;
+
+/// The last finished scan's folder tree, for the next quick rescan.
+#[derive(Debug)]
+struct KeptTree {
+    /// The mode it was scanned in. The files recorded by name depend on it.
+    mode: Mode,
+    /// The tree.
+    scan: Arc<ScanResult>,
+    /// The file event id from just before the scan started.
+    since: u64,
+    /// When it was kept.
+    kept_at: std::time::Instant,
+}
+
+/// Where the last scan's tree is kept between scans.
+type TreeSlot = Arc<Mutex<Option<KeptTree>>>;
 
 /// The core, as the app holds it. One per app run.
 #[derive(uniffi::Object)]
@@ -51,7 +85,9 @@ pub struct RoomyCore {
     /// The most recent cleanup that moved anything, until it is put back.
     last_cleanup: Mutex<Option<LastCleanup>>,
     /// The History database, opened the first time it is needed.
-    history: Mutex<Option<history::History>>,
+    history: HistorySlot,
+    /// The last scan's folder tree, for quick rescans.
+    kept_tree: TreeSlot,
     /// The folders the user asked Roomy to keep. The app stores them and
     /// sends them at launch and on every change.
     protected_folders: Mutex<Vec<PathBuf>>,
@@ -131,7 +167,8 @@ impl RoomyCore {
             pending_plan: Mutex::new(None),
             next_cleanup_id: AtomicU64::new(1),
             last_cleanup: Mutex::new(None),
-            history: Mutex::new(None),
+            history: Arc::new(Mutex::new(None)),
+            kept_tree: Arc::new(Mutex::new(None)),
             protected_folders: Mutex::new(Vec::new()),
             guard_overrides: Mutex::new(GuardOverrides::default()),
             docker: crate::docker::DockerSlot::new(&home),
@@ -222,24 +259,54 @@ impl RoomyCore {
         Self::build(home)
     }
 
-    /// Starts a read-only scan of the home folder and returns at once.
+    /// Starts a read-only scan of the whole home folder and returns at once.
     pub fn start_scan(&self, mode: Mode) -> ScanHandle {
+        self.spawn_scan(mode, false)
+    }
+
+    /// Starts a read-only rescan and returns at once. Reads again only the
+    /// folders that changed since the last scan in this mode, if the core
+    /// can be sure which those are; otherwise scans everything, exactly
+    /// like `start_scan`. `Overview.quick_rescan` says which it did.
+    pub fn start_rescan(&self, mode: Mode) -> ScanHandle {
+        self.spawn_scan(mode, true)
+    }
+
+    /// What grew or shrank since the previous scan in the same mode, or
+    /// `None` if there was no previous scan (or History could not be used).
+    pub fn scan_changes(&self, handle: ScanHandle) -> Result<Option<ScanChanges>, CoreError> {
+        Ok(self.finished(handle)?.changes.clone())
+    }
+}
+
+impl RoomyCore {
+    /// Starts the scan thread. `quick` allows reusing the kept tree.
+    fn spawn_scan(&self, mode: Mode, quick: bool) -> ScanHandle {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let slot = Arc::new(Slot::default());
         lock(&self.scans).insert(id, Arc::clone(&slot));
-        let home = self.home.clone();
-        let rules = Arc::clone(&self.rules);
+        let job = Job {
+            home: self.home.clone(),
+            rules: Arc::clone(&self.rules),
+            mode,
+            quick,
+            history: Arc::clone(&self.history),
+            kept_tree: Arc::clone(&self.kept_tree),
+        };
         let worker = Arc::clone(&slot);
         let spawned = std::thread::Builder::new()
             .name(format!("roomy-scan-{id}"))
-            .spawn(move || run_scan(&home, &rules, mode, &worker));
+            .spawn(move || run_scan(&job, &worker));
         if let Err(err) = spawned {
             tracing::error!(%err, "could not start the scan thread");
             *lock(&slot.state) = State::Failed(COULD_NOT_START.to_string());
         }
         ScanHandle { id }
     }
+}
 
+#[uniffi::export]
+impl RoomyCore {
     /// How far the scan has got.
     pub fn scan_progress(&self, handle: ScanHandle) -> Result<ScanProgress, CoreError> {
         let slot = self.slot(handle)?;
@@ -286,6 +353,7 @@ impl RoomyCore {
             top_items: f.top_items(),
             unreadable_count: f.unreadable_count,
             unreadable_areas: f.unreadable_areas.clone(),
+            quick_rescan: f.quick_rescan,
         })
     }
 
@@ -538,36 +606,58 @@ impl RoomyCore {
         create: bool,
         work: impl FnOnce(&mut history::History) -> Result<T, history::HistoryError>,
     ) -> Option<T> {
-        let mut slot = lock(&self.history);
-        if slot.is_none() {
-            if !create && !history::path_for(&self.home).is_file() {
+        with_history(&self.history, &self.home, create, work)
+    }
+}
+
+/// Runs `work` on the History database in `slot`, opening it for `home`
+/// first if needed. With `create` false, a database that does not exist
+/// yet is not made. Errors go to the log; History never stops a cleanup
+/// or a scan.
+fn with_history<T>(
+    slot: &Mutex<Option<history::History>>,
+    home: &Path,
+    create: bool,
+    work: impl FnOnce(&mut history::History) -> Result<T, history::HistoryError>,
+) -> Option<T> {
+    let mut slot = lock(slot);
+    if slot.is_none() {
+        if !create && !history::path_for(home).is_file() {
+            return None;
+        }
+        match history::History::open_for_home(home) {
+            Ok(h) => *slot = Some(h),
+            Err(err) => {
+                tracing::warn!(%err, "History could not be opened");
                 return None;
             }
-            match history::History::open_for_home(&self.home) {
-                Ok(h) => *slot = Some(h),
-                Err(err) => {
-                    tracing::warn!(%err, "History could not be opened");
-                    return None;
-                }
-            }
         }
-        let h = slot.as_mut()?;
-        match work(h) {
-            Ok(value) => Some(value),
-            Err(err) => {
-                tracing::warn!(%err, "History could not be used");
-                None
-            }
+    }
+    let h = slot.as_mut()?;
+    match work(h) {
+        Ok(value) => Some(value),
+        Err(err) => {
+            tracing::warn!(%err, "History could not be used");
+            None
         }
     }
 }
 
+/// Everything one scan thread needs.
+struct Job {
+    home: PathBuf,
+    rules: Arc<Vec<Rule>>,
+    mode: Mode,
+    /// Whether the kept tree may be reused.
+    quick: bool,
+    history: HistorySlot,
+    kept_tree: TreeSlot,
+}
+
 /// The scan thread: walks, classifies and stores the result in `slot`.
 /// Never panics out: a panic becomes a failed scan.
-fn run_scan(home: &Path, rules: &[Rule], mode: Mode, slot: &Slot) {
-    let outcome = catch_unwind(AssertUnwindSafe(|| {
-        scan_and_classify(home, rules, mode, slot)
-    }));
+fn run_scan(job: &Job, slot: &Slot) {
+    let outcome = catch_unwind(AssertUnwindSafe(|| scan_and_classify(job, slot)));
     let state = match outcome {
         Ok(state) => state,
         Err(_) => {
@@ -590,20 +680,36 @@ fn store_final(slot: &Slot, state: State) {
 }
 
 /// Does the work of one scan and returns its final state.
-fn scan_and_classify(home: &Path, rules: &[Rule], mode: Mode, slot: &Slot) -> State {
+fn scan_and_classify(job: &Job, slot: &Slot) -> State {
+    let (home, rules, mode) = (job.home.as_path(), job.rules.as_slice(), job.mode);
     let rule_mode = rules::Mode::from(mode);
     let opts = ScanOptions {
         cancel: Arc::clone(&slot.cancel),
         record_files: Some(classifier::record_files(rules, rule_mode)),
+        // Nothing in the app uses the scanner's own largest-files list, and
+        // a rescan can't keep it exact.
+        largest_files: 0,
         ..ScanOptions::default()
     };
-    let result = scanner::scan(home, opts, |p| {
+    // Noted before anything is read, so whatever changes during the walk
+    // is in the next rescan's list too.
+    let since = scanner::fsevents::current_event_id();
+    let progress = |p: scanner::ScanProgress| {
         slot.bytes.store(p.bytes, Ordering::Relaxed);
         slot.files.store(p.files, Ordering::Relaxed);
-    });
-    let scan = match result {
-        Ok(scan) => scan,
-        Err(err) => return failed_state(&err),
+    };
+    let quick = if job.quick {
+        quick_rescan(job, &opts, &progress)
+    } else {
+        None
+    };
+    let (scan, quick_rescan) = match quick {
+        Some(Ok(scan)) => (scan, true),
+        Some(Err(err)) => return failed_state(&err),
+        None => match scanner::scan(home, opts, progress) {
+            Ok(scan) => (scan, false),
+            Err(err) => return failed_state(&err),
+        },
     };
     *lock(&slot.state) = State::Classifying;
     if slot.cancel.load(Ordering::Relaxed) {
@@ -612,21 +718,93 @@ fn scan_and_classify(home: &Path, rules: &[Rule], mode: Mode, slot: &Slot) -> St
     let items = classifier::classify(&scan, rules, rule_mode);
     let unreadable =
         crate::views::unreadable_areas(home, scan.unreadable.iter().map(|u| u.path.as_path()));
-    let libraries = analysers::libraries::library_sizes(&scan)
-        .iter()
-        .map(LibrarySize::from)
-        .collect();
-    State::Finished(Arc::new(
-        Finished::new(
-            mode,
-            home.to_path_buf(),
-            scan.total_bytes(),
-            scan.root_dev,
-            unreadable,
-            items,
-        )
-        .with_libraries(libraries),
-    ))
+    let mut finished = Finished::new(
+        mode,
+        home.to_path_buf(),
+        scan.total_bytes(),
+        scan.root_dev,
+        unreadable,
+        items,
+    )
+    .with_libraries(
+        analysers::libraries::library_sizes(&scan)
+            .iter()
+            .map(LibrarySize::from)
+            .collect(),
+    );
+    finished.quick_rescan = quick_rescan;
+    keep_tree(job, scan, since);
+    if slot.cancel.load(Ordering::Relaxed) {
+        return State::Cancelled;
+    }
+    finished.changes = record_and_compare(job, &finished);
+    State::Finished(Arc::new(finished))
+}
+
+/// Tries a quick rescan from the kept tree. `None` means "do a full scan":
+/// there is no usable tree, or the event log or the rescan said it can't
+/// be sure. `Some(Err)` is a real failure, such as being cancelled.
+fn quick_rescan(
+    job: &Job,
+    opts: &ScanOptions,
+    progress: &impl Fn(scanner::ScanProgress),
+) -> Option<Result<ScanResult, ScanError>> {
+    let kept = {
+        let slot = lock(&job.kept_tree);
+        let kept = slot.as_ref()?;
+        if kept.mode != job.mode || kept.kept_at.elapsed() > RESCAN_MAX_AGE {
+            return None;
+        }
+        (Arc::clone(&kept.scan), kept.since)
+    };
+    let (tree, since) = kept;
+    let changes =
+        match scanner::fsevents::changes_since(&job.home, since, scanner::fsevents::REPLAY_TIMEOUT)
+        {
+            Ok(changes) => changes,
+            Err(why) => {
+                tracing::info!(%why, "full scan instead of a quick rescan");
+                return None;
+            }
+        };
+    tracing::info!(
+        folders = changes.folders.len(),
+        subtrees = changes.subtrees.len(),
+        "quick rescan"
+    );
+    match scanner::rescan(&tree, &changes, opts.clone(), progress) {
+        Ok(scan) => Some(Ok(scan)),
+        Err(RescanError::NeedsFullScan(why)) => {
+            tracing::info!(%why, "full scan instead of a quick rescan");
+            None
+        }
+        Err(RescanError::Scan(err)) => Some(Err(err)),
+    }
+}
+
+/// Keeps `scan` for the next quick rescan, replacing the older tree. Only
+/// where there is an event log to say what changed (`since`); elsewhere
+/// the tree is dropped, so it uses no memory.
+fn keep_tree(job: &Job, scan: ScanResult, since: Option<u64>) {
+    *lock(&job.kept_tree) = since.map(|since| KeptTree {
+        mode: job.mode,
+        scan: Arc::new(scan),
+        since,
+        kept_at: std::time::Instant::now(),
+    });
+}
+
+/// Records `finished` in History and compares it with the previous scan in
+/// the same mode. `None` if there was none or History can't be used.
+fn record_and_compare(job: &Job, finished: &Finished) -> Option<ScanChanges> {
+    let at = crate::run::unix_seconds(std::time::SystemTime::now());
+    let snapshot = crate::changes::snapshot(finished, at);
+    let previous = with_history(&job.history, &job.home, true, |h| {
+        let previous = h.latest_scan(&snapshot.mode)?;
+        h.record_scan(&snapshot)?;
+        Ok(previous)
+    })??;
+    Some(crate::changes::compare(&previous, finished))
 }
 
 /// Turns a scanner error into a final state with a plain-words reason. The
@@ -649,14 +827,24 @@ fn failed_state(err: &ScanError) -> State {
 mod tests {
     use super::*;
 
+    fn job(home: PathBuf) -> Job {
+        Job {
+            home,
+            rules: Arc::new(embedded_rules::load().unwrap()),
+            mode: Mode::Simple,
+            quick: false,
+            history: Arc::new(Mutex::new(None)),
+            kept_tree: Arc::new(Mutex::new(None)),
+        }
+    }
+
     #[test]
     fn a_scan_cancelled_before_it_starts_ends_cancelled() {
         let home = fixtures::home();
         let root = fixtures::canonical_root(&home).unwrap();
-        let rules = embedded_rules::load().unwrap();
         let slot = Slot::default();
         slot.cancel.store(true, Ordering::Relaxed);
-        run_scan(&root, &rules, Mode::Simple, &slot);
+        run_scan(&job(root), &slot);
         assert!(matches!(*lock(&slot.state), State::Cancelled));
     }
 
@@ -664,9 +852,8 @@ mod tests {
     fn a_scan_cancelled_after_classifying_ends_cancelled() {
         let home = fixtures::home();
         let root = fixtures::canonical_root(&home).unwrap();
-        let rules = embedded_rules::load().unwrap();
         let slot = Slot::default();
-        let state = scan_and_classify(&root, &rules, Mode::Simple, &slot);
+        let state = scan_and_classify(&job(root), &slot);
         assert!(matches!(state, State::Finished(_)));
         // The cancel flag is checked again before the result is stored.
         slot.cancel.store(true, Ordering::Relaxed);

@@ -38,6 +38,39 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.scanState, .loaded(MockData.overview(for: .normal), scannedAt: fixedDate))
     }
 
+    func testTheFirstScanHasNoChangesAndTheNextShowsThem() async throws {
+        let model = makeModel()
+        let mock = try XCTUnwrap(model.client as? MockCoreClient)
+        let changes = ScanChanges(
+            previousScanAt: 1_799_990_000, scannedBytesBefore: 50_000_000_000, scannedBytesNow: 54_200_000_000,
+            categories: [CategoryChange(category: .cache, bytesBefore: 1_000_000_000, bytesNow: 5_200_000_000)],
+            items: [ItemChange(itemId: "safari-cache", title: "Safari cache", category: .cache, kind: .grew,
+                               bytesBefore: 1_000_000_000, bytesNow: 5_200_000_000)]
+        )
+        mock.changes = changes
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertNil(model.scanChanges, "nothing to compare the first scan with")
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertEqual(model.scanChanges, changes)
+    }
+
+    func testChangeSummariesUsePlainWords() {
+        func summary(_ before: UInt64, _ now: UInt64) -> String {
+            ChangesSinceLastScan.summary(for: ScanChanges(
+                previousScanAt: 1_800_000_000, scannedBytesBefore: before, scannedBytesNow: now,
+                categories: [], items: []))
+        }
+        XCTAssertTrue(summary(50_000_000_000, 54_000_000_000).hasSuffix("It's \(Format.bytes(4_000_000_000)) bigger now."))
+        XCTAssertTrue(summary(54_000_000_000, 50_000_000_000).hasSuffix("It's \(Format.bytes(4_000_000_000)) smaller now."))
+        XCTAssertTrue(summary(50_000_000_000, 50_000_001_000).hasSuffix("It's about the same size now."))
+        let gone = ItemChange(itemId: nil, title: "Old installer", category: .downloads, kind: .gone,
+                              bytesBefore: 2_000_000_000, bytesNow: 0)
+        XCTAssertEqual(ChangeRow.difference(for: gone), "\u{2212}\(Format.bytes(2_000_000_000))")
+        XCTAssertFalse(ChangeKind.gone.label.isEmpty)
+    }
+
     func testFailedScanShowsAPlainMessage() async {
         let model = makeModel(.failure)
         model.startScan()

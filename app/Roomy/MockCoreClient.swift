@@ -47,6 +47,10 @@ final class MockCoreClient: CoreClient {
     var access: FullDiskAccess = .granted
     /// How many times `fullDiskAccess` was called. Tests read it.
     private(set) var accessChecks = 0
+    /// What `scanChanges` answers for every finished scan after the first. Tests set it; `nil` by default.
+    var changes: ScanChanges?
+    /// Handles of scans that have finished, in order, so the first one has nothing to compare with.
+    private var finishedScans: [ScanHandle] = []
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -107,7 +111,13 @@ final class MockCoreClient: CoreClient {
         if cancelled.contains(handle) { throw CoreError.ScanCancelled }
         if scenario == .failure { throw CoreError.ScanFailed(reason: "Roomy could not read your home folder.") }
         guard step >= totalSteps else { throw CoreError.ScanNotFinished }
+        if !finishedScans.contains(handle) { finishedScans.append(handle) }
         return MockData.overview(for: scenario)
+    }
+
+    func scanChanges(handle: ScanHandle) async -> ScanChanges? {
+        guard (try? await overview(handle: handle)) != nil, finishedScans.first != handle else { return nil }
+        return changes
     }
 
     func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary] {
@@ -572,7 +582,8 @@ enum MockData {
             categories: categoryTotals(found),
             topItems: Array(found.filter { $0.tier != .keep }.sorted { $0.sizeBytes > $1.sizeBytes }.prefix(8)),
             unreadableCount: unreadableCount,
-            unreadableAreas: unreadableAreas
+            unreadableAreas: unreadableAreas,
+            quickRescan: false
         )
     }
 
