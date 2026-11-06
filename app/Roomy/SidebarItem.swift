@@ -14,6 +14,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     case android
     case javascript
     case docker
+    case tools
     case apps
     case cleanup
     case history
@@ -23,7 +24,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     /// The first group: Overview and the everyday categories.
     static let mainItems: [SidebarItem] = [.overview, .backups, .libraries, .downloads, .largeFiles, .appsAndCaches, .systemData]
     /// Shown only in Developer mode.
-    static let developerItems: [SidebarItem] = [.projects, .xcode, .android, .javascript, .docker]
+    static let developerItems: [SidebarItem] = [.projects, .xcode, .android, .javascript, .docker, .tools]
     /// The last group: acting on things and looking back.
     static let actionItems: [SidebarItem] = [.apps, .cleanup, .history]
 
@@ -41,6 +42,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .android: return "Android"
         case .javascript: return "JavaScript"
         case .docker: return "Docker"
+        case .tools: return "Tool clean-ups"
         case .apps: return "Remove apps"
         case .cleanup: return "Cleanup"
         case .history: return "History"
@@ -62,6 +64,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .android: return "candybarphone"
         case .javascript: return "curlybraces"
         case .docker: return "shippingbox"
+        case .tools: return "wrench.and.screwdriver"
         case .apps: return "xmark.bin"
         case .cleanup: return "sparkles"
         case .history: return "clock.arrow.circlepath"
@@ -96,7 +99,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .projects: return .categories([.build])
         case .xcode: return .categories([.developerTools])
         case .docker: return .categories([.docker])
-        case .overview, .libraries, .android, .javascript, .apps, .cleanup, .history: return nil
+        case .overview, .libraries, .android, .javascript, .tools, .apps, .cleanup, .history: return nil
         }
     }
 

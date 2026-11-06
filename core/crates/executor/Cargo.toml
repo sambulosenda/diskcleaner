@@ -11,6 +11,7 @@ ignore = "0.4"
 libc = "0.2"
 planner = { path = "../planner" }
 safety = { path = "../safety" }
+serde_json = "1"
 thiserror = "2"
 tracing = "0.1"
 

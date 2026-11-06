@@ -35,8 +35,9 @@
 //! same thing and nothing new is in its old place.
 //!
 //! [`commands`] runs the allow-listed tool commands of
-//! `docs/safety/allowed-commands.md` (the two Docker clean-ups so far), each
-//! after a read-only preview the user has seen.
+//! `docs/safety/allowed-commands.md` for Docker, and [`tools`] runs the
+//! others (`brew cleanup`, `xcrun simctl delete unavailable`, `sdkmanager
+//! --uninstall`), each after a read-only preview the user has seen.
 
 pub mod commands;
 mod git;
@@ -45,6 +46,7 @@ mod processes;
 mod put_back;
 mod survey;
 mod sys;
+pub mod tools;
 
 use std::ffi::{OsStr, OsString};
 use std::fs;

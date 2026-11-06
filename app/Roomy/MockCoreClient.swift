@@ -319,6 +319,82 @@ final class MockCoreClient: CoreClient {
                                    reclaimedBytes: pending.preview.totalBytes, savedToHistory: true)
     }
 
+    // MARK: Tool clean-ups
+
+    /// Tools that are "not installed". Tests set it.
+    var missingTools: Set<ToolCleanupKind> = []
+    /// The waiting tool plan.
+    private var pendingToolPlan: (handle: ToolPlanHandle, preview: ToolCleanupPreview)?
+    private var nextToolPlan: UInt64 = 1
+    /// Every tool command that "ran", as typed, in order. Tests read it. Nothing here runs a tool.
+    private(set) var toolRuns: [String] = []
+
+    func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview {
+        pendingToolPlan = nil
+        if missingTools.contains(kind) {
+            throw CoreError.ToolUnavailable(reason: "Homebrew isn't installed, so there is nothing for it to clean up.")
+        }
+        let items: [ToolPreviewItem]
+        let command: String
+        switch kind {
+        case .homebrew:
+            command = "brew cleanup"
+            items = [
+                ToolPreviewItem(id: "/opt/homebrew/Cellar/node/20.1.0", title: "20.1.0",
+                                detail: "/opt/homebrew/Cellar/node", sizeBytes: 64_000_000),
+                ToolPreviewItem(id: "/Users/sam/Library/Caches/Homebrew/wget--1.21.bottle.tar.gz",
+                                title: "wget--1.21.bottle.tar.gz", detail: "~/Library/Caches/Homebrew",
+                                sizeBytes: 1_600_000),
+            ]
+        case .unavailableSimulators:
+            command = "xcrun simctl delete unavailable"
+            items = [ToolPreviewItem(id: "0A1B2C3D-0000-4000-8000-000000000001", title: "iPhone 14",
+                                     detail: "iOS 16.0", sizeBytes: 1_200_000_000)]
+        case .androidSdkPackage:
+            command = "sdkmanager --uninstall <package>"
+            items = [
+                ToolPreviewItem(id: "build-tools;33.0.1", title: "Android SDK Build-Tools 33.0.1",
+                                detail: "build-tools;33.0.1, version 33.0.1", sizeBytes: 150_000_000),
+                ToolPreviewItem(id: "system-images;android-33;google_apis;arm64-v8a",
+                                title: "Google APIs ARM 64 v8a System Image",
+                                detail: "system-images;android-33;google_apis;arm64-v8a, version 9",
+                                sizeBytes: 3_400_000_000),
+            ]
+        }
+        let plan = ToolPlanHandle(id: nextToolPlan)
+        nextToolPlan += 1
+        let preview = ToolCleanupPreview(plan: plan, kind: kind, commandLine: command, items: items,
+                                         totalBytes: items.reduce(0) { $0 + $1.sizeBytes }, expiresInSeconds: 600)
+        pendingToolPlan = (plan, preview)
+        return preview
+    }
+
+    func discardToolCleanup(plan: ToolPlanHandle) async {
+        if pendingToolPlan?.handle == plan { pendingToolPlan = nil }
+    }
+
+    func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult {
+        guard let pending = pendingToolPlan, pending.handle == plan else {
+            throw CoreError.CleanupUnavailable(reason: "This review is no longer open. Please review again.")
+        }
+        pendingToolPlan = nil
+        let preview = pending.preview
+        var command = preview.commandLine
+        var freed = preview.totalBytes
+        if preview.kind == .androidSdkPackage {
+            guard let package, let item = preview.items.first(where: { $0.id == package }) else {
+                throw CoreError.ToolUnavailable(reason: "That package wasn't in the review, so nothing was removed. Please review again.")
+            }
+            command = "sdkmanager --uninstall \(package)"
+            freed = item.sizeBytes
+        } else if package != nil {
+            throw CoreError.ToolUnavailable(reason: "Roomy refused to run this command.")
+        }
+        toolRuns.append(command)
+        return ToolCleanupResult(kind: preview.kind, commandLine: command, success: true,
+                                 reclaimedBytes: freed, savedToHistory: true)
+    }
+
     // MARK: App uninstaller
 
     /// When true, `previewUninstall` refuses as if the app were open. Tests set it.

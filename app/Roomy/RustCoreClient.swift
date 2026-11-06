@@ -129,6 +129,18 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.runDockerCleanup(plan: plan) }
     }
 
+    func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview {
+        try await offMain { try $0.previewToolCleanup(kind: kind) }
+    }
+
+    func discardToolCleanup(plan: ToolPlanHandle) async {
+        _ = try? await offMain { $0.discardToolCleanup(plan: plan) }
+    }
+
+    func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult {
+        try await offMain { try $0.runToolCleanup(plan: plan, package: package) }
+    }
+
     func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview {
         try await offMain { try $0.javascriptProjects(handle: handle) }
     }

@@ -95,6 +95,8 @@ pub struct RoomyCore {
     guard_overrides: Mutex<GuardOverrides>,
     /// The Docker screen's state: where `docker` is and the waiting plan.
     pub(crate) docker: crate::docker::DockerSlot,
+    /// The Tool clean-ups screen's waiting plan (Homebrew, simulators, SDK).
+    pub(crate) tools: crate::tools::ToolSlot,
     /// The app uninstaller's list of apps and its latest review.
     apps: Mutex<crate::uninstall::AppsState>,
     /// Test-only: the folders to look for apps in, instead of
@@ -172,6 +174,7 @@ impl RoomyCore {
             protected_folders: Mutex::new(Vec::new()),
             guard_overrides: Mutex::new(GuardOverrides::default()),
             docker: crate::docker::DockerSlot::new(&home),
+            tools: crate::tools::ToolSlot::new(),
             home,
             apps: Mutex::new(crate::uninstall::AppsState::default()),
             app_folders: Mutex::new(None),

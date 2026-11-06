@@ -196,3 +196,72 @@ final class DockerModelTests: XCTestCase {
         XCTAssertEqual(model.review, .failed("Docker isn't running. Open Docker and try again."))
     }
 }
+
+/// The Tool clean-ups screen's model, against the mock. Nothing here runs a tool.
+@MainActor
+final class ToolCleanupModelTests: XCTestCase {
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<400 {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: 5_000_000)
+        }
+    }
+
+    private func isReady(_ model: ToolCleanupModel) -> Bool {
+        if case .ready = model.review { return true } else { return false }
+    }
+
+    private func isDone(_ model: ToolCleanupModel) -> Bool {
+        if case .done = model.review { return true } else { return false }
+    }
+
+    func testBrewReviewThenConfirmRunsOnce() async {
+        let mock = MockCoreClient()
+        let model = ToolCleanupModel(client: mock)
+        model.startReview(.homebrew)
+        await waitUntil { isReady(model) }
+        guard case .ready(let preview) = model.review else { return XCTFail("\(model.review)") }
+        XCTAssertEqual(preview.items.count, 2)
+        XCTAssertTrue(mock.toolRuns.isEmpty, "a review removes nothing")
+        XCTAssertTrue(model.canConfirm)
+        model.confirm()
+        await waitUntil { isDone(model) }
+        XCTAssertEqual(mock.toolRuns, ["brew cleanup"])
+    }
+
+    func testClosingAReviewRunsNothing() async {
+        let mock = MockCoreClient()
+        let model = ToolCleanupModel(client: mock)
+        model.startReview(.unavailableSimulators)
+        await waitUntil { isReady(model) }
+        model.closeReview()
+        XCTAssertEqual(model.review, .closed)
+        XCTAssertTrue(mock.toolRuns.isEmpty)
+    }
+
+    func testSdkNeedsOnePackageChosenFromTheReview() async {
+        let mock = MockCoreClient()
+        let model = ToolCleanupModel(client: mock)
+        model.startReview(.androidSdkPackage)
+        await waitUntil { isReady(model) }
+        XCTAssertFalse(model.canConfirm, "nothing is chosen yet")
+        model.confirm()
+        XCTAssertTrue(mock.toolRuns.isEmpty)
+        model.selectedPackage = "platforms;android-99"
+        XCTAssertFalse(model.canConfirm, "a package not in the review can't be chosen")
+        model.selectedPackage = "build-tools;33.0.1"
+        XCTAssertTrue(model.canConfirm)
+        model.confirm()
+        await waitUntil { isDone(model) }
+        XCTAssertEqual(mock.toolRuns, ["sdkmanager --uninstall build-tools;33.0.1"])
+    }
+
+    func testAMissingToolFailsInPlainWords() async {
+        let mock = MockCoreClient()
+        mock.missingTools = [.homebrew]
+        let model = ToolCleanupModel(client: mock)
+        model.startReview(.homebrew)
+        await waitUntil { if case .failed = model.review { return true } else { return false } }
+        XCTAssertEqual(model.review, .failed("Homebrew isn't installed, so there is nothing for it to clean up."))
+    }
+}
