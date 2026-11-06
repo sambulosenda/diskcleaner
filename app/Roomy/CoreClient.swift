@@ -52,4 +52,19 @@ protocol CoreClient: AnyObject {
     /// holds one, is ever cleaned. Returns the list as the core will use it (symlinks resolved).
     /// Throws `CoreError.InvalidPath` for a folder outside the home folder; the earlier list stays.
     func setProtectedFolders(_ folders: [String]) async throws -> [String]
+
+    /// What Docker uses, from the read-only `docker system df`. Never throws: a missing or stopped Docker is
+    /// a `DockerStatus`. Can take several seconds.
+    func dockerOverview() async -> DockerOverview
+
+    /// The dry run of one Docker clean-up: what Docker would remove. Removes nothing. Sends a kind, never a
+    /// command. Throws `CoreError.DockerUnavailable` if Docker is missing or stopped.
+    func previewDockerCleanup(kind: DockerCleanupKind) async throws -> DockerCleanupPreview
+
+    /// Drops the plan a Docker preview made, when the user closes the review without removing anything.
+    func discardDockerCleanup(plan: DockerPlanHandle) async
+
+    /// Runs the reviewed Docker clean-up. The core checks again first and refuses, removing nothing, if
+    /// anything new appeared. The plan is used up.
+    func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult
 }

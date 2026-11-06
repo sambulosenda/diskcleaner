@@ -57,6 +57,8 @@ pub struct RoomyCore {
     protected_folders: Mutex<Vec<PathBuf>>,
     /// Test-only changes to the extra checks. Empty in the app.
     guard_overrides: Mutex<GuardOverrides>,
+    /// The Docker screen's state: where `docker` is and the waiting plan.
+    pub(crate) docker: crate::docker::DockerSlot,
 }
 
 /// Test-only changes to the extra checks, set by Rust tests only.
@@ -117,7 +119,6 @@ impl RoomyCore {
     pub(crate) fn build(home: PathBuf) -> Result<Arc<Self>, CoreError> {
         let rules = embedded_rules::load()?;
         Ok(Arc::new(Self {
-            home,
             rules: Arc::new(rules),
             next_id: AtomicU64::new(1),
             scans: Mutex::new(HashMap::new()),
@@ -128,6 +129,8 @@ impl RoomyCore {
             history: Mutex::new(None),
             protected_folders: Mutex::new(Vec::new()),
             guard_overrides: Mutex::new(GuardOverrides::default()),
+            docker: crate::docker::DockerSlot::new(&home),
+            home,
         }))
     }
 
@@ -145,6 +148,11 @@ impl RoomyCore {
             Some(programs) => executor::Running::Known(programs),
             None => executor::Running::Unknown,
         });
+    }
+
+    /// The home folder this core works on.
+    pub(crate) fn home(&self) -> &Path {
+        &self.home
     }
 
     /// The extra checks for one preview or run, read just now.
@@ -438,7 +446,7 @@ impl RoomyCore {
     /// Runs `work` on the History database, opening it first if needed.
     /// With `create` false, a database that does not exist yet is not
     /// made. Errors go to the log; History never stops a cleanup.
-    fn with_history<T>(
+    pub(crate) fn with_history<T>(
         &self,
         create: bool,
         work: impl FnOnce(&mut history::History) -> Result<T, history::HistoryError>,

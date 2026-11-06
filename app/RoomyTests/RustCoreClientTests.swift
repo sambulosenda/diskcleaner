@@ -132,4 +132,14 @@ private final class FailingCore: CoreClient {
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] { [] }
     func fullDiskAccess() async -> FullDiskAccess { .unknown }
     func setProtectedFolders(_ folders: [String]) async throws -> [String] { throw CoreError.HomeNotFound }
+    func dockerOverview() async -> DockerOverview {
+        let zero = DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0)
+        return DockerOverview(status: .notInstalled, images: zero, containers: zero, volumes: zero, buildCache: zero,
+                              diskImageBytes: nil)
+    }
+    func previewDockerCleanup(kind: DockerCleanupKind) async throws -> DockerCleanupPreview {
+        throw CoreError.HomeNotFound
+    }
+    func discardDockerCleanup(plan: DockerPlanHandle) async {}
+    func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult { throw CoreError.HomeNotFound }
 }

@@ -93,4 +93,28 @@ final class RustCoreClient: CoreClient {
     func setProtectedFolders(_ folders: [String]) async throws -> [String] {
         try await offMain { try $0.setProtectedFolders(folders: folders) }
     }
+
+    func dockerOverview() async -> DockerOverview {
+        let fallback = DockerOverview(
+            status: .unavailable(reason: "Roomy couldn't start, so it can't ask Docker."),
+            images: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
+            containers: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
+            volumes: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
+            buildCache: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
+            diskImageBytes: nil
+        )
+        return (try? await offMain { $0.dockerOverview() }) ?? fallback
+    }
+
+    func previewDockerCleanup(kind: DockerCleanupKind) async throws -> DockerCleanupPreview {
+        try await offMain { try $0.previewDockerCleanup(kind: kind) }
+    }
+
+    func discardDockerCleanup(plan: DockerPlanHandle) async {
+        _ = try? await offMain { $0.discardDockerCleanup(plan: plan) }
+    }
+
+    func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult {
+        try await offMain { try $0.runDockerCleanup(plan: plan) }
+    }
 }
