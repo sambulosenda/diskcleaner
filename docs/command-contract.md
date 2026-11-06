@@ -95,6 +95,14 @@ Every item of the scan, optionally only one category and/or one tier, in the giv
 Everything the detail panel shows for one item. Throws `unknown_item` if the scan has no item
 with that id, plus the same errors as `list_items`.
 
+### `libraries(handle: ScanHandle) -> [LibrarySize]` throws
+How much the Mac's own libraries take, measured from the same scan (PRD E6, E7, C1): Photos,
+Music, TV, Mail, Messages attachments and Final Cut Pro, one row per kind, always in that order.
+Pure: works on the scan's folder tree and reads nothing more. **Shown only**: Roomy never cleans
+inside a library (they are hard-blocked or review-only in `docs/safety/protected-paths.md`), and
+no row holds a path. The app names each library and opens the app that manages it. Same errors
+as `list_items`.
+
 ### `full_disk_access() -> FullDiskAccess`
 Whether Roomy can read the folders macOS keeps private, right now. Lists these folders inside
 home, never following a symlink, and reads nothing else: `Library/Application Support/com.apple.TCC`,
@@ -258,6 +266,23 @@ Why the core made an item's tier more careful. Carries no path.
 | `low_confidence` | The rule is not sure, which is never `likely_safe` |
 | `unreadable` | Part of it could not be read during the scan |
 | `unusual_name` | A name inside it could not be checked |
+
+### `LibraryKind` (enum)
+`photos` (every `*.photoslibrary` in home), `music` (every `*.musiclibrary`, plus
+`~/Music/Music/Media`, `~/Music/Music/Media.localized` and `~/Music/iTunes`), `tv` (every
+`*.tvlibrary`, plus `~/Movies/TV/Media` and `Media.localized`), `mail` (`~/Library/Mail` and
+`~/Library/Containers/com.apple.mail`), `messages_attachments` (`~/Library/Messages/Attachments`
+only, never the chat database), `final_cut` (every `*.fcpbundle`). A library inside another is
+counted once.
+
+### `LibrarySize` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | `LibraryKind` | Which library. |
+| `bytes` | `u64` | Allocated bytes, counted once. |
+| `library_count` | `u32` | How many separate library bundles were found. 0 for `mail` and `messages_attachments`. |
+| `found` | `bool` | Whether anything of this kind was found. |
+| `needs_access` | `bool` | Part of it couldn't be read (usually Full Disk Access is off), so it may be larger, or exist even though `found` is false. |
 
 ### `CoreError` (error)
 | Value | When |
@@ -523,6 +548,43 @@ part "<app>: <part>". Throws `unknown_app`, `unknown_item`, `nothing_selected` o
 ### `AppPart` (record)
 `item_id`, `title`, `explain`, `size_bytes: u64`, `preselected: Bool`, `sure: Bool`,
 `path: String?` (Developer mode only).
+
+## JavaScript screen
+
+The Developer mode JavaScript screen (PRD D2). Read only: rows come from the finished scan (the
+`js.*` rules); for each `node_modules` the core reads only the modified times of the project's
+`package.json`, lock files (`package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`,
+`yarn.lock`, `bun.lock`, `bun.lockb`) and the nearest git repository's `.git/index` and
+`.git/logs/HEAD` (never above or at the home folder). It never opens a file and never follows a
+symlink, and it reads a project only after `safety::validate` passes for its `node_modules`.
+Cleaning uses `preview_cleanup` with the rows' item ids, so plans, extra checks, the Trash, put
+back and History are the same as everywhere else.
+
+### `javascript_projects(handle: ScanHandle) -> JavaScriptOverview` throws
+
+Same errors as `list_items`. In simple mode the list is empty (the rules are Developer only), and
+no row would carry a folder anyway.
+
+### `JavaScriptOverview` (record)
+
+`projects: [JsProject]` (largest first, then id), `caches: [ItemSummary]` (the other `js.*` items,
+same order), `total_bytes: u64` (every row added up).
+
+### `JsProject` (record)
+
+`item: ItemSummary` (the `node_modules` item; its id goes to `preview_cleanup`), `name: String`
+(the project folder's name in Developer mode, the item title in simple mode), `folder: String?`
+(Developer mode only, starts `~`), `last_activity_unix_seconds: i64?` (newest of the files above),
+`activity_source: ActivitySource?`, `package_manager: PackageManager?` (from the newest lock file),
+`install_command: String?` (for example `pnpm install`), `has_manifest: bool`.
+
+### `ActivitySource` (enum)
+
+`git`, `lock_file`, `manifest`.
+
+### `PackageManager` (enum)
+
+`npm`, `pnpm`, `yarn`, `bun`.
 
 ## Testing
 

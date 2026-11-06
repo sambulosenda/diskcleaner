@@ -67,10 +67,14 @@ struct DetailView: View {
                 OverviewScreen()
             } else if item == .history {
                 HistoryScreen()
+            } else if item == .libraries {
+                LibrariesScreen()
             } else if item == .docker {
                 DockerScreen()
             } else if item == .tools {
                 ToolCleanupsScreen()
+            } else if item == .javascript {
+                JavaScriptScreen()
             } else if item == .apps {
                 AppsScreen()
             } else if item.itemFilter != nil {

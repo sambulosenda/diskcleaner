@@ -162,6 +162,17 @@ pub fn is_app(program: &Path, app: &OwnerApp) -> bool {
         || program
             .iter()
             .any(|part| app.bundles.iter().any(|b| OsStr::new(b) == part))
+        || program.iter().any(|part| {
+            app.prefixes
+                .iter()
+                .any(|p| starts_with_ignoring_case(part, p))
+        })
+}
+
+/// Whether the name `part` starts with `prefix`, ignoring ASCII case.
+fn starts_with_ignoring_case(part: &OsStr, prefix: &str) -> bool {
+    let bytes = part.as_bytes();
+    bytes.len() >= prefix.len() && bytes[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
 }
 
 /// Whether `path` is `folder` or inside it, comparing names without regard
@@ -185,6 +196,7 @@ mod tests {
         name: "Xcode",
         programs: &["Xcode"],
         bundles: &["Xcode.app"],
+        prefixes: &[],
     };
 
     fn guards(running: Running, folders: &[&str]) -> Guards {
@@ -193,6 +205,27 @@ mod tests {
             protected_folders: folders.iter().map(PathBuf::from).collect(),
             running,
         }
+    }
+
+    #[test]
+    fn apps_with_a_year_in_their_name_match_by_prefix() {
+        const PREMIERE: OwnerApp = OwnerApp {
+            name: "Premiere Pro",
+            programs: &[],
+            bundles: &[],
+            prefixes: &["Adobe Premiere Pro"],
+        };
+        let p = |s: &str| PathBuf::from(s);
+        assert!(is_app(
+            &p("/Applications/Adobe Premiere Pro 2025/Adobe Premiere Pro 2025.app/Contents/MacOS/Adobe Premiere Pro 2025"),
+            &PREMIERE
+        ));
+        assert!(is_app(&p("adobe premiere pro 2026"), &PREMIERE));
+        assert!(!is_app(
+            &p("/Applications/Adobe Photoshop 2025.app/Contents/MacOS/Adobe Photoshop 2025"),
+            &PREMIERE
+        ));
+        assert!(!is_app(&p("/usr/bin/Adobe"), &PREMIERE));
     }
 
     #[test]

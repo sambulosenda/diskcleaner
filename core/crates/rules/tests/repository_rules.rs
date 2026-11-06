@@ -151,6 +151,12 @@ fn the_t07_rules_are_all_there() {
         "puppeteer.browser",
         "maven.repository",
         "dart.pub_cache",
+        // Video apps
+        "final_cut.render_files",
+        "final_cut.proxy_media",
+        "adobe.media_cache_files",
+        "adobe.media_cache_database",
+        "adobe.after_effects_disk_cache",
     ]
     .into_iter()
     .map(str::to_string)
@@ -378,6 +384,56 @@ fn android_rust_ai_and_editor_rules_match_exactly_the_expected_items() {
         }
     }
     assert_eq!(found("jetbrains.cache"), one(paths::JETBRAINS_CACHE));
+}
+
+#[test]
+fn video_app_rules_match_only_their_caches_and_are_never_likely_safe() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let in_events = |sub: &str| -> BTreeSet<String> {
+        paths::FCP_EVENTS
+            .iter()
+            .map(|e| format!("{}/{e}/{sub}", paths::FCP_LIBRARY))
+            .collect()
+    };
+    assert_eq!(found("final_cut.render_files"), in_events("Render Files"));
+    assert_eq!(
+        found("final_cut.proxy_media"),
+        in_events("Transcoded Media/Proxy Media")
+    );
+    let one = |p: &str| -> BTreeSet<String> { [p.to_string()].into_iter().collect() };
+    assert_eq!(
+        found("adobe.media_cache_files"),
+        one(paths::ADOBE_MEDIA_CACHE_FILES)
+    );
+    assert_eq!(
+        found("adobe.media_cache_database"),
+        one(paths::ADOBE_MEDIA_CACHE_DB)
+    );
+    assert_eq!(
+        found("adobe.after_effects_disk_cache"),
+        paths::AFTER_EFFECTS_VERSIONS
+            .iter()
+            .map(|v| format!("{}/{v}", paths::AFTER_EFFECTS_CACHE))
+            .collect()
+    );
+    // The library itself, its project data and original media never match.
+    for r in rules
+        .iter()
+        .filter(|r| r.id.starts_with("final_cut.") || r.id.starts_with("adobe."))
+    {
+        assert_eq!(r.tier, rules::Tier::ReviewFirst, "{}", r.id);
+        assert_eq!(r.action, rules::Action::Trash, "{}", r.id);
+        for m in matches_in(r, &manifest) {
+            assert!(!m.ends_with(".fcpbundle"), "{m}");
+            assert!(!m.contains("Original Media"), "{m}");
+        }
+    }
 }
 
 #[test]

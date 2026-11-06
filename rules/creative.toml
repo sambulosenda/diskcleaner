@@ -1,0 +1,86 @@
+# Rules for video and music apps (PRD C1, C2). Every rule's wording and tier
+# needs Sam's sign-off. Bump `version` on any change to a rule.
+#
+# All of these are Review first, so nothing is counted as Likely safe and
+# the user ticks each one. Final Cut libraries (*.fcpbundle) are review-only
+# in protected-paths.md, so the classifier keeps anything inside them at
+# Review first whatever the rule says. Roomy only ever moves these folders
+# to the Trash, and skips them while the app that uses them is open.
+
+[[rule]]
+id = "final_cut.render_files"
+version = 1
+match.path = "Movies/*.fcpbundle/*/Render Files"
+category = "cache"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "simple"
+per_item = true
+title = "Final Cut render files"
+explain = "Preview files Final Cut Pro makes so effects and edits play smoothly. Your project and media are kept separately."
+risk = "Playback may stutter until Final Cut Pro renders these parts again."
+restore = "Final Cut Pro renders them again when needed."
+action = "trash"
+
+[[rule]]
+id = "final_cut.proxy_media"
+version = 1
+match.path = "Movies/*.fcpbundle/*/Transcoded Media/Proxy Media"
+category = "cache"
+tier = "review_first"
+confidence = "medium"
+regenerable = false
+mode = "simple"
+per_item = true
+title = "Final Cut proxy media"
+explain = "Smaller copies of your video that Final Cut Pro makes so editing is quicker."
+risk = "Final Cut Pro can only make them again if the original video files are still on this Mac or a connected drive."
+restore = "In Final Cut Pro, choose File > Transcode Media to make them again."
+action = "trash"
+
+[[rule]]
+id = "adobe.media_cache_files"
+version = 1
+match.path = "Library/Application Support/Adobe/Common/Media Cache Files"
+category = "cache"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Adobe media cache"
+explain = "Audio and preview files Premiere Pro, After Effects and Media Encoder make so imported media plays quickly."
+risk = "Projects may open more slowly the first time while Adobe apps rebuild the cache. Your projects and media are not affected."
+restore = "Adobe apps make it again as you work."
+action = "trash"
+
+[[rule]]
+id = "adobe.media_cache_database"
+version = 1
+match.path = "Library/Application Support/Adobe/Common/Media Cache"
+category = "cache"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Adobe media cache index"
+explain = "The list Adobe video apps keep of their media cache files."
+risk = "Projects may open more slowly the first time while Adobe apps rebuild it."
+restore = "Adobe apps make it again as you work."
+action = "trash"
+
+[[rule]]
+id = "adobe.after_effects_disk_cache"
+version = 1
+match.path = "Library/Caches/Adobe/After Effects/*"
+category = "cache"
+tier = "review_first"
+confidence = "medium"
+regenerable = true
+mode = "simple"
+per_item = true
+title = "After Effects disk cache"
+explain = "Frames After Effects saves so previews play without rendering again."
+risk = "Previews will need to render again the next time you play them."
+restore = "After Effects saves frames again as you preview."
+action = "trash"

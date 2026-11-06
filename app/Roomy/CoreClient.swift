@@ -26,8 +26,17 @@ protocol CoreClient: AnyObject {
     /// Every item of a finished scan, optionally one category and/or one tier (`nil` means any).
     func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary]
 
+    /// How much Photos, Music, TV, Mail, Messages attachments and Final Cut Pro take in a finished scan.
+    /// Shown only: Roomy never cleans inside these libraries. One row per kind, in the same order every time.
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize]
+
     /// Everything the detail panel shows for one item. Throws `CoreError.UnknownItem` for an unknown id.
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail
+
+    /// The JavaScript screen: each project's `node_modules` with when the project was last worked on, and
+    /// the package managers' caches, from a finished scan. Reads file dates only. Rows carry item ids, so
+    /// they are cleaned with `previewCleanup` like any item.
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview
 
     /// The dry run: checks the ticked items the way a cleanup would and says what would move to the
     /// Trash. Moves nothing. Sends item ids only, never paths.
