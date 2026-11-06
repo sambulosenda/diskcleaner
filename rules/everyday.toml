@@ -1,0 +1,139 @@
+# Everyday rules (T07). Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+
+[[rule]]
+id = "ios.device_backup"
+version = 1
+match.path = "Library/Application Support/MobileSync/Backup/*"
+match.requires = ["Info.plist"]
+category = "backups"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "simple"
+per_item = true
+title = "iPhone or iPad backup"
+explain = "A full local backup of one of your devices."
+risk = "If this device has no iCloud backup, its data could be lost for good."
+action = "trash"
+
+[[rule]]
+id = "downloads.disk_image"
+version = 1
+match.path = "Downloads/*.dmg"
+category = "downloads"
+tier = "review_first"
+confidence = "medium"
+regenerable = false
+mode = "simple"
+per_item = true
+title = "Downloaded installer"
+explain = "A disk image you downloaded, usually to install an app. Once the app is installed, the image is often no longer needed."
+risk = "If you still need it, you will have to download it again, and an older version may no longer be offered."
+action = "trash"
+
+[[rule]]
+id = "browser.safari_cache"
+version = 1
+match.path = "Library/Caches/com.apple.Safari"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Safari cache"
+explain = "Copies of web pages and images Safari keeps so sites load faster."
+risk = "Websites may load a little slower at first. You stay signed in and keep your bookmarks and history."
+restore = "Safari saves pages again as you browse."
+action = "trash"
+
+[[rule]]
+id = "browser.chrome_cache"
+version = 1
+match.path = "Library/Caches/Google/Chrome"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Chrome cache"
+explain = "Copies of web pages and images Google Chrome keeps so sites load faster."
+risk = "Websites may load a little slower at first. You stay signed in and keep your bookmarks and history."
+restore = "Chrome saves pages again as you browse."
+action = "trash"
+
+[[rule]]
+id = "browser.firefox_cache"
+version = 1
+match.path = "Library/Caches/Firefox"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Firefox cache"
+explain = "Copies of web pages and images Firefox keeps so sites load faster."
+risk = "Websites may load a little slower at first. You stay signed in and keep your bookmarks and history."
+restore = "Firefox saves pages again as you browse."
+action = "trash"
+
+[[rule]]
+id = "spotify.cache"
+version = 1
+match.path = "Library/Caches/com.spotify.client"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Spotify cache"
+explain = "Music and artwork Spotify keeps so songs you play often start quickly."
+risk = "Songs may take a moment longer to start. Your playlists and downloaded songs are kept."
+restore = "Spotify fills it again as you listen."
+action = "trash"
+
+[[rule]]
+id = "slack.cache"
+version = 1
+match.path = "Library/Application Support/Slack/Cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Slack cache"
+explain = "Images and files Slack keeps so conversations open quickly."
+risk = "Images in conversations may take a moment to appear again. Your messages are kept by Slack online."
+restore = "Slack saves them again as you use it."
+action = "trash"
+
+[[rule]]
+id = "logs.user"
+version = 1
+match.path = "Library/Logs/*"
+category = "logs"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = false
+mode = "simple"
+per_item = true
+title = "App logs"
+explain = "Records apps write about what they did, mainly to help find problems."
+risk = "If you are working with support on a problem, they may ask for these records."
+action = "trash"
+
+[[rule]]
+id = "ios.software_update"
+version = 1
+match.path = "Library/iTunes/iPhone Software Updates/*.ipsw"
+category = "downloads"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+per_item = true
+title = "iPhone software update"
+explain = "A copy of iOS your Mac downloaded to update or restore an iPhone."
+risk = "If you update or restore an iPhone from this Mac, it downloads the software again."
+restore = "Your Mac downloads it again when needed."
+action = "trash"

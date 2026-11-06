@@ -1,0 +1,94 @@
+# JavaScript rules (T07). Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+
+[[rule]]
+id = "js.node_modules"
+version = 1
+match.path = "projects/*/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.npm_cache"
+version = 1
+match.path = ".npm/_cacache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "npm download cache"
+explain = "Copies of packages npm has downloaded, kept so later installs are faster."
+risk = "The next install downloads packages again, which takes longer."
+restore = "npm fills the cache again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "js.pnpm_store"
+version = 1
+match.path = "Library/pnpm/store"
+category = "cache"
+tier = "review_first"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "pnpm package store"
+explain = "The shared copy of every package pnpm has installed. Projects point to the files here instead of keeping their own copies."
+risk = "Projects need their packages installed again. Space shared with existing projects is freed only once they are removed too."
+restore = "pnpm fills the store again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "js.yarn_cache"
+version = 1
+match.path = "Library/Caches/Yarn"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Yarn download cache"
+explain = "Copies of packages Yarn has downloaded, kept so later installs are faster."
+risk = "The next install downloads packages again, which takes longer."
+restore = "Yarn fills the cache again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "js.bun_cache"
+version = 1
+match.path = ".bun/install/cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Bun download cache"
+explain = "Copies of packages Bun has downloaded, kept so later installs are faster."
+risk = "The next install downloads packages again, which takes longer."
+restore = "Bun fills the cache again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "js.expo_cache"
+version = 1
+match.path = ".expo/*-cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Expo tool cache"
+explain = "Files the Expo tools have downloaded, such as Expo Go for the simulator and version lists."
+risk = "Expo downloads them again the next time it needs them, which takes a little longer."
+restore = "Expo downloads them again when needed."
+action = "trash"

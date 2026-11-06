@@ -12,7 +12,9 @@ pub fn build(b: &mut Builder) -> Result<(), FixtureError> {
     derived_data(b)?;
     device_support(b)?;
     simulators(b)?;
-    archive(b)
+    archive(b)?;
+    watch_device_support(b)?;
+    cocoapods(b)
 }
 
 /// The two Xcode projects that live DerivedData folders point at.
@@ -140,5 +142,34 @@ fn archive(b: &mut Builder) -> Result<(), FixtureError> {
     b.bytes(
         &format!("{dir}/dSYMs/Weather.app.dSYM/Contents/Resources/DWARF/Weather"),
         32 * KB,
+    )
+}
+
+/// One watchOS DeviceSupport folder, laid out like the iOS ones.
+fn watch_device_support(b: &mut Builder) -> Result<(), FixtureError> {
+    for version in paths::WATCHOS_DEVICE_SUPPORT_VERSIONS {
+        let dir = format!("{}/{version}", paths::WATCHOS_DEVICE_SUPPORT);
+        b.text(
+            &format!("{dir}/Info.plist"),
+            &plist(&[("DSVersion", Plist::Str(version))]),
+        )?;
+        b.bytes(
+            &format!("{dir}/Symbols/System/Library/Frameworks/WatchKit.framework/WatchKit"),
+            24 * KB,
+        )?;
+    }
+    Ok(())
+}
+
+/// The CocoaPods download cache, as `pod install` leaves it.
+fn cocoapods(b: &mut Builder) -> Result<(), FixtureError> {
+    let dir = paths::COCOAPODS_CACHE;
+    b.bytes(
+        &format!("{dir}/Pods/Release/Alamofire/5.9.1-abcde/Source/AF.swift"),
+        16 * KB,
+    )?;
+    b.text(
+        &format!("{dir}/Pods/Specs/Release/Alamofire/5.9.json"),
+        "{}\n",
     )
 }

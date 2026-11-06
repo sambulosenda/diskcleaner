@@ -1,0 +1,114 @@
+# Xcode rules (T07). Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+
+[[rule]]
+id = "xcode.derived_data"
+version = 1
+match.path = "Library/Developer/Xcode/DerivedData/*"
+category = "build"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Xcode build data"
+explain = "Temporary files Xcode creates while building a project."
+risk = "The next build of this project will take longer."
+restore = "Rebuilds automatically on the next Xcode build."
+action = "trash"
+
+[[rule]]
+id = "xcode.archives"
+version = 1
+match.path = "Library/Developer/Xcode/Archives/*/*.xcarchive"
+match.requires = ["Info.plist"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "Xcode archive"
+explain = "A saved copy of an app build you made for release, with the files needed to read its crash reports."
+risk = "You can no longer read crash reports for this build or upload it again."
+action = "trash"
+
+[[rule]]
+id = "xcode.ios_device_support"
+version = 1
+match.path = "Library/Developer/Xcode/iOS DeviceSupport/*"
+category = "developer_tools"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "iPhone debugging support"
+explain = "Files Xcode copies from an iPhone or iPad the first time you debug on it. There is one folder for each iOS version."
+risk = "The next time you connect a device with this iOS version, Xcode spends a few minutes copying the files again."
+restore = "Xcode copies them again when you next connect a device with this iOS version."
+action = "trash"
+
+[[rule]]
+id = "xcode.watchos_device_support"
+version = 1
+match.path = "Library/Developer/Xcode/watchOS DeviceSupport/*"
+category = "developer_tools"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Apple Watch debugging support"
+explain = "Files Xcode copies from an Apple Watch the first time you debug on it. There is one folder for each watchOS version."
+risk = "The next time you debug on a watch with this watchOS version, Xcode spends some time copying the files again."
+restore = "Xcode copies them again when you next debug on a watch with this watchOS version."
+action = "trash"
+
+[[rule]]
+id = "xcode.simulator_device"
+version = 1
+match.path = "Library/Developer/CoreSimulator/Devices/*"
+match.requires = ["device.plist"]
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "Simulator device"
+explain = "One simulated iPhone, iPad or other device, with the apps and data you have put on it."
+risk = "Apps, settings and test data inside this simulator are lost. Xcode can make a fresh, empty one."
+restore = "Create a new simulator in Xcode under Window, Devices and Simulators."
+action = "trash"
+
+[[rule]]
+id = "xcode.simulators_unavailable"
+version = 1
+match.path = "Library/Developer/CoreSimulator/Devices/*"
+match.requires = ["device.plist"]
+category = "developer_tools"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Unavailable simulators"
+explain = "Simulators for iOS versions no longer installed in Xcode."
+risk = "None; they cannot run without their iOS runtime."
+action = "command"
+command = "xcrun_simctl_delete_unavailable"
+
+[[rule]]
+id = "cocoapods.cache"
+version = 1
+match.path = "Library/Caches/CocoaPods"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "CocoaPods download cache"
+explain = "Copies of the libraries CocoaPods has downloaded, kept so later installs are faster."
+risk = "The next pod install downloads the libraries again, which takes longer."
+restore = "CocoaPods downloads them again when a project needs them."
+action = "trash"

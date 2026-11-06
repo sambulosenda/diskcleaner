@@ -29,6 +29,24 @@ pub const CACHE_APP_IDS: [&str; 3] = [
 pub const PHOTOS_LIBRARY: &str = "Pictures/Test.photoslibrary";
 /// Messages attachments (review-only, never removed in v1).
 pub const MESSAGES_ATTACHMENTS: &str = "Library/Messages/Attachments";
+/// Safari's cache folder.
+pub const SAFARI_CACHE: &str = "Library/Caches/com.apple.Safari";
+/// Google Chrome's main cache folder (the large one, separate from the
+/// small `com.google.Chrome` folder above).
+pub const CHROME_CACHE: &str = "Library/Caches/Google/Chrome";
+/// Firefox's cache folder.
+pub const FIREFOX_CACHE: &str = "Library/Caches/Firefox";
+/// Slack's cache folder (direct download version).
+pub const SLACK_CACHE: &str = "Library/Application Support/Slack/Cache";
+/// Slack data next to the cache that no cache rule may match.
+pub const SLACK_LOCAL_STORAGE: &str = "Library/Application Support/Slack/Local Storage";
+/// The user's log folder.
+pub const USER_LOGS: &str = "Library/Logs";
+/// The two app log folders inside it.
+pub const USER_LOG_FOLDERS: [&str; 2] = ["DiagnosticReports", "Zoom"];
+/// An iPhone software update file Finder downloaded.
+pub const IPHONE_SOFTWARE_UPDATE: &str =
+    "Library/iTunes/iPhone Software Updates/iPhone15,2_18.1_22B83_Restore.ipsw";
 
 /// Xcode DerivedData root.
 pub const DERIVED_DATA: &str = "Library/Developer/Xcode/DerivedData";
@@ -63,6 +81,12 @@ pub const SIM_DEVICE_IDS: [&str; 3] = [
 ];
 /// The simulator device marked unavailable in its `device.plist`.
 pub const SIM_DEVICE_UNAVAILABLE: &str = "1A2B3C4D-0000-4000-8000-000000000003";
+/// watchOS DeviceSupport root.
+pub const WATCHOS_DEVICE_SUPPORT: &str = "Library/Developer/Xcode/watchOS DeviceSupport";
+/// The one watchOS DeviceSupport version.
+pub const WATCHOS_DEVICE_SUPPORT_VERSIONS: [&str; 1] = ["Watch6,1 10.6.1 (21U580)"];
+/// CocoaPods download cache.
+pub const COCOAPODS_CACHE: &str = "Library/Caches/CocoaPods";
 /// The one Xcode archive (review-only).
 pub const XCODE_ARCHIVE: &str =
     "Library/Developer/Xcode/Archives/2026-03-14/Weather 14-03-2026, 10.42.xcarchive";
@@ -101,6 +125,14 @@ pub const NPM_CACHE: &str = ".npm";
 pub const PNPM_STORE: &str = "Library/pnpm";
 /// Yarn cache.
 pub const YARN_CACHE: &str = "Library/Caches/Yarn";
+/// Bun download cache.
+pub const BUN_CACHE: &str = ".bun/install/cache";
+/// Expo tools home folder.
+pub const EXPO_HOME: &str = ".expo";
+/// The Expo cache folders inside it.
+pub const EXPO_CACHES: [&str; 2] = ["versions-cache", "ios-simulator-app-cache"];
+/// Expo's sign-in state, which no cache rule may match.
+pub const EXPO_STATE: &str = ".expo/state.json";
 
 /// Trap: symlink to `/etc` from inside a cache folder.
 pub const TRAP_SYMLINK_ETC: &str = "Library/Caches/com.google.Chrome/system-config";
