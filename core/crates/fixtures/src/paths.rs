@@ -318,3 +318,18 @@ pub const SWIFTPM_FINGERPRINTS: &str =
     "Library/org.swift.swiftpm/security/fingerprints/swift-log.json";
 /// Carthage's download cache.
 pub const CARTHAGE_CACHE: &str = "Library/Caches/org.carthage.CarthageKit";
+
+/// A Final Cut Pro library (review-only as a whole; caches inside may be
+/// matched by a specific rule).
+pub const FCP_LIBRARY: &str = "Movies/Holiday 2026.fcpbundle";
+/// The events inside the Final Cut library.
+pub const FCP_EVENTS: [&str; 2] = ["Day 1", "Day 2"];
+/// The Adobe media cache files folder.
+pub const ADOBE_MEDIA_CACHE_FILES: &str =
+    "Library/Application Support/Adobe/Common/Media Cache Files";
+/// The Adobe media cache database folder.
+pub const ADOBE_MEDIA_CACHE_DB: &str = "Library/Application Support/Adobe/Common/Media Cache";
+/// After Effects' disk cache root, one folder per version.
+pub const AFTER_EFFECTS_CACHE: &str = "Library/Caches/Adobe/After Effects";
+/// The After Effects versions in the fixture.
+pub const AFTER_EFFECTS_VERSIONS: [&str; 1] = ["25.0"];

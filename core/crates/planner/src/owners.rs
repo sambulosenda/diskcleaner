@@ -20,6 +20,11 @@ pub struct OwnerApp {
     pub programs: &'static [&'static str],
     /// App bundle folder names that count as this app running.
     pub bundles: &'static [&'static str],
+    /// Name starts that count as this app running, for apps whose name
+    /// carries a year or version (for example "Adobe Premiere Pro 2025").
+    /// Matched against the executable's file name and every folder name in
+    /// its path, ignoring ASCII case.
+    pub prefixes: &'static [&'static str],
 }
 
 /// An installed app, named at run time, that the app uninstaller is
@@ -38,18 +43,21 @@ const XCODE: OwnerApp = OwnerApp {
     name: "Xcode",
     programs: &["Xcode", "xcodebuild"],
     bundles: &["Xcode.app", "Xcode-beta.app"],
+    prefixes: &[],
 };
 
 const SIMULATOR: OwnerApp = OwnerApp {
     name: "Simulator",
     programs: &["Simulator"],
     bundles: &["Simulator.app"],
+    prefixes: &[],
 };
 
 const ANDROID_STUDIO: OwnerApp = OwnerApp {
     name: "Android Studio",
     programs: &["studio"],
     bundles: &["Android Studio.app", "Android Studio Preview.app"],
+    prefixes: &[],
 };
 
 const ANDROID_EMULATOR: OwnerApp = OwnerApp {
@@ -62,24 +70,28 @@ const ANDROID_EMULATOR: OwnerApp = OwnerApp {
         "qemu-system-x86_64-headless",
     ],
     bundles: &[],
+    prefixes: &[],
 };
 
 const GRADLE: OwnerApp = OwnerApp {
     name: "Gradle",
     programs: &["gradle", "gradlew"],
     bundles: &[],
+    prefixes: &[],
 };
 
 const SAFARI: OwnerApp = OwnerApp {
     name: "Safari",
     programs: &["Safari"],
     bundles: &["Safari.app", "Safari Technology Preview.app"],
+    prefixes: &[],
 };
 
 const CHROME: OwnerApp = OwnerApp {
     name: "Google Chrome",
     programs: &["Google Chrome"],
     bundles: &["Google Chrome.app", "Google Chrome Canary.app"],
+    prefixes: &[],
 };
 
 const FIREFOX: OwnerApp = OwnerApp {
@@ -90,24 +102,28 @@ const FIREFOX: OwnerApp = OwnerApp {
         "Firefox Developer Edition.app",
         "Firefox Nightly.app",
     ],
+    prefixes: &[],
 };
 
 const SPOTIFY: OwnerApp = OwnerApp {
     name: "Spotify",
     programs: &["Spotify"],
     bundles: &["Spotify.app"],
+    prefixes: &[],
 };
 
 const SLACK: OwnerApp = OwnerApp {
     name: "Slack",
     programs: &["Slack"],
     bundles: &["Slack.app"],
+    prefixes: &[],
 };
 
 const CURSOR: OwnerApp = OwnerApp {
     name: "Cursor",
     programs: &["Cursor"],
     bundles: &["Cursor.app"],
+    prefixes: &[],
 };
 
 const VSCODE: OwnerApp = OwnerApp {
@@ -117,6 +133,7 @@ const VSCODE: OwnerApp = OwnerApp {
         "Visual Studio Code.app",
         "Visual Studio Code - Insiders.app",
     ],
+    prefixes: &[],
 };
 
 const JETBRAINS: OwnerApp = OwnerApp {
@@ -137,30 +154,64 @@ const JETBRAINS: OwnerApp = OwnerApp {
         "fleet",
     ],
     bundles: &[],
+    prefixes: &[],
 };
 
 const CLAUDE_CODE: OwnerApp = OwnerApp {
     name: "Claude Code",
     programs: &["claude"],
     bundles: &[],
+    prefixes: &[],
 };
 
 const CARGO: OwnerApp = OwnerApp {
     name: "Cargo",
     programs: &["cargo", "rustc"],
     bundles: &[],
+    prefixes: &[],
 };
 
 const RUSTUP: OwnerApp = OwnerApp {
     name: "rustup",
     programs: &["rustup", "cargo", "rustc"],
     bundles: &[],
+    prefixes: &[],
 };
 
 const IPHONE_BACKUP: OwnerApp = OwnerApp {
     name: "the iPhone backup",
     programs: &["AppleMobileBackup", "AppleMobileDeviceHelper"],
     bundles: &[],
+    prefixes: &[],
+};
+
+const FINAL_CUT: OwnerApp = OwnerApp {
+    name: "Final Cut Pro",
+    programs: &["Final Cut Pro"],
+    bundles: &["Final Cut Pro.app", "Final Cut Pro Trial.app"],
+    prefixes: &[],
+};
+
+const ADOBE_VIDEO: OwnerApp = OwnerApp {
+    name: "your Adobe video apps",
+    programs: &["dynamiclinkmanager"],
+    bundles: &[],
+    prefixes: &[
+        "Adobe Premiere Pro",
+        "Adobe After Effects",
+        "Adobe Media Encoder",
+        "Adobe Audition",
+        "Adobe Character Animator",
+        "Adobe Prelude",
+        "Adobe Premiere Rush",
+    ],
+};
+
+const AFTER_EFFECTS: OwnerApp = OwnerApp {
+    name: "After Effects",
+    programs: &["aerendernode", "aerender"],
+    bundles: &[],
+    prefixes: &["Adobe After Effects"],
 };
 
 /// The apps that may be using the items `rule_id` finds. Empty if none.
@@ -186,6 +237,9 @@ pub fn owner_apps(rule_id: &str) -> &'static [OwnerApp] {
         "rust.cargo_registry_cache" | "rust.cargo_registry_src" => &[CARGO],
         "rust.toolchain" => &[RUSTUP],
         "ios.device_backup" => &[IPHONE_BACKUP],
+        "final_cut.render_files" | "final_cut.proxy_media" => &[FINAL_CUT],
+        "adobe.media_cache_files" | "adobe.media_cache_database" => &[ADOBE_VIDEO],
+        "adobe.after_effects_disk_cache" => &[AFTER_EFFECTS],
         id if id.starts_with("rust.target") => &[CARGO],
         _ => &[],
     }
@@ -201,6 +255,11 @@ mod tests {
         assert_eq!(owner_apps("rust.target_developer")[0].name, "Cargo");
         assert!(owner_apps("logs.user").is_empty());
         assert!(owner_apps("no.such.rule").is_empty());
+        assert_eq!(
+            owner_apps("final_cut.render_files")[0].name,
+            "Final Cut Pro"
+        );
+        assert!(!owner_apps("adobe.media_cache_files")[0].prefixes.is_empty());
     }
 
     #[test]
@@ -209,10 +268,13 @@ mod tests {
             "xcode.simulator_device",
             "android.emulator",
             "jetbrains.cache",
+            "final_cut.proxy_media",
+            "adobe.media_cache_database",
+            "adobe.after_effects_disk_cache",
         ] {
             for app in owner_apps(id) {
                 assert!(
-                    !app.programs.is_empty() || !app.bundles.is_empty(),
+                    !app.programs.is_empty() || !app.bundles.is_empty() || !app.prefixes.is_empty(),
                     "{}",
                     app.name
                 );

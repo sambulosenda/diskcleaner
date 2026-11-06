@@ -17,7 +17,7 @@ use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult,
-    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
+    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LibrarySize, Mode, Overview, PlanHandle,
     PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
@@ -287,6 +287,14 @@ impl RoomyCore {
             unreadable_count: f.unreadable_count,
             unreadable_areas: f.unreadable_areas.clone(),
         })
+    }
+
+    /// How much the Mac's own libraries take in a finished scan: Photos,
+    /// Music, TV, Mail, Messages attachments and Final Cut Pro. One row per
+    /// kind, always in the same order. Shown only: Roomy never cleans inside
+    /// a library, and no row holds a path.
+    pub fn libraries(&self, handle: ScanHandle) -> Result<Vec<LibrarySize>, CoreError> {
+        Ok(self.finished(handle)?.libraries.clone())
     }
 
     /// Every item of a finished scan, optionally one category and/or tier.
@@ -592,14 +600,21 @@ fn scan_and_classify(home: &Path, rules: &[Rule], mode: Mode, slot: &Slot) -> St
     let items = classifier::classify(&scan, rules, rule_mode);
     let unreadable =
         crate::views::unreadable_areas(home, scan.unreadable.iter().map(|u| u.path.as_path()));
-    State::Finished(Arc::new(Finished::new(
-        mode,
-        home.to_path_buf(),
-        scan.total_bytes(),
-        scan.root_dev,
-        unreadable,
-        items,
-    )))
+    let libraries = analysers::libraries::library_sizes(&scan)
+        .iter()
+        .map(LibrarySize::from)
+        .collect();
+    State::Finished(Arc::new(
+        Finished::new(
+            mode,
+            home.to_path_buf(),
+            scan.total_bytes(),
+            scan.root_dev,
+            unreadable,
+            items,
+        )
+        .with_libraries(libraries),
+    ))
 }
 
 /// Turns a scanner error into a final state with a plain-words reason. The
