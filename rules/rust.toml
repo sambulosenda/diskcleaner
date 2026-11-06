@@ -1,0 +1,213 @@
+# Rust rules. Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# `target` is a common folder name, so the build-folder rules also need
+# the two files Cargo always writes there: CACHEDIR.TAG and
+# .rustc_info.json. A folder called "target" without both is never matched.
+#
+# Like node_modules, there is one rule per common code folder, because a
+# rule may not match `**/target` across the whole home folder. The home
+# rule goes one level deep and leaves out hidden folders.
+#
+# ~/.cargo/git is left alone: its checkouts are git repositories.
+# ~/.cargo/bin holds installed tools and is never matched.
+
+[[rule]]
+id = "rust.cargo_registry_cache"
+version = 1
+match.path = ".cargo/registry/cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Cargo download cache"
+explain = "Copies of Rust packages (crates) Cargo has downloaded, kept so builds are faster."
+risk = "The next build downloads the crates again, which takes longer and needs a network connection."
+restore = "Cargo downloads them again on the next build."
+action = "trash"
+
+[[rule]]
+id = "rust.cargo_registry_src"
+version = 1
+match.path = ".cargo/registry/src"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Cargo unpacked crates"
+explain = "Unpacked copies of the crates Cargo has downloaded, ready to build."
+risk = "The next build unpacks or downloads the crates again, which takes a little longer."
+restore = "Cargo unpacks them again on the next build."
+action = "trash"
+
+[[rule]]
+id = "rust.toolchain"
+version = 1
+match.path = ".rustup/toolchains/*"
+match.requires = ["lib/rustlib/components"]
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust toolchain"
+explain = "One installed version of the Rust compiler and its tools, managed by rustup."
+risk = "Projects that use this version will not build until it is installed again. If it is your default, cargo stops working until then."
+restore = "rustup installs it again when a project asks for it, or run rustup toolchain install."
+action = "trash"
+
+[[rule]]
+id = "rust.target"
+version = 1
+match.path = "projects/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_developer"
+version = 1
+match.path = "Developer/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_code"
+version = 1
+match.path = "code/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_dev"
+version = 1
+match.path = "dev/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_src"
+version = 1
+match.path = "src/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_repos"
+version = 1
+match.path = "repos/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_github"
+version = 1
+match.path = "GitHub/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_documents"
+version = 1
+match.path = "Documents/**/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"
+
+[[rule]]
+id = "rust.target_home"
+version = 1
+match.path = "[!.]*/target"
+match.requires = ["CACHEDIR.TAG", ".rustc_info.json"]
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Rust build folder (target)"
+explain = "Everything Cargo built for one Rust project. Cargo makes it again from the project's code."
+risk = "The next build of this project starts from scratch, which can take several minutes."
+restore = "Run cargo build in the project folder."
+action = "trash"

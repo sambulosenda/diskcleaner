@@ -12,10 +12,23 @@ use crate::CoreError;
 /// Every rule file, as `(file name, text)`, in file-name order.
 pub(crate) const FILES: &[(&str, &str)] = &[
     (
+        "ai_tools.toml",
+        include_str!("../../../../rules/ai_tools.toml"),
+    ),
+    (
+        "android.toml",
+        include_str!("../../../../rules/android.toml"),
+    ),
+    (
+        "editors.toml",
+        include_str!("../../../../rules/editors.toml"),
+    ),
+    (
         "everyday.toml",
         include_str!("../../../../rules/everyday.toml"),
     ),
     ("js.toml", include_str!("../../../../rules/js.toml")),
+    ("rust.toml", include_str!("../../../../rules/rust.toml")),
     ("xcode.toml", include_str!("../../../../rules/xcode.toml")),
 ];
 

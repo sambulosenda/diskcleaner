@@ -71,6 +71,7 @@ pub fn build(root: &Path, now: SystemTime) -> Result<Manifest, FixtureError> {
     layout::xcode::build(&mut b)?;
     layout::android::build(&mut b)?;
     layout::js::build(&mut b)?;
+    layout::devtools::build(&mut b)?;
     layout::traps::build(&mut b)?;
     b.finish()
 }

@@ -1,0 +1,113 @@
+# Code editor rules: Cursor, Visual Studio Code and JetBrains IDEs.
+# Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# Cursor and VS Code are built the same way, so they get the same three
+# cache rules. Their `User` folders (settings, workspaces and Cursor's chat
+# databases, which are review-only) are never matched.
+
+[[rule]]
+id = "cursor.cache"
+version = 1
+match.path = "Library/Application Support/Cursor/Cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Cursor cache"
+explain = "Web content and images Cursor keeps so its windows load faster."
+risk = "Cursor may open a little slower the first time. Your settings, projects and extensions are kept."
+restore = "Cursor fills it again as you use it."
+action = "trash"
+
+[[rule]]
+id = "cursor.cached_data"
+version = 1
+match.path = "Library/Application Support/Cursor/CachedData"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Cursor start-up cache"
+explain = "Prepared copies of Cursor's own code, kept so it starts faster. Copies made for older versions often stay behind."
+risk = "Cursor may start a little slower next time."
+restore = "Cursor makes it again when it starts."
+action = "trash"
+
+[[rule]]
+id = "cursor.extension_downloads"
+version = 1
+match.path = "Library/Application Support/Cursor/CachedExtensionVSIXs"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Cursor extension downloads"
+explain = "Copies of extension installers Cursor downloaded. Installed extensions do not need them."
+risk = "If you install one of these extensions again, Cursor downloads it again."
+restore = "Cursor downloads an extension again when you install it."
+action = "trash"
+
+[[rule]]
+id = "vscode.cache"
+version = 1
+match.path = "Library/Application Support/Code/Cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "VS Code cache"
+explain = "Web content and images VS Code keeps so its windows load faster."
+risk = "VS Code may open a little slower the first time. Your settings, projects and extensions are kept."
+restore = "VS Code fills it again as you use it."
+action = "trash"
+
+[[rule]]
+id = "vscode.cached_data"
+version = 1
+match.path = "Library/Application Support/Code/CachedData"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "VS Code start-up cache"
+explain = "Prepared copies of VS Code's own code, kept so it starts faster. Copies made for older versions often stay behind."
+risk = "VS Code may start a little slower next time."
+restore = "VS Code makes it again when it starts."
+action = "trash"
+
+[[rule]]
+id = "vscode.extension_downloads"
+version = 1
+match.path = "Library/Application Support/Code/CachedExtensionVSIXs"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "VS Code extension downloads"
+explain = "Copies of extension installers VS Code downloaded. Installed extensions do not need them."
+risk = "If you install one of these extensions again, VS Code downloads it again."
+restore = "VS Code downloads an extension again when you install it."
+action = "trash"
+
+[[rule]]
+id = "jetbrains.cache"
+version = 1
+match.path = "Library/Caches/JetBrains/*"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "JetBrains IDE cache"
+explain = "Indexes and other files one JetBrains IDE version keeps, such as IntelliJ IDEA, RustRover or PyCharm, so projects open quickly."
+risk = "The IDE is slower for a while the next time you open a project, while it rebuilds them."
+restore = "The IDE makes them again on its own."
+action = "trash"

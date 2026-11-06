@@ -1,0 +1,106 @@
+# Android rules. Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# The SDK lives in ~/Library/Android/sdk (Android Studio's default). Build
+# tools and platforms are left alone: projects name exact versions, and
+# telling which ones are still used needs the Android analyser.
+
+[[rule]]
+id = "android.gradle_caches"
+version = 1
+match.path = ".gradle/caches"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Gradle cache"
+explain = "Libraries and build results Gradle has downloaded or made, kept so Android and Java builds are faster."
+risk = "The next build downloads and rebuilds them, which takes longer and needs a network connection."
+restore = "Gradle fills it again on the next build."
+action = "trash"
+
+[[rule]]
+id = "android.gradle_wrapper"
+version = 1
+match.path = ".gradle/wrapper/dists/*"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Gradle version download"
+explain = "A copy of one Gradle version that a project's Gradle wrapper downloaded."
+risk = "Projects that use this version download it again on their next build, which needs a network connection."
+restore = "Downloads again on the next build that needs it."
+action = "trash"
+
+[[rule]]
+id = "android.system_image"
+version = 1
+match.path = "Library/Android/sdk/system-images/*/*/*"
+match.requires = ["source.properties"]
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Android emulator system image"
+explain = "The Android software an emulator runs, for one Android version."
+risk = "Emulators that use this version will not start until you download it again."
+restore = "Download it again from the SDK Manager in Android Studio."
+action = "trash"
+
+[[rule]]
+id = "android.ndk"
+version = 1
+match.path = "Library/Android/sdk/ndk/*"
+match.requires = ["source.properties"]
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Android NDK version"
+explain = "Tools for building the parts of Android apps written in C or C++, for one version."
+risk = "Projects that need this version will not build until you download it again."
+restore = "Download it again from the SDK Manager in Android Studio."
+action = "trash"
+
+# Review-only in protected-paths.md. The `.ini` file next to the `.avd`
+# folder is left behind on purpose (it holds the home path and is tiny);
+# Android Studio then lists the emulator as broken and offers to remove it.
+[[rule]]
+id = "android.emulator"
+version = 1
+match.path = ".android/avd/*.avd"
+match.requires = ["config.ini"]
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "Android emulator"
+explain = "One Android emulator device, with the apps, data and saved states inside it."
+risk = "The apps and data inside this emulator are lost. You can make a new emulator in Android Studio, but it starts empty."
+action = "trash"
+
+[[rule]]
+id = "android.studio_cache"
+version = 1
+match.path = "Library/Caches/Google/AndroidStudio*"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Android Studio cache"
+explain = "Indexes and other files Android Studio keeps so projects open and search quickly."
+risk = "Android Studio is slower for a while the next time you open a project, while it rebuilds them."
+restore = "Android Studio makes them again on its own."
+action = "trash"

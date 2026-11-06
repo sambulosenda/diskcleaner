@@ -261,13 +261,16 @@ fn largest_files_are_sorted_and_limited() {
         .largest_files
         .windows(2)
         .all(|w| w[0].allocated_bytes >= w[1].allocated_bytes));
-    // The first is the largest allocated file in the tree.
+    // The first is the largest allocated file in the tree. The manifest
+    // file itself is in the tree too, and as the fixture grows it can be
+    // the largest file.
     let biggest = home
         .manifest
         .entries
         .iter()
         .filter(|e| e.kind == EntryKind::File)
         .map(|e| allocated(&home.root.join(&e.path)))
+        .chain([allocated(&home.root.join(MANIFEST_FILE))])
         .max()
         .unwrap();
     assert_eq!(result.largest_files[0].allocated_bytes, biggest);
@@ -409,12 +412,19 @@ fn marks_folders_that_hold_git() {
     let home = home();
     let result = scan_home(&home.root);
     let repo = Path::new(paths::TRAP_GIT_DIR).parent().unwrap();
-    let with_git: Vec<PathBuf> = result
+    let mut want = vec![
+        home.root.join(repo),
+        home.root.join(paths::RUST_PROJECTS[1]),
+        home.root.join(paths::CARGO_GIT_CHECKOUT),
+    ];
+    want.sort();
+    let mut with_git: Vec<PathBuf> = result
         .dirs
         .iter()
         .enumerate()
         .filter(|(_, d)| d.has_git)
         .map(|(i, _)| result.path_of(i).unwrap())
         .collect();
-    assert_eq!(with_git, vec![home.root.join(repo)]);
+    with_git.sort();
+    assert_eq!(with_git, want);
 }
