@@ -1,4 +1,4 @@
-# CLAUDE.md — Mac storage cleaner (codename: CODENAME)
+# CLAUDE.md — Mac storage cleaner (codename: Roomy)
 
 Read this file fully at the start of every session. If anything here conflicts with a task spec, this file wins; stop and ask Sam.
 
