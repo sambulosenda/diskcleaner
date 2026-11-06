@@ -373,6 +373,17 @@ dependencies = [
 [[package]]
 name = "executor"
 version = "0.1.0"
+dependencies = [
+ "fixtures",
+ "libc",
+ "planner",
+ "safety",
+ "scanner",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
 
 [[package]]
 name = "fastrand"
@@ -590,6 +601,11 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "planner"
 version = "0.1.0"
+dependencies = [
+ "safety",
+ "tempfile",
+ "thiserror",
+]
 
 [[package]]
 name = "proc-macro-crate"
