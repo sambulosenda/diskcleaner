@@ -36,3 +36,11 @@ xcuserdata/
 # Python
 __pycache__/
 *.pyc
+
+# Release secrets and output (task T13). Never commit these; see docs/release.md.
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.dmg

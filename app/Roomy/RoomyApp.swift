@@ -7,6 +7,8 @@ struct RoomyApp: App {
     @StateObject private var model = AppModel(
         client: (MockCoreClient.fromLaunchArguments() as CoreClient?) ?? RustCoreClient()
     )
+    /// Sparkle updates. Off in development builds; see UpdaterController.
+    @StateObject private var updater = UpdaterController()
 
     var body: some Scene {
         Window("Roomy", id: "main") {
@@ -15,6 +17,10 @@ struct RoomyApp: App {
         }
         .defaultSize(width: 1120, height: 740)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+            }
             CommandGroup(after: .newItem) {
                 Button("Scan") { model.startScan() }
                     .keyboardShortcut("r", modifiers: .command)

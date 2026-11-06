@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Extra Info.plist keys for Roomy (task T13). Xcode merges these into the
+  generated Info.plist (GENERATE_INFOPLIST_FILE = YES).
+
+  SUFeedURL and SUPublicEDKey come from build settings. The public key is
+  empty in the project, so development builds have updates switched off;
+  scripts/release.sh fills it in from the Sparkle key in Sam's keychain.
+-->
+<plist version="1.0">
+<dict>
+	<key>SUFeedURL</key>
+	<string>$(ROOMY_SPARKLE_FEED_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(ROOMY_SPARKLE_PUBLIC_KEY)</string>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+</dict>
+</plist>
