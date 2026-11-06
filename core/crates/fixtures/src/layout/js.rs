@@ -68,5 +68,13 @@ fn caches(b: &mut Builder) -> Result<(), FixtureError> {
         ),
         4 * KB,
     )?;
-    b.text(&format!("{}/v6/.tmp/.keep", paths::YARN_CACHE), "")
+    b.text(&format!("{}/v6/.tmp/.keep", paths::YARN_CACHE), "")?;
+    b.bytes(
+        &format!("{}/left-pad@1.3.0@@@1/index.js", paths::BUN_CACHE),
+        4 * KB,
+    )?;
+    for cache in paths::EXPO_CACHES {
+        b.bytes(&format!("{}/{cache}/entry-0001", paths::EXPO_HOME), 6 * KB)?;
+    }
+    b.text(paths::EXPO_STATE, "{ \"auth\": null }\n")
 }

@@ -139,6 +139,18 @@ impl Glob {
         overlap(&self.parts, target, PathTok::is_any_depth, path_toks_share)
     }
 
+    /// Whether the relative path `rel` (folder names separated by `/`, with
+    /// no leading slash) matches this glob, ignoring case.
+    ///
+    /// Only compares text: it never looks at the filesystem.
+    pub fn matches(&self, rel: &str) -> bool {
+        if rel.is_empty() {
+            return false;
+        }
+        let names: Vec<PathTok> = rel.split('/').map(PathTok::literal).collect();
+        self.could_overlap(&names)
+    }
+
     /// One simple path that this glob matches, as folder names: `*` becomes
     /// nothing, `?` and `[...]` become one fitting character, and `**`
     /// becomes no folders at all. Used to ask the safety crate about the
@@ -400,6 +412,23 @@ mod tests {
 
     fn overlaps(glob: &str, t: &[&str]) -> bool {
         Glob::parse(glob).unwrap().could_overlap(&target(t))
+    }
+
+    #[test]
+    fn matches_plain_paths() {
+        let g = Glob::parse("Library/Caches/*-cache").unwrap();
+        assert!(g.matches("Library/Caches/versions-cache"));
+        assert!(g.matches("library/caches/VERSIONS-CACHE"));
+        assert!(!g.matches("Library/Caches/state.json"));
+        assert!(!g.matches("Library/Caches/versions-cache/entry"));
+        assert!(!g.matches("Library/Caches"));
+        assert!(!g.matches(""));
+        let deep = Glob::parse("a/**/b").unwrap();
+        assert!(deep.matches("a/b"));
+        assert!(deep.matches("a/x/y/b"));
+        assert!(!deep.matches("a/x/c"));
+        // A `*` in the path is a plain character, not a wildcard.
+        assert!(!Glob::parse("a/b").unwrap().matches("a/*"));
     }
 
     #[test]

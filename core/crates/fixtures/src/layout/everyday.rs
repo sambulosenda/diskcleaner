@@ -72,7 +72,8 @@ fn downloads(b: &mut Builder) -> Result<(), FixtureError> {
     )
 }
 
-/// Three app cache folders with a few files each.
+/// Three app cache folders with a few files each, plus the browser, Slack,
+/// log and iPhone update folders the everyday rules look for.
 fn caches(b: &mut Builder) -> Result<(), FixtureError> {
     for id in paths::CACHE_APP_IDS {
         let dir = format!("{}/{id}", paths::CACHES);
@@ -80,7 +81,36 @@ fn caches(b: &mut Builder) -> Result<(), FixtureError> {
         b.bytes(&format!("{dir}/fsCachedData/0A1B2C3D"), 20 * KB)?;
         b.bytes(&format!("{dir}/fsCachedData/4E5F6071"), 8 * KB)?;
     }
-    Ok(())
+    b.bytes(
+        &format!("{}/WebKitCache/Version 16/Blobs/0001", paths::SAFARI_CACHE),
+        24 * KB,
+    )?;
+    b.bytes(
+        &format!("{}/Default/Cache/Cache_Data/data_1", paths::CHROME_CACHE),
+        32 * KB,
+    )?;
+    b.bytes(
+        &format!(
+            "{}/Profiles/abcd1234.default-release/cache2/entries/0A1B",
+            paths::FIREFOX_CACHE
+        ),
+        24 * KB,
+    )?;
+    b.bytes(
+        &format!("{}/Cache_Data/data_0", paths::SLACK_CACHE),
+        20 * KB,
+    )?;
+    b.bytes(
+        &format!("{}/leveldb/000003.log", paths::SLACK_LOCAL_STORAGE),
+        4 * KB,
+    )?;
+    for folder in paths::USER_LOG_FOLDERS {
+        b.bytes(
+            &format!("{}/{folder}/app-2026-10-01.log", paths::USER_LOGS),
+            8 * KB,
+        )?;
+    }
+    b.bytes(paths::IPHONE_SOFTWARE_UPDATE, 64 * KB)
 }
 
 /// A Photos library bundle (hard-blocked as a whole).
