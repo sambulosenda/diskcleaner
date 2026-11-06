@@ -95,6 +95,10 @@ fn expected_developer() -> BTreeMap<String, &'static str> {
     for (p, id) in paths::JS_PROJECTS_ELSEWHERE.iter().zip(elsewhere) {
         want.insert(join(p, "node_modules"), id);
     }
+    let docs_and_home = ["js.node_modules_documents", "js.node_modules_home"];
+    for (p, id) in paths::JS_PROJECTS_DOCS_AND_HOME.iter().zip(docs_and_home) {
+        want.insert(join(p, "node_modules"), id);
+    }
     want.insert(join(paths::NPM_CACHE, "_cacache"), "js.npm_cache");
     want.insert(paths::NPX_CACHE.to_string(), "js.npx_cache");
     want.insert(join(paths::PNPM_STORE, "store"), "js.pnpm_store");
@@ -301,6 +305,9 @@ fn unknown_space_is_grouped_by_top_level_folder_as_keep() {
 
     let on_desktop = root.join(paths::JS_PROJECT_ON_DESKTOP).join("node_modules");
     assert!(!items.iter().any(|i| i.path == on_desktop));
+    // Nor is an editor extension's node_modules in a hidden folder.
+    let extension = root.join(paths::JS_EDITOR_EXTENSION).join("node_modules");
+    assert!(!items.iter().any(|i| i.path == extension));
     // Every byte below home is in exactly one item, except files directly in home.
     let sum: u64 = items.iter().map(|i| i.size_bytes).sum();
     assert_eq!(sum, result.total_bytes() - result.root_dir().own_bytes);
@@ -377,6 +384,7 @@ fn node_modules_are_found_in_code_folders_at_any_depth() {
     for project in paths::JS_PROJECTS
         .iter()
         .chain(paths::JS_PROJECTS_ELSEWHERE.iter())
+        .chain(paths::JS_PROJECTS_DOCS_AND_HOME.iter())
     {
         let p = root.join(project).join("node_modules");
         let item = items

@@ -133,6 +133,11 @@ pub const JS_PROJECTS_ELSEWHERE: [&str; 6] = [
 /// A package nested inside a project's `node_modules`, which belongs to the
 /// outer `node_modules` item.
 pub const JS_NESTED_MODULES: &str = "Developer/web-shop/node_modules/left-pad/node_modules";
+/// JavaScript projects in Documents (two levels down) and straight in home.
+pub const JS_PROJECTS_DOCS_AND_HOME: [&str; 2] = ["Documents/clients/site", "my-app"];
+/// An editor extension with its own `node_modules`, in a hidden folder. No
+/// rule may match it: removing it breaks the editor.
+pub const JS_EDITOR_EXTENSION: &str = ".vscode/extensions/acme.helper-1.0.0";
 /// A JavaScript project on the Desktop. No rule matches its `node_modules`
 /// yet, on purpose: the Desktop holds personal files.
 pub const JS_PROJECT_ON_DESKTOP: &str = "Desktop/old-site";

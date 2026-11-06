@@ -44,7 +44,8 @@ fn projects(b: &mut Builder) -> Result<(), FixtureError> {
 fn projects_elsewhere(b: &mut Builder) -> Result<(), FixtureError> {
     let all = paths::JS_PROJECTS_ELSEWHERE
         .iter()
-        .chain([paths::JS_PROJECT_ON_DESKTOP].iter());
+        .chain(paths::JS_PROJECTS_DOCS_AND_HOME.iter())
+        .chain([paths::JS_PROJECT_ON_DESKTOP, paths::JS_EDITOR_EXTENSION].iter());
     for project in all {
         b.text(
             &format!("{project}/package.json"),

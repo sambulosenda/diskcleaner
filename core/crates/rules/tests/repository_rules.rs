@@ -78,6 +78,8 @@ fn the_t07_rules_are_all_there() {
         "js.node_modules_src",
         "js.node_modules_repos",
         "js.node_modules_github",
+        "js.node_modules_documents",
+        "js.node_modules_home",
         "js.npm_cache",
         "js.npx_cache",
         "js.pnpm_store",
@@ -148,14 +150,31 @@ fn rules_match_exactly_the_expected_fixture_items() {
             paths::JS_PROJECTS_ELSEWHERE[1]
         )])
     );
-    // No rule reaches a project on the Desktop.
-    let on_desktop = format!("{}/node_modules", paths::JS_PROJECT_ON_DESKTOP);
-    for r in &rules {
-        assert!(
-            !matches_in(r, &manifest).contains(&on_desktop),
-            "{} matches {on_desktop}",
-            r.id
-        );
+    assert_eq!(
+        found("js.node_modules_documents"),
+        set(vec![format!(
+            "{}/node_modules",
+            paths::JS_PROJECTS_DOCS_AND_HOME[0]
+        )])
+    );
+    assert_eq!(
+        found("js.node_modules_home"),
+        set(vec![format!(
+            "{}/node_modules",
+            paths::JS_PROJECTS_DOCS_AND_HOME[1]
+        )])
+    );
+    // No rule reaches a project on the Desktop, or an editor extension in a
+    // hidden folder.
+    for target in [paths::JS_PROJECT_ON_DESKTOP, paths::JS_EDITOR_EXTENSION] {
+        let modules = format!("{target}/node_modules");
+        for r in &rules {
+            assert!(
+                !matches_in(r, &manifest).contains(&modules),
+                "{} matches {modules}",
+                r.id
+            );
+        }
     }
     assert_eq!(
         found("js.npx_cache"),
