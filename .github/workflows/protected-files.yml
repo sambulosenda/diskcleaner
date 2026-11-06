@@ -1,0 +1,59 @@
+# Protected files check for Roomy (task T12).
+#
+# Fails if a PR changes a path listed under "Files you must NEVER edit" in
+# CLAUDE.md, or a CI path in ci/protected-extra.txt, unless the PR has the
+# `sam-approved` label. Sam adds that label by hand.
+#
+# It uses `pull_request_target` so that the workflow, the script and the list
+# of protected paths all come from the base branch. A PR therefore cannot
+# switch the check off by editing it. The PR's own code is never checked out
+# or run here: the changed paths come from the GitHub API.
+name: Protected files
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: protected-files-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  protected-files:
+    name: Protected files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the base branch (never the PR)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: List the changed paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_FILES: ${{ github.event.pull_request.changed_files }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" \
+            --jq '.[] | .filename' > "$RUNNER_TEMP/files.txt"
+          # A rename changes the old path too.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/changed.txt"
+          listed="$(wc -l < "$RUNNER_TEMP/files.txt" | tr -d ' ')"
+          # The API lists at most 3000 files. Fail closed rather than check part of a PR.
+          if [ "$listed" != "$EXPECTED_FILES" ]; then
+            echo "The API listed $listed of $EXPECTED_FILES changed files, so the check cannot be trusted." >&2
+            exit 1
+          fi
+      - name: Save the PR labels
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels) }}
+        run: printf '%s' "$LABELS" > "$RUNNER_TEMP/labels.json"
+      - name: Check protected paths
+        run: python3 ci/protected_files.py . "$RUNNER_TEMP/changed.txt" "$RUNNER_TEMP/labels.json"

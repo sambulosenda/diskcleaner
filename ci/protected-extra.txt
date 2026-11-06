@@ -1,0 +1,8 @@
+# Paths protected in addition to the "Files you must NEVER edit" list in
+# CLAUDE.md (task T12). They hold the CI checks themselves, so a PR cannot
+# switch a check off without Sam's `sam-approved` label.
+#
+# A pattern ending in /** protects everything under that folder; any other
+# line is an exact path.
+.github/**
+ci/**
