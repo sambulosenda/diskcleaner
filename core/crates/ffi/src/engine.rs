@@ -235,7 +235,12 @@ impl RoomyCore {
         handle: ScanHandle,
         item_id: String,
     ) -> Result<ItemDetail, CoreError> {
-        self.finished(handle)?.detail(&item_id)
+        let f = self.finished(handle)?;
+        let mut detail = f.detail(&item_id)?;
+        detail.device_backup = f
+            .item(&item_id)
+            .and_then(|item| crate::backup::device_backup(&f, item));
+        Ok(detail)
     }
 
     /// The dry run: checks the ticked items exactly as a cleanup would, just

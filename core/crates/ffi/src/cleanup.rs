@@ -12,7 +12,9 @@ use std::time::SystemTime;
 use executor::ItemRefusal;
 use planner::{ItemRequest, Plan, PlanError};
 
-use crate::types::{CleanupCheck, CleanupChoice, CleanupPreview, CleanupPreviewItem, PlanHandle};
+use crate::types::{
+    CleanupCheck, CleanupChoice, CleanupPreview, CleanupPreviewItem, DeviceBackup, PlanHandle,
+};
 use crate::views::{display_path, Finished};
 use crate::CoreError;
 
@@ -32,6 +34,8 @@ struct Entry {
     title: String,
     size_bytes: u64,
     path: Option<String>,
+    /// Which device it belongs to, for an iPhone or iPad backup.
+    device_backup: Option<DeviceBackup>,
     /// The request, while the item is still in the running.
     request: Option<ItemRequest>,
     /// Why it would not move, once that is known.
@@ -116,6 +120,7 @@ fn entries_for(f: &Finished, choices: &[CleanupChoice]) -> Result<Vec<Entry>, Co
                 crate::Mode::Developer => display_path(&f.home, &item.path),
                 crate::Mode::Simple => None,
             },
+            device_backup: crate::backup::device_backup(f, item),
             request,
             wont_move,
         });
@@ -184,6 +189,7 @@ fn finish(entries: Vec<Entry>, plan: Option<Plan>) -> Prepared {
                 Some(reason) => CleanupCheck::WontMove { reason },
             },
             path: e.path,
+            device_backup: e.device_backup,
         })
         .collect();
     let bytes_to_move = items

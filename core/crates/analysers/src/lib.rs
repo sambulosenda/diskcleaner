@@ -1,5 +1,7 @@
 //! Per-tool analysis (xcode, android, js, docker, everyday). Read only; may run read-only CLI queries.
 
+pub mod ios_backup;
+
 #[cfg(test)]
 mod tests {
     #[test]

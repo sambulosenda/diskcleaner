@@ -49,7 +49,7 @@ struct CleanupReviewSheet: View {
             Button("Move to Trash") { model.moveToTrash() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(CleanupText.confirmMessage)
+            Text(confirmMessage)
         }
     }
 
@@ -129,6 +129,11 @@ struct CleanupReviewSheet: View {
         }
     }
 
+    private var confirmMessage: String {
+        guard case .ready(let preview) = model.cleanupState else { return CleanupText.confirmMessage }
+        return CleanupText.confirmText(preview)
+    }
+
     private var confirmTitle: String {
         guard case .ready(let preview) = model.cleanupState else { return "Move to the Trash?" }
         return CleanupText.confirmTitle(preview)
@@ -161,6 +166,18 @@ enum CleanupText {
     static let confirmMessage =
         "Roomy checks each item again first. The space comes back when you empty the Trash. "
         + "Until then you can put them back, from here or from History, until Roomy quits."
+
+    /// The confirm message, led by a warning for each iPhone or iPad backup that would move.
+    static func confirmText(_ preview: CleanupPreview) -> String {
+        let backups = preview.items
+            .filter { $0.check == .willMove }
+            .compactMap(\.deviceBackup)
+        guard !backups.isEmpty else { return confirmMessage }
+        let lines = backups.map { backup in
+            "\(BackupWarning.headline(backup)) \(BackupWarning.lastBackedUp(backup))"
+        }
+        return (lines + [BackupWarning.checkICloud, confirmMessage]).joined(separator: "\n\n")
+    }
 
     static func movedHeadline(_ result: CleanupResult) -> String {
         let count = result.items.filter(\.done).count
@@ -293,6 +310,10 @@ struct CleanupPreviewRow: View {
                 Text(statusText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if willMove, let backup = item.deviceBackup {
+                    BackupWarningBox(backup: backup, compact: true)
+                        .padding(.top, 2)
+                }
             }
             Spacer(minLength: 12)
             Text(Format.bytes(item.sizeBytes))

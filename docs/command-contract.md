@@ -210,6 +210,15 @@ One row in a list. No path, in any mode.
 | `command` | `String?` | Allow-listed command id when `action` is `command` |
 | `cautions` | `[Caution]` | Why the tier is more careful than the rule's, if it is |
 | `path` | `String?` | **Developer mode only**: the place as a display string starting `~/`. Always `nil` in simple mode |
+| `device_backup` | `DeviceBackup?` | iPhone or iPad backups (`ios.device_backup`) only: which device it is. Always set for a backup, even when its details couldn't be read, so the app always shows the warning. `nil` for everything else |
+
+### `DeviceBackup` (record)
+Read from the backup's `Info.plist` by `analysers::ios_backup`, after `safety::validate` and without following a symlink. Shown in both modes; it holds no path.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `device_name` | `String?` | The device's name, with control and text-direction characters removed, at most 60 characters |
+| `last_backup_unix_seconds` | `i64?` | When the backup last finished, in seconds since 1970. The app formats it |
 
 ### `Caution` (enum)
 Why the core made an item's tier more careful. Carries no path.
@@ -296,6 +305,7 @@ app calls it when the user closes the review without cleaning up.
 | `size_bytes` | `u64` | For `will_move`, measured just now; otherwise the scan's size |
 | `check` | `CleanupCheck` | |
 | `path` | `String?` | **Developer mode only**, display string starting `~/`, like `ItemDetail.path`. Always `nil` in simple mode |
+| `device_backup` | `DeviceBackup?` | As `ItemDetail.device_backup` |
 
 ### `CleanupPreview` (record)
 | Field | Type | Meaning |

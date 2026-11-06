@@ -24,6 +24,7 @@ bindgen = ["uniffi/cli"]
 testing = ["dep:fixtures"]
 
 [dependencies]
+analysers = { path = "../analysers" }
 classifier = { path = "../classifier" }
 dirs = "6"
 executor = { path = "../executor" }

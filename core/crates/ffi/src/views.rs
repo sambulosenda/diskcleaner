@@ -123,6 +123,8 @@ impl Finished {
     }
 
     /// Full detail for one item. `path` is filled in only in Developer mode.
+    /// `device_backup` is left empty here, because filling it reads a file;
+    /// `RoomyCore::item_detail` fills it in.
     pub fn detail(&self, item_id: &str) -> Result<ItemDetail, CoreError> {
         let item = self
             .by_id
@@ -150,6 +152,7 @@ impl Finished {
             command: item.command.clone(),
             cautions: item.lowered.iter().map(Caution::from).collect(),
             path,
+            device_backup: None,
         })
     }
 }

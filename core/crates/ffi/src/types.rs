@@ -230,6 +230,21 @@ pub struct ItemDetail {
     /// Developer mode only: the place as a display string starting `~`.
     /// Always `None` in simple mode. Display only; never sent back.
     pub path: Option<String>,
+    /// For an iPhone or iPad backup only: which device it belongs to.
+    /// Always `Some` for a backup, even if the details couldn't be read,
+    /// so the app always shows its warning. `None` for everything else.
+    pub device_backup: Option<DeviceBackup>,
+}
+
+/// What an iPhone or iPad backup's `Info.plist` says about the device, for
+/// the warning before it goes to the Trash. Either part may be missing.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct DeviceBackup {
+    /// The device's name, cleaned to be safe to show.
+    pub device_name: Option<String>,
+    /// When the backup last finished, in seconds since 1970. Formatting
+    /// happens in the app.
+    pub last_backup_unix_seconds: Option<i64>,
 }
 
 /// Opaque id for one cleanup plan. Single use; expires ten minutes after
@@ -278,6 +293,9 @@ pub struct CleanupPreviewItem {
     /// Developer mode only: the place as a display string starting `~`.
     /// Always `None` in simple mode. Display only; never sent back.
     pub path: Option<String>,
+    /// For an iPhone or iPad backup only: which device it belongs to, as in
+    /// [`ItemDetail::device_backup`].
+    pub device_backup: Option<DeviceBackup>,
 }
 
 /// The dry run: exactly what would move to the Trash. Nothing has moved.

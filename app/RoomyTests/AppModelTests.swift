@@ -483,4 +483,59 @@ final class AppModelTests: XCTestCase {
     func testConfirmTextSaysTheSpaceComesBackWhenTheTrashIsEmptied() {
         XCTAssertTrue(CleanupText.confirmMessage.contains("empty the Trash"))
     }
+
+    // MARK: iPhone and iPad backups
+
+    private let gb = Locale(identifier: "en_GB")
+    private let utc = TimeZone(identifier: "UTC") ?? .current
+
+    func testBackupWarningNamesTheDeviceAndDate() {
+        let backup = DeviceBackup(deviceName: "Sam's iPhone", lastBackupUnixSeconds: 1_793_348_100)
+        XCTAssertEqual(BackupWarning.headline(backup), "This may be your only copy of Sam's iPhone.")
+        XCTAssertEqual(BackupWarning.lastBackedUp(backup, locale: gb, timeZone: utc),
+                       "Last backed up to this Mac on 30 October 2026.")
+        let details = BackupWarning.details(backup, locale: gb, timeZone: utc)
+        XCTAssertTrue(details.contains("Check it's backed up to iCloud first"))
+        XCTAssertTrue(details.contains("iCloud Backup"))
+    }
+
+    func testBackupWarningStillShowsWhenDetailsAreUnknown() {
+        let backup = DeviceBackup(deviceName: nil, lastBackupUnixSeconds: nil)
+        XCTAssertEqual(BackupWarning.headline(backup), "This may be your only copy of this iPhone or iPad.")
+        XCTAssertTrue(BackupWarning.details(backup).contains("couldn't tell when"))
+        XCTAssertTrue(BackupWarning.details(backup).contains("iCloud first"))
+    }
+
+    func testConfirmTextWarnsAboutABackupThatWouldMove() {
+        let backup = DeviceBackup(deviceName: "Family iPad", lastBackupUnixSeconds: nil)
+        func preview(_ check: CleanupCheck, _ device: DeviceBackup?) -> CleanupPreview {
+            CleanupPreview(
+                plan: PlanHandle(id: 1),
+                items: [CleanupPreviewItem(itemId: "a", title: "iPhone or iPad backup", sizeBytes: 10,
+                                           check: check, path: nil, deviceBackup: device)],
+                bytesToMove: 10,
+                expiresInSeconds: 600
+            )
+        }
+        let warned = CleanupText.confirmText(preview(.willMove, backup))
+        XCTAssertTrue(warned.hasPrefix("This may be your only copy of Family iPad."))
+        XCTAssertTrue(warned.contains("iCloud first"))
+        XCTAssertTrue(warned.hasSuffix(CleanupText.confirmMessage))
+        XCTAssertEqual(CleanupText.confirmText(preview(.wontMove(reason: "No."), backup)), CleanupText.confirmMessage)
+        XCTAssertEqual(CleanupText.confirmText(preview(.willMove, nil)), CleanupText.confirmMessage)
+    }
+
+    func testMockBackupDetailCarriesItsDevice() async throws {
+        let mock = MockCoreClient(scenario: .normal, totalSteps: 1)
+        let handle = await mock.startScan(mode: .simple)
+        var phase = ScanPhase.scanning
+        for _ in 0..<10 where !phase.hasEnded {
+            phase = try await mock.scanProgress(handle: handle).phase
+        }
+        let detail = try await mock.itemDetail(handle: handle, itemId: "iphone-backup")
+        XCTAssertEqual(detail.deviceBackup?.deviceName, "Sam's iPhone")
+        let otherId = try XCTUnwrap(MockData.found(for: .normal).first { $0.id != "iphone-backup" }?.id)
+        let other = try await mock.itemDetail(handle: handle, itemId: otherId)
+        XCTAssertNil(other.deviceBackup)
+    }
 }
