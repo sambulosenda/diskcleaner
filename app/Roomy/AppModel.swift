@@ -936,7 +936,7 @@ final class AppModel: ObservableObject {
             return "Something went wrong while scanning."
         case .NothingSelected:
             return "Nothing was chosen."
-        case .CleanupUnavailable(let reason), .DockerUnavailable(let reason):
+        case .CleanupUnavailable(let reason), .DockerUnavailable(let reason), .ToolUnavailable(let reason):
             return reason
         case .NothingToPutBack:
             return "Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash."

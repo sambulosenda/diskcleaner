@@ -122,7 +122,7 @@ final class AppModelTests: XCTestCase {
             "System Data", "Remove apps", "Cleanup", "History",
         ])
         model.mode = .developer
-        XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker"])
+        XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker", "Tool clean-ups"])
     }
 
     func testSwitchingToSimpleLeavesADeveloperScreen() {

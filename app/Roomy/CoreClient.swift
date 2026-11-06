@@ -87,6 +87,18 @@ protocol CoreClient: AnyObject {
     /// files, swap and the sleep image. Reads only; never throws. Paths come back in Developer mode only.
     /// Can take several seconds.
     func systemData(mode: Mode) async -> SystemData
+    /// The dry run of one tool clean-up (`brew cleanup`, deleting unavailable simulators, or one Android SDK
+    /// package): what the tool would remove. Removes nothing. Sends a kind, never a command. Throws
+    /// `CoreError.ToolUnavailable` if the tool is missing. `sdkmanager` can take a minute.
+    func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview
+
+    /// Drops the plan a tool preview made, when the user closes the review without removing anything.
+    func discardToolCleanup(plan: ToolPlanHandle) async
+
+    /// Runs the reviewed tool clean-up. `package` is the id of one package from the review for the Android
+    /// SDK, and `nil` otherwise. The core checks again first and refuses, removing nothing, if anything
+    /// changed. The plan is used up.
+    func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult
 
     /// The app uninstaller: every app in /Applications and ~/Applications, except Apple's and Roomy, with
     /// its size. Reads only. Each call gives new app ids.

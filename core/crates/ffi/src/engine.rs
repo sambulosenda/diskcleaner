@@ -97,6 +97,8 @@ pub struct RoomyCore {
     pub(crate) docker: crate::docker::DockerSlot,
     /// Where the System Data breakdown looks.
     pub(crate) system_data: crate::system_data::SystemDataSlot,
+    /// The Tool clean-ups screen's waiting plan (Homebrew, simulators, SDK).
+    pub(crate) tools: crate::tools::ToolSlot,
     /// The app uninstaller's list of apps and its latest review.
     apps: Mutex<crate::uninstall::AppsState>,
     /// Test-only: the folders to look for apps in, instead of
@@ -175,6 +177,7 @@ impl RoomyCore {
             guard_overrides: Mutex::new(GuardOverrides::default()),
             docker: crate::docker::DockerSlot::new(&home),
             system_data: crate::system_data::SystemDataSlot::new(&home),
+            tools: crate::tools::ToolSlot::new(),
             home,
             apps: Mutex::new(crate::uninstall::AppsState::default()),
             app_folders: Mutex::new(None),

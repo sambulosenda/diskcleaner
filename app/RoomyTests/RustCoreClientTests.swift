@@ -161,6 +161,11 @@ private final class FailingCore: CoreClient {
                                              oldestUnixSeconds: nil, newestUnixSeconds: nil),
                    parts: [], totalBytes: 0)
     }
+    func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview { throw CoreError.HomeNotFound }
+    func discardToolCleanup(plan: ToolPlanHandle) async {}
+    func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult {
+        throw CoreError.HomeNotFound
+    }
     func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview { throw CoreError.HomeNotFound }
     func listApps() async -> [AppSummary] { [] }
     func reviewApp(appId: String, mode: Mode) async throws -> AppReview { throw CoreError.HomeNotFound }

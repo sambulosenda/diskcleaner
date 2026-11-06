@@ -214,6 +214,20 @@ const AFTER_EFFECTS: OwnerApp = OwnerApp {
     prefixes: &["Adobe After Effects"],
 };
 
+const OLLAMA: OwnerApp = OwnerApp {
+    name: "Ollama",
+    programs: &["ollama", "Ollama"],
+    bundles: &["Ollama.app"],
+    prefixes: &[],
+};
+
+const LM_STUDIO: OwnerApp = OwnerApp {
+    name: "LM Studio",
+    programs: &["LM Studio", "lms"],
+    bundles: &["LM Studio.app"],
+    prefixes: &[],
+};
+
 /// The apps that may be using the items `rule_id` finds. Empty if none.
 pub fn owner_apps(rule_id: &str) -> &'static [OwnerApp] {
     match rule_id {
@@ -237,6 +251,8 @@ pub fn owner_apps(rule_id: &str) -> &'static [OwnerApp] {
         "rust.cargo_registry_cache" | "rust.cargo_registry_src" => &[CARGO],
         "rust.toolchain" => &[RUSTUP],
         "ios.device_backup" => &[IPHONE_BACKUP],
+        "ollama.models" => &[OLLAMA],
+        "lm_studio.model" | "lm_studio.model_legacy" => &[LM_STUDIO],
         "final_cut.render_files" | "final_cut.proxy_media" => &[FINAL_CUT],
         "adobe.media_cache_files" | "adobe.media_cache_database" => &[ADOBE_VIDEO],
         "adobe.after_effects_disk_cache" => &[AFTER_EFFECTS],
@@ -268,6 +284,8 @@ mod tests {
             "xcode.simulator_device",
             "android.emulator",
             "jetbrains.cache",
+            "ollama.models",
+            "lm_studio.model",
             "final_cut.proxy_media",
             "adobe.media_cache_database",
             "adobe.after_effects_disk_cache",

@@ -181,6 +181,7 @@ extension SidebarItem {
         case .android: return ["gradle", "emulator"]
         case .javascript: return ["npm", "node", "yarn", "pnpm"]
         case .docker: return ["images", "containers"]
+        case .tools: return ["brew", "homebrew", "simulators", "sdkmanager", "android sdk"]
         case .apps: return ["uninstall", "delete app", "leftovers"]
         case .cleanup: return ["trash", "free space"]
         case .history: return ["past cleanups", "put back", "undo"]

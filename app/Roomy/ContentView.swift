@@ -73,6 +73,8 @@ struct DetailView: View {
                 LibrariesScreen()
             } else if item == .docker {
                 DockerScreen()
+            } else if item == .tools {
+                ToolCleanupsScreen()
             } else if item == .javascript {
                 JavaScriptScreen()
             } else if item == .apps {
