@@ -35,6 +35,11 @@ These were edited directly in `project.pbxproj`; nothing needs setting by hand i
 | Roomy target (Debug and Release) | `LIBRARY_SEARCH_PATHS` | `$(PROJECT_DIR)/Generated/lib` | Where the static library is |
 | Roomy target (Debug and Release) | `OTHER_LDFLAGS` | `-lroomy_ffi` | Links the static library |
 | Roomy target, Sources | added file | `Generated/roomy_core.swift` (group "Generated") | The Swift bindings |
+| Roomy target (Debug and Release) | `INFOPLIST_FILE` | `Roomy/Info.plist` | Sparkle keys, merged into the generated Info.plist (T13) |
+| Roomy target (Debug and Release) | `CODE_SIGN_ENTITLEMENTS` | `Roomy/Roomy.entitlements` | Empty entitlements, see `docs/release.md` (T13) |
+| Roomy target (Debug and Release) | `ROOMY_SPARKLE_FEED_URL`, `ROOMY_SPARKLE_PUBLIC_KEY` | GitHub "latest release" appcast URL; empty key | `release.sh` passes the real public key; empty means updates are off (T13) |
+| Roomy target (Release) | `ENABLE_HARDENED_RUNTIME` | `YES` (`NO` in Debug, so hosted tests can load) | Needed for notarisation (T13) |
+| Project | Swift package | Sparkle, exact version 2.9.6, product linked into Roomy | Updates (T13); pinned in `project.xcworkspace/xcshareddata/swiftpm/Package.resolved` |
 
 The test target needs no link settings: it runs hosted in the app (`TEST_HOST` / `BUNDLE_LOADER`), so it uses
 the app's copy of the library.

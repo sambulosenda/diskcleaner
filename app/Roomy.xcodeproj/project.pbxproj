@@ -29,6 +29,9 @@
 		A10000000000000000000031 /* MockCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MockCoreClientTests.swift */; };
 		A10000000000000000000053 /* RustCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000053 /* RustCoreClientTests.swift */; };
 		A10000000000000000000032 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* ScreenshotTests.swift */; };
+		A10000000000000000000060 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AE0000000000000000000001 /* Sparkle */; };
+		A10000000000000000000061 /* UpdaterController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000061 /* UpdaterController.swift */; };
+		A10000000000000000000064 /* UpdaterControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000064 /* UpdaterControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +69,10 @@
 		A20000000000000000000031 /* MockCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCoreClientTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000053 /* RustCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustCoreClientTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000032 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000061 /* UpdaterController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterController.swift; sourceTree = "<group>"; };
+		A20000000000000000000062 /* Roomy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Roomy.entitlements; sourceTree = "<group>"; };
+		A20000000000000000000063 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000064 /* UpdaterControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +80,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000060 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -114,6 +122,9 @@
 				A20000000000000000000027 /* CategoryStrip.swift */,
 				A20000000000000000000028 /* StateViews.swift */,
 				A20000000000000000000029 /* SettingsView.swift */,
+				A20000000000000000000061 /* UpdaterController.swift */,
+				A20000000000000000000063 /* Info.plist */,
+				A20000000000000000000062 /* Roomy.entitlements */,
 			);
 			path = Roomy;
 			sourceTree = "<group>";
@@ -127,6 +138,7 @@
 				A20000000000000000000031 /* MockCoreClientTests.swift */,
 				A20000000000000000000053 /* RustCoreClientTests.swift */,
 				A20000000000000000000032 /* ScreenshotTests.swift */,
+				A20000000000000000000064 /* UpdaterControllerTests.swift */,
 			);
 			path = RoomyTests;
 			sourceTree = "<group>";
@@ -164,6 +176,9 @@
 			dependencies = (
 			);
 			name = Roomy;
+			packageProductDependencies = (
+				AE0000000000000000000001 /* Sparkle */,
+			);
 			productName = Roomy;
 			productReference = A20000000000000000000010 /* Roomy.app */;
 			productType = "com.apple.product-type.application";
@@ -214,6 +229,9 @@
 				Base,
 			);
 			mainGroup = A50000000000000000000001;
+			packageReferences = (
+				AF0000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = A50000000000000000000004 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -261,6 +279,7 @@
 				A10000000000000000000027 /* CategoryStrip.swift in Sources */,
 				A10000000000000000000028 /* StateViews.swift in Sources */,
 				A10000000000000000000029 /* SettingsView.swift in Sources */,
+				A10000000000000000000061 /* UpdaterController.swift in Sources */,
 				A10000000000000000000004 /* roomy_core.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -275,6 +294,7 @@
 				A10000000000000000000031 /* MockCoreClientTests.swift in Sources */,
 				A10000000000000000000053 /* RustCoreClientTests.swift in Sources */,
 				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,
+				A10000000000000000000064 /* UpdaterControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,6 +307,25 @@
 			targetProxy = A30000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AF0000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.9.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AE0000000000000000000001 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AF0000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AD0000000000000000000001 /* Debug */ = {
@@ -340,11 +379,14 @@
 		AD0000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Roomy/Roomy.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Roomy/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -355,6 +397,8 @@
 				OTHER_LDFLAGS = "-lroomy_ffi";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sambulosenda.roomy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				ROOMY_SPARKLE_FEED_URL = "https://github.com/sambulosenda/diskcleaner/releases/latest/download/appcast.xml";
+				ROOMY_SPARKLE_PUBLIC_KEY = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Debug;
@@ -362,11 +406,14 @@
 		AD0000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Roomy/Roomy.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Roomy/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -377,6 +424,8 @@
 				OTHER_LDFLAGS = "-lroomy_ffi";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sambulosenda.roomy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				ROOMY_SPARKLE_FEED_URL = "https://github.com/sambulosenda/diskcleaner/releases/latest/download/appcast.xml";
+				ROOMY_SPARKLE_PUBLIC_KEY = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;
