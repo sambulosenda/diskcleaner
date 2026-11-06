@@ -64,6 +64,35 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
 
     var isDeveloperOnly: Bool { Self.developerItems.contains(self) }
 
+    /// Which of the core's items a list screen shows.
+    enum ItemFilter: Equatable {
+        /// Items in any of these categories.
+        case categories([Category])
+        /// Every item, whatever its category.
+        case everything
+    }
+
+    /// What this screen lists, or `nil` for screens that are not item lists (yet).
+    ///
+    /// The core sorts items into the rule categories of `docs/safety/rule-schema.md`; the sidebar groups
+    /// them the way the wireframe names them. Android and JavaScript need the core to group items by
+    /// tool, which it does not do yet, so they stay placeholders. Every `developer_tools` rule today is an
+    /// Xcode one, so Xcode lists that category.
+    var itemFilter: ItemFilter? {
+        switch self {
+        case .backups: return .categories([.backups])
+        case .downloads: return .categories([.downloads])
+        // The core has no "large file" item yet, so this lists everything it found, largest first.
+        case .largeFiles: return .everything
+        case .appsAndCaches: return .categories([.cache, .appData])
+        case .systemData: return .categories([.system, .logs])
+        case .projects: return .categories([.build])
+        case .xcode: return .categories([.developerTools])
+        case .docker: return .categories([.docker])
+        case .overview, .android, .javascript, .cleanup, .history: return nil
+        }
+    }
+
     /// The sidebar entries to show for a mode, as groups in order.
     static func sections(for mode: Mode) -> [[SidebarItem]] {
         mode == .developer ? [mainItems, developerItems, actionItems] : [mainItems, actionItems]

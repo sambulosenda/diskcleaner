@@ -72,7 +72,7 @@ extension Tier {
 }
 
 extension Category {
-    /// Plain name for the strip legend. Grouping categories for the sidebar screens is T11 work.
+    /// Plain name for the strip legend. `SidebarItem.itemFilter` groups categories for the sidebar.
     var title: String {
         switch self {
         case .cache: return "Caches"
@@ -120,6 +120,43 @@ extension Category {
         case .backups: return .pink
         case .system: return .gray
         case .unknown: return .brown
+        }
+    }
+}
+
+extension Sort {
+    static let allCases: [Sort] = [.largestFirst, .smallestFirst, .title]
+
+    var label: String {
+        switch self {
+        case .largestFirst: return "Largest first"
+        case .smallestFirst: return "Smallest first"
+        case .title: return "Name"
+        }
+    }
+}
+
+extension Confidence {
+    var label: String {
+        switch self {
+        case .high: return "High"
+        case .medium: return "Medium"
+        case .low: return "Low"
+        }
+    }
+}
+
+extension Caution {
+    /// Why the core was more careful with an item, in one plain sentence. Never names a place.
+    var explanation: String {
+        switch self {
+        case .protected: return "It is, or holds, something Roomy always keeps."
+        case .reviewOnly: return "It holds something you should look at first."
+        case .nestedRule: return "Something else Roomy recognises is inside it."
+        case .rulesDisagree: return "Roomy isn't sure what part of it is."
+        case .lowConfidence: return "Roomy isn't sure what it is."
+        case .unreadable: return "Part of it couldn't be read."
+        case .unusualName: return "A name inside it couldn't be checked."
         }
     }
 }

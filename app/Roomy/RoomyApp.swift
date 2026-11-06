@@ -3,8 +3,10 @@ import SwiftUI
 /// App entry point. The UI only; all real work happens in the Rust core.
 @main
 struct RoomyApp: App {
-    // T10 runs on mock data. T11 swaps in the real core client here.
-    @StateObject private var model = AppModel(client: MockCoreClient.fromLaunchArguments())
+    /// The real core, unless the app was launched with `-RoomyMockScenario <name>` to show made-up data.
+    @StateObject private var model = AppModel(
+        client: (MockCoreClient.fromLaunchArguments() as CoreClient?) ?? RustCoreClient()
+    )
 
     var body: some Scene {
         Window("Roomy", id: "main") {
