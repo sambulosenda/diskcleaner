@@ -31,6 +31,7 @@ dependencies = [
  "plist",
  "tempfile",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -433,10 +434,12 @@ dependencies = [
 name = "executor"
 version = "0.1.0"
 dependencies = [
+ "analysers",
  "fixtures",
  "ignore",
  "libc",
  "planner",
+ "rules",
  "safety",
  "scanner",
  "sha2",

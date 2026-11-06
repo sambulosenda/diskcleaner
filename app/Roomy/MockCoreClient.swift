@@ -239,6 +239,74 @@ final class MockCoreClient: CoreClient {
         protectedFolders = unique
         return unique
     }
+
+    // MARK: Docker
+
+    /// What `dockerOverview` reports. Tests set it.
+    var dockerStatus: DockerStatus = .ready
+    /// The pretend unused images, as Docker's preview would list them. Tests set it.
+    var dockerImages: [DockerPreviewItem] = [
+        DockerPreviewItem(id: "4f2a9c1e7b3d", sizeBytes: 2_100_000_000, age: "5 weeks ago"),
+        DockerPreviewItem(id: "9b8e1d0c6a52", sizeBytes: 640_000_000, age: "2 weeks ago"),
+    ]
+    /// The waiting Docker plan.
+    private var pendingDockerPlan: (handle: DockerPlanHandle, preview: DockerCleanupPreview)?
+    private var nextDockerPlan: UInt64 = 1
+    /// Every Docker clean-up that "ran", in order. Tests read it. Nothing here runs Docker.
+    private(set) var dockerRuns: [DockerCleanupKind] = []
+
+    func dockerOverview() async -> DockerOverview {
+        let zero = DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0)
+        guard dockerStatus == .ready else {
+            return DockerOverview(status: dockerStatus, images: zero, containers: zero, volumes: zero,
+                                  buildCache: zero, diskImageBytes: nil)
+        }
+        let unused = dockerImages.reduce(0) { $0 + $1.sizeBytes }
+        return DockerOverview(
+            status: .ready,
+            images: DockerUsageRow(count: 14, active: 3, sizeBytes: 9_800_000_000, reclaimableBytes: unused),
+            containers: DockerUsageRow(count: 4, active: 1, sizeBytes: 120_000_000, reclaimableBytes: 80_000_000),
+            volumes: DockerUsageRow(count: 3, active: 1, sizeBytes: 1_400_000_000, reclaimableBytes: 600_000_000),
+            buildCache: DockerUsageRow(count: 57, active: 0, sizeBytes: 3_100_000_000, reclaimableBytes: 3_100_000_000),
+            diskImageBytes: 21_000_000_000
+        )
+    }
+
+    func previewDockerCleanup(kind: DockerCleanupKind) async throws -> DockerCleanupPreview {
+        if case .notRunning = dockerStatus {
+            throw CoreError.DockerUnavailable(reason: "Docker isn't running. Open Docker and try again.")
+        }
+        let items: [DockerPreviewItem]
+        switch kind {
+        case .unusedImages: items = dockerImages
+        case .buildCache: items = [DockerPreviewItem(id: "m3hqlq4tjoh2", sizeBytes: 3_100_000_000, age: "3 weeks ago")]
+        }
+        let command = kind == .unusedImages ? "docker image prune" : "docker builder prune"
+        var plan: DockerPlanHandle?
+        if !items.isEmpty {
+            plan = DockerPlanHandle(id: nextDockerPlan)
+            nextDockerPlan += 1
+        }
+        let preview = DockerCleanupPreview(plan: plan, kind: kind, commandLine: command, items: items,
+                                           totalBytes: items.reduce(0) { $0 + $1.sizeBytes }, expiresInSeconds: 600)
+        pendingDockerPlan = plan.map { ($0, preview) }
+        return preview
+    }
+
+    func discardDockerCleanup(plan: DockerPlanHandle) async {
+        if pendingDockerPlan?.handle == plan { pendingDockerPlan = nil }
+    }
+
+    func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult {
+        guard let pending = pendingDockerPlan, pending.handle == plan else {
+            throw CoreError.CleanupUnavailable(reason: "This review is no longer open. Please review again.")
+        }
+        pendingDockerPlan = nil
+        dockerRuns.append(pending.preview.kind)
+        if pending.preview.kind == .unusedImages { dockerImages = [] }
+        return DockerCleanupResult(kind: pending.preview.kind, success: true,
+                                   reclaimedBytes: pending.preview.totalBytes, savedToHistory: true)
+    }
 }
 
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.

@@ -4,6 +4,11 @@
 //! item its title, size and what happened. **No paths are stored**: History
 //! is for people to read, and nothing ever acts on what is in it. The undo
 //! ("put back") works from the executor's own report, held in memory.
+//!
+//! Allow-listed tool commands (such as `docker image prune`) are kept too,
+//! in their own table, with the full stdout and stderr the command printed,
+//! as `docs/safety/allowed-commands.md` asks. That output is Docker's own
+//! words; nothing reads it back to act on it.
 
 use std::path::{Path, PathBuf};
 
@@ -38,10 +43,21 @@ CREATE TABLE IF NOT EXISTS cleanup_items (
     reason TEXT,
     PRIMARY KEY (cleanup_id, position)
 );
+CREATE TABLE IF NOT EXISTS command_runs (
+    id INTEGER PRIMARY KEY,
+    finished_at INTEGER NOT NULL,
+    command_id TEXT NOT NULL,
+    command_line TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    reclaimed_bytes INTEGER,
+    stdout TEXT NOT NULL,
+    stderr TEXT NOT NULL
+);
 ";
 
-/// The layout version, stored in `PRAGMA user_version`.
-const SCHEMA_VERSION: i64 = 1;
+/// The layout version, stored in `PRAGMA user_version`. Version 2 added
+/// `command_runs`; a version 1 database gains it when opened.
+const SCHEMA_VERSION: i64 = 2;
 
 /// Something went wrong reading or writing the History database.
 #[derive(Debug, thiserror::Error)]
@@ -137,6 +153,27 @@ impl Cleanup {
             .filter(|i| matches!(i.state, ItemState::Moved | ItemState::StayedInTrash { .. }))
             .fold(0u64, |sum, i| sum.saturating_add(i.size_bytes))
     }
+}
+
+/// One allow-listed tool command that ran.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandRun {
+    /// Its id in the database (ignored when recording).
+    pub id: i64,
+    /// When it finished, in seconds since 1970 (UTC).
+    pub finished_at: i64,
+    /// Its allow-list id, such as `docker_image_prune`.
+    pub command_id: String,
+    /// The command as typed, such as `docker image prune`.
+    pub command_line: String,
+    /// Whether it exited with status 0.
+    pub success: bool,
+    /// Bytes it says it freed, if it said.
+    pub reclaimed_bytes: Option<u64>,
+    /// Everything it printed.
+    pub stdout: String,
+    /// Everything it printed on stderr.
+    pub stderr: String,
 }
 
 /// The History database.
@@ -287,6 +324,53 @@ impl History {
                 items: self.items(id)?,
             })),
         }
+    }
+
+    /// Records one tool command run and returns its id.
+    pub fn record_command_run(&mut self, run: &CommandRun) -> Result<i64, HistoryError> {
+        let reclaimed = run
+            .reclaimed_bytes
+            .map(i64::try_from)
+            .transpose()
+            .map_err(|_| HistoryError::TooLarge)?;
+        self.conn.execute(
+            "INSERT INTO command_runs (finished_at, command_id, command_line, success, reclaimed_bytes, stdout, stderr)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                run.finished_at,
+                run.command_id,
+                run.command_line,
+                run.success,
+                reclaimed,
+                run.stdout,
+                run.stderr
+            ],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// The most recent tool command runs, newest first, at most `limit`.
+    pub fn recent_command_runs(&self, limit: u32) -> Result<Vec<CommandRun>, HistoryError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, finished_at, command_id, command_line, success, reclaimed_bytes, stdout, stderr
+             FROM command_runs ORDER BY finished_at DESC, id DESC LIMIT ?1",
+        )?;
+        let rows = stmt
+            .query_map(params![limit], |r| {
+                let reclaimed: Option<i64> = r.get(5)?;
+                Ok(CommandRun {
+                    id: r.get(0)?,
+                    finished_at: r.get(1)?,
+                    command_id: r.get(2)?,
+                    command_line: r.get(3)?,
+                    success: r.get(4)?,
+                    reclaimed_bytes: reclaimed.and_then(|b| u64::try_from(b).ok()),
+                    stdout: r.get(6)?,
+                    stderr: r.get(7)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
     }
 
     fn items(&self, cleanup_id: i64) -> Result<Vec<Item>, HistoryError> {
@@ -448,6 +532,69 @@ mod tests {
             History::open(&path),
             Err(HistoryError::NewerSchema)
         ));
+    }
+
+    fn run(at: i64, id: &str) -> CommandRun {
+        CommandRun {
+            id: 0,
+            finished_at: at,
+            command_id: id.into(),
+            command_line: "docker image prune".into(),
+            success: true,
+            reclaimed_bytes: Some(1_500_000_000),
+            stdout: "Deleted Images:\nTotal reclaimed space: 1.5GB\n".into(),
+            stderr: String::new(),
+        }
+    }
+
+    #[test]
+    fn records_and_reads_back_command_runs() {
+        let mut h = History::in_memory().unwrap();
+        let first = h
+            .record_command_run(&run(10, "docker_image_prune"))
+            .unwrap();
+        h.record_command_run(&CommandRun {
+            success: false,
+            reclaimed_bytes: None,
+            stderr: "Error".into(),
+            ..run(20, "docker_builder_prune")
+        })
+        .unwrap();
+        let got = h.recent_command_runs(10).unwrap();
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].command_id, "docker_builder_prune");
+        assert!(!got[0].success);
+        assert_eq!(got[0].reclaimed_bytes, None);
+        assert_eq!(got[1].id, first);
+        assert_eq!(
+            got[1],
+            CommandRun {
+                id: first,
+                ..run(10, "docker_image_prune")
+            }
+        );
+        assert_eq!(h.recent_command_runs(1).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_version_one_database_gains_command_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history.sqlite");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE cleanups (id INTEGER PRIMARY KEY, finished_at INTEGER NOT NULL, put_back_at INTEGER);
+             CREATE TABLE cleanup_items (cleanup_id INTEGER NOT NULL, position INTEGER NOT NULL, item_id TEXT NOT NULL,
+               title TEXT NOT NULL, size_bytes INTEGER NOT NULL, state TEXT NOT NULL, reason TEXT,
+               PRIMARY KEY (cleanup_id, position));
+             INSERT INTO cleanups (finished_at) VALUES (7);",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", 1).unwrap();
+        drop(conn);
+        let mut h = History::open(&path).unwrap();
+        assert_eq!(h.recent(10).unwrap().len(), 1, "old cleanups are kept");
+        h.record_command_run(&run(8, "docker_image_prune")).unwrap();
+        assert_eq!(h.recent_command_runs(10).unwrap().len(), 1);
     }
 
     #[test]

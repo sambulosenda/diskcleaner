@@ -33,9 +33,11 @@
 //! executor moved back to where it was, only if the Trash still holds the
 //! same thing and nothing new is in its old place.
 //!
-//! Not here yet: the allow-listed tool commands (`docs/safety/allowed-commands.md`),
-//! writing to History, and the UniFFI commands. Each is its own change.
+//! [`commands`] runs the allow-listed tool commands of
+//! `docs/safety/allowed-commands.md` (the two Docker clean-ups so far), each
+//! after a read-only preview the user has seen.
 
+pub mod commands;
 mod git;
 mod guards;
 mod processes;

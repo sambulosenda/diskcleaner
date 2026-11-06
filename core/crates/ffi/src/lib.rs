@@ -6,7 +6,8 @@
 //! scans are read only, `disk_summary` reads volume metadata only (via
 //! `statfs`), and the cleanup preview runs the executor's read-only checks.
 //! The cleanup and put-back commands hand a plan to the `executor` crate,
-//! which is the only code that moves files.
+//! which is the only code that moves files. The Docker commands do the same
+//! with the executor's allow-listed Docker clean-ups.
 //!
 //! No path goes to the app in simple mode, and the app never sends a path to
 //! the core except in the T02 `disk_summary` command, the user's own
@@ -15,6 +16,7 @@
 
 mod backup;
 mod cleanup;
+mod docker;
 mod embedded_rules;
 mod engine;
 mod folders;
@@ -28,6 +30,10 @@ use std::ffi::CString;
 use std::mem::MaybeUninit;
 use std::path::Path;
 
+pub use docker::{
+    DockerCleanupKind, DockerCleanupPreview, DockerCleanupResult, DockerOverview, DockerPlanHandle,
+    DockerPreviewItem, DockerStatus, DockerUsageRow,
+};
 pub use engine::RoomyCore;
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
@@ -83,6 +89,11 @@ pub enum CoreError {
     /// Trying again will not help, unlike `CleanupUnavailable`.
     #[error("Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash.")]
     NothingToPutBack,
+    /// A Docker clean-up could not be previewed or was refused before it
+    /// ran: Docker is missing or stopped, the review expired, or Docker's
+    /// data changed. Nothing was removed. `reason` is plain words, no path.
+    #[error("{reason}")]
+    DockerUnavailable { reason: String },
 }
 
 /// Space on the volume that holds a given path, in bytes.

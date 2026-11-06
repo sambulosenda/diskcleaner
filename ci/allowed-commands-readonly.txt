@@ -11,4 +11,5 @@
 #
 # This file is protected: changing it needs the `sam-approved` label.
 #
-# Empty for now: no analyser runs a command yet.
+# docker.rs runs only `docker system df --format '{{json .}}'` (read only).
+core/crates/analysers/src/docker.rs docker
