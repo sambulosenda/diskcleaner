@@ -12,6 +12,7 @@ members = [
     "crates/history",
     "crates/licensing",
     "crates/ffi",
+    "crates/fixtures",
 ]
 
 [workspace.package]
