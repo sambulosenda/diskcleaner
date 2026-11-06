@@ -246,6 +246,7 @@ pub fn error_line(stderr: &str) -> Option<String> {
         .map(str::trim)
         .find(|l| !l.is_empty() && !l.to_ascii_lowercase().starts_with("warning"))
         .or_else(|| stderr.lines().map(str::trim).find(|l| !l.is_empty()))?;
+    let line = redact_quoted_paths(line);
     let cleaned: Vec<String> = line
         .split_whitespace()
         .map(|word| {
@@ -261,6 +262,42 @@ pub fn error_line(stderr: &str) -> Option<String> {
         text = text.chars().take(159).collect::<String>() + "…";
     }
     Some(text)
+}
+
+/// Replaces every double-quoted span holding a `/` with `"…"`, so a quoted
+/// path with spaces in it ("/Users/Alice Smith") is removed whole.
+fn redact_quoted_paths(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(start) = rest.find('"') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('"') {
+            Some(end) => {
+                let inner = &after[..end];
+                if inner.contains('/') {
+                    out.push_str("\"…\"");
+                } else {
+                    out.push('"');
+                    out.push_str(inner);
+                    out.push('"');
+                }
+                rest = &after[end + 1..];
+            }
+            None => {
+                // An unclosed quote: drop the rest if it holds a path.
+                if after.contains('/') {
+                    out.push_str("\"…");
+                } else {
+                    out.push('"');
+                    out.push_str(after);
+                }
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 /// "Docker said: …" for an error Roomy doesn't recognise, or `fallback`
@@ -734,6 +771,18 @@ mod tests {
         );
         assert!(!reason.contains('/'), "{reason}");
         assert_eq!(error_line("  \n"), None);
+        let spaced =
+            error_line(r#"open "/Users/Alice Smith/.docker/config.json": permission denied"#)
+                .unwrap();
+        assert_eq!(spaced, r#"open "…": permission denied"#);
+        assert!(!spaced.contains("Smith"));
+        assert_eq!(
+            error_line(r#"context "colima" not found"#).unwrap(),
+            r#"context "colima" not found"#
+        );
+        assert!(!error_line(r#"open "/Users/Alice Smith"#)
+            .unwrap()
+            .contains("Smith"));
         assert!(error_line(&"x".repeat(500)).unwrap().chars().count() <= 160);
     }
 
