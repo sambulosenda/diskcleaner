@@ -1,0 +1,127 @@
+import XCTest
+@testable import Roomy
+
+/// Calls each T09 command (docs/command-contract.md) against a fixture home.
+///
+/// Needs the core built with the `testing` feature, which `./scripts/build-ffi.sh` does by default.
+final class CommandContractTests: XCTestCase {
+    private var fixtureDir: URL!
+    private var core: RoomyCore!
+
+    override func setUpWithError() throws {
+        fixtureDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("roomy-t09-\(UUID().uuidString)")
+        let home = try makeFixtureHome(dir: fixtureDir.path)
+        core = try RoomyCore.withHomeForTesting(home: home)
+    }
+
+    // Fixture homes are left in the temporary directory on purpose: nothing in the app or its tests
+    // deletes files except the Rust executor, and macOS clears the temporary directory itself.
+
+    /// Polls until the scan stops scanning and classifying.
+    private func waitForScan(_ handle: ScanHandle) throws -> ScanPhase {
+        let deadline = Date().addingTimeInterval(120)
+        while Date() < deadline {
+            let phase = try core.scanProgress(handle: handle).phase
+            switch phase {
+            case .scanning, .classifying:
+                Thread.sleep(forTimeInterval: 0.01)
+            default:
+                return phase
+            }
+        }
+        XCTFail("The scan never ended")
+        return .cancelled
+    }
+
+    private func finishedScan(_ mode: Mode) throws -> ScanHandle {
+        let handle = core.startScan(mode: mode)
+        XCTAssertEqual(try waitForScan(handle), .finished)
+        return handle
+    }
+
+    func testStartScanAndProgressReachFinished() throws {
+        let handle = core.startScan(mode: .simple)
+        XCTAssertEqual(try waitForScan(handle), .finished)
+        let progress = try core.scanProgress(handle: handle)
+        XCTAssertGreaterThan(progress.bytesSeen, 0)
+        XCTAssertGreaterThan(progress.itemsSeen, 0)
+    }
+
+    func testOverviewHeadlineIsTheExactSumOfLikelySafeItems() throws {
+        let handle = try finishedScan(.developer)
+        let overview = try core.overview(handle: handle)
+        let likely = try core.listItems(handle: handle, category: nil, tier: .likelySafe, sort: .largestFirst)
+        XCTAssertGreaterThan(overview.likelySafeBytes, 0)
+        XCTAssertEqual(overview.likelySafeBytes, likely.reduce(0) { $0 + $1.sizeBytes })
+        XCTAssertEqual(overview.likelySafeBytes, overview.categories.reduce(0) { $0 + $1.likelySafeBytes })
+        XCTAssertGreaterThan(overview.diskTotal, 0)
+        XCTAssertLessThanOrEqual(overview.diskFree, overview.diskTotal)
+        XCTAssertLessThanOrEqual(overview.topItems.count, 8)
+        XCTAssertFalse(overview.topItems.contains { $0.tier == .keep })
+    }
+
+    func testListItemsFiltersAndSorts() throws {
+        let handle = try finishedScan(.developer)
+        let all = try core.listItems(handle: handle, category: nil, tier: nil, sort: .largestFirst)
+        XCTAssertFalse(all.isEmpty)
+        XCTAssertEqual(all.map(\.sizeBytes), all.map(\.sizeBytes).sorted(by: >))
+        let build = try core.listItems(handle: handle, category: .build, tier: nil, sort: .smallestFirst)
+        XCTAssertFalse(build.isEmpty)
+        XCTAssertTrue(build.allSatisfy { $0.category == .build })
+        XCTAssertEqual(build.map(\.sizeBytes), build.map(\.sizeBytes).sorted())
+        let byTitle = try core.listItems(handle: handle, category: nil, tier: nil, sort: .title)
+        XCTAssertEqual(byTitle.count, all.count)
+    }
+
+    func testItemDetailHasNoPathInSimpleMode() throws {
+        let handle = try finishedScan(.simple)
+        for item in try core.listItems(handle: handle, category: nil, tier: nil, sort: .largestFirst) {
+            let detail = try core.itemDetail(handle: handle, itemId: item.id)
+            XCTAssertEqual(detail.id, item.id)
+            XCTAssertNil(detail.path, "\(detail.ruleId) has a path in simple mode")
+        }
+    }
+
+    func testItemDetailShowsDisplayPathsInDeveloperMode() throws {
+        let handle = try finishedScan(.developer)
+        let items = try core.listItems(handle: handle, category: nil, tier: nil, sort: .largestFirst)
+        let first = try XCTUnwrap(items.first)
+        let detail = try core.itemDetail(handle: handle, itemId: first.id)
+        let path = try XCTUnwrap(detail.path)
+        XCTAssertTrue(path.hasPrefix("~/"), path)
+        XCTAssertFalse(detail.ruleId.isEmpty)
+    }
+
+    func testCancelScanEndsTheScan() throws {
+        let handle = core.startScan(mode: .developer)
+        core.cancelScan(handle: handle)
+        let phase = try waitForScan(handle)
+        // The fixture is small, so the scan may finish before the cancel lands.
+        XCTAssertTrue(phase == .cancelled || phase == .finished, "\(phase)")
+        if phase == .cancelled {
+            XCTAssertThrowsError(try core.overview(handle: handle)) { error in
+                guard case CoreError.ScanCancelled = error else {
+                    return XCTFail("Expected ScanCancelled, got \(error)")
+                }
+            }
+        }
+    }
+
+    func testUnknownHandlesAndItemsThrow() throws {
+        let unknown = ScanHandle(id: 999)
+        XCTAssertThrowsError(try core.overview(handle: unknown)) { error in
+            guard case CoreError.UnknownScan = error else {
+                return XCTFail("Expected UnknownScan, got \(error)")
+            }
+        }
+        let handle = try finishedScan(.simple)
+        XCTAssertThrowsError(try core.itemDetail(handle: handle, itemId: String(repeating: "0", count: 32))) { error in
+            guard case CoreError.UnknownItem = error else {
+                return XCTFail("Expected UnknownItem, got \(error)")
+            }
+        }
+        core.closeScan(handle: handle)
+        XCTAssertThrowsError(try core.scanProgress(handle: handle))
+    }
+}

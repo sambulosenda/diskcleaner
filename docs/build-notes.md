@@ -11,6 +11,10 @@ How the Rust core gets into the Xcode app, and every Xcode setting changed by ha
    - generates the Swift bindings with UniFFI in library mode into `app/Generated/`.
 3. Open `app/Roomy.xcodeproj` and build, or run `xcodebuild -scheme Roomy -destination 'platform=macOS' test` from `app/`.
 
+By default the script builds the core with the `testing` feature, which adds the test-only commands
+`RoomyCore.withHomeForTesting(home:)` and `makeFixtureHome(dir:)` that the Xcode tests use (see
+`docs/command-contract.md`). `./scripts/build-ffi.sh --release-app` leaves them out; release builds must use it.
+
 Run the script again after any change to the Rust core. `app/Generated/` is git-ignored, so Xcode fails with
 "no such module 'roomy_coreFFI'" or a missing `roomy_core.swift` until the script has run once.
 
