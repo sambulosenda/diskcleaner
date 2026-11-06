@@ -4,6 +4,7 @@
 #   safety  - safety grep (no deleting, moving or running commands outside the
 #             executor; no shell command lines anywhere) and its own tests
 #   rust    - cargo fmt, clippy and test (includes the rule validation tests)
+#   rust-linux - cargo test again on Linux, for file-system edge cases APFS refuses
 #   xcode   - builds the Rust bridge and runs the app's Xcode tests
 #
 # The protected files check lives in protected-files.yml, because it must run
@@ -67,6 +68,34 @@ jobs:
       - name: cargo clippy
         working-directory: core
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: cargo test
+        working-directory: core
+        run: cargo test --workspace
+
+  rust-linux:
+    # Runs the core tests on a second file system. APFS refuses some names
+    # (for example ones that are not valid UTF-8), so a few edge-case tests
+    # can only build their fixtures here.
+    name: Rust tests on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            core/target
+          key: ${{ runner.os }}-cargo-rust-${{ hashFiles('rust-toolchain.toml', 'core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-rust-
       - name: cargo test
         working-directory: core
         run: cargo test --workspace
