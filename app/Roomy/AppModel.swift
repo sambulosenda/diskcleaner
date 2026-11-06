@@ -138,6 +138,9 @@ final class AppModel: ObservableObject {
     /// another one.
     private var needsRescan = false
 
+    /// The ⌘K palette. It only shows screens and asks this model to act; it never moves files.
+    private(set) lazy var palette = CommandPaletteModel(app: self)
+
     let client: CoreClient
     private let defaults: UserDefaults
     private let pollInterval: UInt64
@@ -187,6 +190,13 @@ final class AppModel: ObservableObject {
 
     /// The sidebar groups for the current mode.
     var sidebarSections: [[SidebarItem]] { SidebarItem.sections(for: mode) }
+
+    /// Every item of the finished scan, largest first, for the ⌘K palette. Reads only; empty before a
+    /// scan has finished or if the core can't list them.
+    func scannedItems() async -> [ItemSummary] {
+        guard let handle = loadedHandle, overview != nil else { return [] }
+        return (try? await client.listItems(handle: handle, category: nil, tier: nil, sort: .largestFirst)) ?? []
+    }
 
     /// The Overview's "Worth reviewing" rows, narrowed by the toolbar search.
     func worthReviewing(in overview: Overview) -> [ItemSummary] {
