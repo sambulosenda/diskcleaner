@@ -1,6 +1,8 @@
 {
   "permissions": {
     "deny": [
+      "Edit(core/crates/safety/src/protected.rs)",
+"Edit(core/crates/safety/tests/**)",
       "Edit(tests/zero_data_loss/**)",
       "Edit(docs/safety/**)",
       "Edit(CLAUDE.md)",
