@@ -646,7 +646,7 @@ fn delete_refuses_an_item_with_a_read_only_folder_before_moving_it() {
                 chmod(&moved, 0o755);
             }
             // Moving a read-only folder to another parent needs write
-            // permission on the folder itself on Linux (to update its `..`),
+            // permission on the folder itself on Linux and macOS (to update its `..`),
             // so for a locked item folder the move fails. Nothing has moved.
             Outcome::Failed { left_in: None, .. } if locked == "Library/Caches/gomod" => {
                 assert!(home.path("Library/Caches/gomod/pkg@v1/go.mod").exists());
