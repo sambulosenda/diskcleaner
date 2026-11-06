@@ -225,6 +225,20 @@ final class MockCoreClient: CoreClient {
         accessChecks += 1
         return access
     }
+
+    /// The folders the app last sent. Like the core, refuses anything outside the home folder.
+    private(set) var protectedFolders: [String] = []
+
+    func setProtectedFolders(_ folders: [String]) async throws -> [String] {
+        let home = NSHomeDirectory()
+        for folder in folders where !folder.hasPrefix(home + "/") {
+            throw CoreError.InvalidPath(reason: "Choose a folder inside your home folder.")
+        }
+        var unique: [String] = []
+        for folder in folders where !unique.contains(folder) { unique.append(folder) }
+        protectedFolders = unique
+        return unique
+    }
 }
 
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.

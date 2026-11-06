@@ -379,6 +379,28 @@ cleanup can be put back later.
 Past cleanups, newest first, at most `limit`. Empty before the first cleanup; reading it never makes
 the file.
 
+### `set_protected_folders(folders: [String]) -> [String]` throws
+The folders the user asked Roomy to keep. Nothing inside one of them, and nothing that holds one, is
+ever cleaned: the preview shows such an item as won't move, and the cleanup refuses it again just
+before acting. Replaces the earlier list and returns the list as the core will use it (a folder that
+exists is stored as its real location, symlinks resolved). Throws `invalid_path` if a folder is not a
+plain full path inside the home folder; the earlier list then stays. The app stores the list in its
+settings and sends it before every preview and cleanup. This is the one command where the app sends
+paths, and they can only stop things being cleaned.
+
+### `protected_folders() -> [String]`
+The kept folders as the core uses them.
+
+### Extra checks in the preview and the cleanup
+Besides the protected-path rules, the executor skips an item, with a plain reason and no path, when:
+- it is inside or holds a kept folder;
+- the app that uses it is open (for example Xcode for DerivedData), or the running apps can't be listed;
+- it is inside a git project that doesn't ignore it, git tracks files inside it, the project is
+  partway through a merge or rebase, or the project's git data can't be read;
+- it, or anything in it, changed in the last 10 minutes.
+
+All of these only read. They run in `preview_cleanup` and again in `run_cleanup` for every item.
+
 ### `CleanupHandle` (record)
 | Field | Type | Meaning |
 |---|---|---|

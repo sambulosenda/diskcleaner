@@ -13,11 +13,13 @@
 //! - expires [`PLAN_LIFETIME`] after it was built;
 //! - is single use: it cannot be cloned, and the executor takes it by value.
 
+mod owners;
 mod select;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+pub use owners::{owner_apps, OwnerApp};
 pub use select::{request_for, NotOffered};
 
 use safety::{Refusal, ValidatedPath};
@@ -51,6 +53,9 @@ pub struct ItemRequest {
     pub regenerable: bool,
     /// Whether the user selected this item on its own (not as part of a group).
     pub selected_individually: bool,
+    /// Apps that may be using the item (from [`owner_apps`]). The executor
+    /// skips the item while one of them is running.
+    pub owners: &'static [OwnerApp],
 }
 
 /// One item of a built plan. Only [`Plan::build`] makes these.
@@ -61,6 +66,7 @@ pub struct PlanItem {
     expected: Expected,
     regenerable: bool,
     selected_individually: bool,
+    owners: &'static [OwnerApp],
 }
 
 impl PlanItem {
@@ -87,6 +93,11 @@ impl PlanItem {
     /// Whether the user selected this item on its own.
     pub fn selected_individually(&self) -> bool {
         self.selected_individually
+    }
+
+    /// Apps that may be using the item.
+    pub fn owners(&self) -> &'static [OwnerApp] {
+        self.owners
     }
 }
 
@@ -164,6 +175,7 @@ impl Plan {
                 expected: req.expected,
                 regenerable: req.regenerable,
                 selected_individually: req.selected_individually,
+                owners: req.owners,
             });
         }
         Ok(Plan {
@@ -262,6 +274,7 @@ mod tests {
             },
             regenerable: true,
             selected_individually: false,
+            owners: &[],
         }
     }
 

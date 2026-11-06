@@ -94,6 +94,11 @@ fn rust_projects(b: &mut Builder) -> Result<(), FixtureError> {
         &format!("{}/.git/HEAD", paths::RUST_PROJECTS[1]),
         "ref: refs/heads/main\n",
     )?;
+    // `cargo new` writes this `.gitignore`.
+    b.text(
+        &format!("{}/.gitignore", paths::RUST_PROJECTS[1]),
+        "/target\n",
+    )?;
     b.text(
         &format!("{}/Q3 targets.txt", paths::TRAP_PLAIN_TARGET),
         "Grow repeat orders by 10%.\n",

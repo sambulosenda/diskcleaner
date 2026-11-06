@@ -25,8 +25,13 @@ pub fn build(b: &mut Builder) -> Result<(), FixtureError> {
     b.bytes(paths::TRAP_KEYSTORE, 3 * KB)
 }
 
-/// A minimal `.git` folder in project a, beside its `node_modules`.
+/// A minimal `.git` folder in project a, beside its `node_modules`, and a
+/// `.gitignore` that ignores `node_modules` as real projects do.
 fn git_repo(b: &mut Builder) -> Result<(), FixtureError> {
+    b.text(
+        paths::TRAP_GIT_IGNORE,
+        "# Dependencies\nnode_modules/\n.DS_Store\n",
+    )?;
     let git = paths::TRAP_GIT_DIR;
     b.text(&format!("{git}/HEAD"), "ref: refs/heads/main\n")?;
     b.text(

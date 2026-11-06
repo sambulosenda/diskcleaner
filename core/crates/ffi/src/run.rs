@@ -56,11 +56,17 @@ pub(crate) struct Ran {
 /// Carries out the waiting plan: moves its items to the Trash.
 ///
 /// `cleanup_id` is the number the handle gets if anything moved.
-pub(crate) fn run(pending: Pending, cleanup_id: u64, now: SystemTime) -> Result<Ran, CoreError> {
+pub(crate) fn run(
+    pending: Pending,
+    cleanup_id: u64,
+    guards: &executor::Guards,
+    now: SystemTime,
+) -> Result<Ran, CoreError> {
     let Pending { plan, titles } = pending;
     let home = plan.home().to_path_buf();
     let dev = plan.scan_root_dev();
-    let report = executor::execute(plan, executor::Mode::Trash, now).map_err(execute_error)?;
+    let report =
+        executor::execute(plan, executor::Mode::Trash, guards, now).map_err(execute_error)?;
     Ok(from_report(&report, &titles, home, dev, cleanup_id))
 }
 

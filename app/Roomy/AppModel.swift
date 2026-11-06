@@ -80,6 +80,8 @@ final class AppModel: ObservableObject {
     static let modeKey = "roomy.mode"
     /// Set once the Full Disk Access screen has been shown and closed, or once access was found on.
     static let accessOnboardingKey = "roomy.onboarding.fullDiskAccessDone"
+    /// Where the folders the user asked Roomy to keep are stored.
+    static let protectedFoldersKey = "roomy.protectedFolders"
 
     @Published private(set) var scanState: ScanState = .neverScanned
     @Published var selection: SidebarItem? = .overview {
@@ -126,6 +128,11 @@ final class AppModel: ObservableObject {
     /// The Full Disk Access screen. It opens by itself on first launch when access is off, and from
     /// the Overview, Settings or a refused cleanup after that.
     @Published var showsAccessOnboarding = false
+    /// Folders the user asked Roomy to keep, as full paths. Sent to the core before every review and
+    /// cleanup, so nothing inside them is ever cleaned.
+    @Published private(set) var protectedFolders: [String] = []
+    /// Why the last change to the kept folders didn't work, shown in Settings.
+    @Published private(set) var protectedFoldersMessage: String?
     /// Set once something has moved after the current scan started, so its sizes are out of date.
     /// Cleared when a new scan starts. A scan that was already running when files moved is followed by
     /// another one.
@@ -164,6 +171,7 @@ final class AppModel: ObservableObject {
         self.pollInterval = pollInterval
         self.now = now
         self.mode = Mode(storageKey: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
+        self.protectedFolders = defaults.stringArray(forKey: Self.protectedFoldersKey) ?? []
     }
 
     var isScanning: Bool {
@@ -266,9 +274,13 @@ final class AppModel: ObservableObject {
         }
         let choices = ids.map { CleanupChoice(itemId: $0, chosenAlone: true) }
         let client = self.client
+        let kept = protectedFolders
         cleanupState = .checking
         cleanupTask = Task { [weak self] in
             do {
+                // The core must know the kept folders before it checks anything. If it can't take
+                // them, nothing is checked and nothing can move.
+                _ = try await client.setProtectedFolders(kept)
                 let preview = try await client.previewCleanup(handle: handle, choices: choices)
                 guard !Task.isCancelled, let self else {
                     // The review was closed while checking: let the core forget the plan.
@@ -306,6 +318,39 @@ final class AppModel: ObservableObject {
         startScan()
     }
 
+    // MARK: - Folders to keep
+
+    /// Adds folders the user picked to the kept folders. Symlinks are resolved, so keeping a link also
+    /// keeps what it points to. The core checks each one; a folder outside the home folder is refused.
+    func addProtectedFolders(_ urls: [URL]) async {
+        let added = urls.map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
+        var wanted = protectedFolders
+        for path in added where !wanted.contains(path) { wanted.append(path) }
+        await saveProtectedFolders(wanted)
+    }
+
+    /// Stops keeping `folder`.
+    func removeProtectedFolder(_ folder: String) async {
+        await saveProtectedFolders(protectedFolders.filter { $0 != folder })
+    }
+
+    /// Sends `wanted` to the core and, if it takes them, shows and stores the list it will use. If the
+    /// core refuses, the earlier list stays and the reason is shown.
+    private func saveProtectedFolders(_ wanted: [String]) async {
+        do {
+            let applied = try await client.setProtectedFolders(wanted)
+            protectedFolders = applied
+            protectedFoldersMessage = nil
+            defaults.set(applied, forKey: Self.protectedFoldersKey)
+        } catch {
+            if case CoreError.InvalidPath(let reason) = error {
+                protectedFoldersMessage = reason
+            } else {
+                protectedFoldersMessage = "Roomy couldn't save that folder. Please try again."
+            }
+        }
+    }
+
     // MARK: - Cleanup (moves files)
 
     /// Moves the reviewed items to the Trash. Call only after the user confirmed. The core checks every
@@ -313,10 +358,12 @@ final class AppModel: ObservableObject {
     func moveToTrash() {
         guard case .ready(let preview) = cleanupState, let plan = preview.plan else { return }
         let client = self.client
+        let kept = protectedFolders
         cleanupState = .moving(preview)
         cleanupTask = Task { [weak self] in
             // Not cancelled by closing: the sheet can't close while this runs.
             do {
+                _ = try await client.setProtectedFolders(kept)
                 let result = try await client.runCleanup(plan: plan)
                 guard let self else { return }
                 self.needsRescan = true

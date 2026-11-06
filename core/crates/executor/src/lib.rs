@@ -11,7 +11,10 @@
 //!    path inside it, refuses anything on another volume, and measures it;
 //! 4. checks the size (within 1%) and modification time still match the plan
 //!    (validation step 7), and that the item is still the same file or folder;
-//! 5. moves it into `~/.Trash` with a move that never replaces anything.
+//! 5. runs the extra checks in [`Guards`]: the user's protected folders, the
+//!    owner app being open, unsaved git work, and changes in the last few
+//!    minutes;
+//! 6. moves it into `~/.Trash` with a move that never replaces anything.
 //!
 //! Permanent delete is allowed only when every item in the plan is
 //! regenerable (CLAUDE.md safety rule 5). It moves the item into a fresh
@@ -22,7 +25,7 @@
 //! Every item gets its own outcome in the [`Report`]; a refused item never
 //! stops the others. The report is what History will record.
 //!
-//! [`preview`] is the dry run: it runs steps 1 to 4 for every item, exactly as
+//! [`preview`] is the dry run: it runs steps 1 to 5 for every item, exactly as
 //! [`execute`] does, and stops there. It only opens folders and reads
 //! metadata, so it never changes anything.
 //!
@@ -33,6 +36,9 @@
 //! Not here yet: the allow-listed tool commands (`docs/safety/allowed-commands.md`),
 //! writing to History, and the UniFFI commands. Each is its own change.
 
+mod git;
+mod guards;
+mod processes;
 mod put_back;
 mod survey;
 mod sys;
@@ -48,6 +54,8 @@ use planner::{Plan, PlanError, PlanItem};
 use safety::protected::{BlockReason, ReviewReason};
 use safety::Refusal;
 
+pub use git::GitConcern;
+pub use guards::{is_app, Guards, Running, RECENT_CHANGE_WINDOW};
 pub use put_back::{put_back, PutBack, PutBackRefusal, TrashIdentity};
 pub use survey::size_matches;
 
@@ -149,6 +157,46 @@ pub enum ItemRefusal {
         /// The path with the unusual name.
         at: PathBuf,
     },
+    /// The item is inside a folder the user asked to keep.
+    #[error("it is in a folder you asked Roomy to keep")]
+    InFolderYouKeep,
+    /// The item holds a folder the user asked to keep.
+    #[error("it holds a folder you asked Roomy to keep")]
+    HoldsFolderYouKeep,
+    /// The app that uses the item is open.
+    #[error("{app} is open and may be using it, so quit {app} and try again")]
+    AppOpen {
+        /// The app's name.
+        app: String,
+    },
+    /// The running apps could not be listed, so the app that uses the item
+    /// may be open.
+    #[error("the app couldn't check whether {app} is open, so it was left alone")]
+    AppNotChecked {
+        /// The app's name.
+        app: String,
+    },
+    /// The item, or something in it, changed in the last few minutes, so a
+    /// program may be using it.
+    #[error("it changed in the last few minutes, so it may be in use")]
+    ChangedRecently,
+    /// The item is inside a git project and removing it could lose work.
+    #[error("{}", git_text(*.0))]
+    Git(GitConcern),
+}
+
+/// Plain words for a [`GitConcern`].
+fn git_text(concern: GitConcern) -> &'static str {
+    match concern {
+        GitConcern::Unfinished => {
+            "its git project is partway through a merge or rebase, so finish that first"
+        }
+        GitConcern::Tracked => "it holds files saved in its git project",
+        GitConcern::NotIgnored => {
+            "its git project doesn't ignore it, so it may hold work that isn't saved in git"
+        }
+        GitConcern::Unchecked => "its git project couldn't be checked, so it was left alone",
+    }
 }
 
 /// What happened to one item.
@@ -227,7 +275,12 @@ pub struct ItemCheck {
 ///
 /// An item that passes here can still be refused by [`execute`] if it
 /// changes in between; `execute` runs every check again.
-pub fn preview(plan: &Plan, mode: Mode, now: SystemTime) -> Result<Vec<ItemCheck>, ExecuteError> {
+pub fn preview(
+    plan: &Plan,
+    mode: Mode,
+    guards: &Guards,
+    now: SystemTime,
+) -> Result<Vec<ItemCheck>, ExecuteError> {
     plan.check_fresh(now)?;
     if mode == Mode::Delete && !plan.all_regenerable() {
         return Err(ExecuteError::DeleteNeedsRegenerable);
@@ -239,7 +292,9 @@ pub fn preview(plan: &Plan, mode: Mode, now: SystemTime) -> Result<Vec<ItemCheck
         .map(|item| ItemCheck {
             recommendation_id: item.recommendation_id().to_string(),
             path: item.path().to_path_buf(),
-            result: ctx.prepare(item, mode).map(|ready| ready.survey.size_bytes),
+            result: ctx
+                .prepare(item, mode, guards, now)
+                .map(|ready| ready.survey.size_bytes),
         })
         .collect();
     Ok(checks)
@@ -247,8 +302,14 @@ pub fn preview(plan: &Plan, mode: Mode, now: SystemTime) -> Result<Vec<ItemCheck
 
 /// Carries out `plan`. The plan is used up whatever happens.
 ///
-/// `now` is the current time, used to check the plan has not expired.
-pub fn execute(plan: Plan, mode: Mode, now: SystemTime) -> Result<Report, ExecuteError> {
+/// `now` is the current time, used to check the plan has not expired and
+/// for the recent-change check in `guards`.
+pub fn execute(
+    plan: Plan,
+    mode: Mode,
+    guards: &Guards,
+    now: SystemTime,
+) -> Result<Report, ExecuteError> {
     plan.check_fresh(now)?;
     if mode == Mode::Delete && !plan.all_regenerable() {
         return Err(ExecuteError::DeleteNeedsRegenerable);
@@ -263,7 +324,7 @@ pub fn execute(plan: Plan, mode: Mode, now: SystemTime) -> Result<Report, Execut
         .into_iter()
         .enumerate()
         .map(|(n, item)| {
-            let report = ctx.act(item, mode, plan_id, n);
+            let report = ctx.act(item, mode, plan_id, n, guards, now);
             tracing::info!(
                 plan_id,
                 recommendation_id = %report.recommendation_id,
@@ -325,10 +386,18 @@ impl Context {
     }
 
     /// Checks and acts on one item. Never panics; every failure is an outcome.
-    fn act(&self, item: PlanItem, mode: Mode, plan_id: u64, n: usize) -> ItemReport {
+    fn act(
+        &self,
+        item: PlanItem,
+        mode: Mode,
+        plan_id: u64,
+        n: usize,
+        guards: &Guards,
+        now: SystemTime,
+    ) -> ItemReport {
         let path = item.path().to_path_buf();
         let mut moved = None;
-        let (bytes, outcome) = match self.prepare(&item, mode) {
+        let (bytes, outcome) = match self.prepare(&item, mode, guards, now) {
             Err(refusal) => (0, Outcome::Refused(refusal)),
             Ok(ready) => {
                 let size = ready.survey.size_bytes;
@@ -367,9 +436,17 @@ impl Context {
     }
 
     /// Every check that runs immediately before acting.
-    fn prepare(&self, item: &PlanItem, mode: Mode) -> Result<Ready, ItemRefusal> {
+    fn prepare(
+        &self,
+        item: &PlanItem,
+        mode: Mode,
+        guards: &Guards,
+        now: SystemTime,
+    ) -> Result<Ready, ItemRefusal> {
         let path = item.path();
         safety::validate(&self.home, self.dev, path, item.selected_individually())?;
+        guards.check_folders(path)?;
+        guards.check_owners(item.owners())?;
         let (parent_fd, name) = self.open_parent(path)?;
         let before =
             sys::stat_at(&parent_fd, &name).map_err(|_| ItemRefusal::ChangedSinceReview)?;
@@ -394,6 +471,8 @@ impl Context {
         if after != before || (survey.dev, survey.ino) != (before.dev, before.ino) {
             return Err(ItemRefusal::ChangedSinceReview);
         }
+        git::check(&self.home, path, survey.is_dir).map_err(ItemRefusal::Git)?;
+        guards.check_recent(survey.newest_modified, now)?;
         Ok(Ready {
             parent_fd,
             name,

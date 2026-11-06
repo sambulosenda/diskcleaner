@@ -31,6 +31,8 @@ pub struct Survey {
     pub ino: u64,
     /// The item's own modification time.
     pub modified: SystemTime,
+    /// The newest modification time of the item or anything inside it.
+    pub newest_modified: SystemTime,
     /// Whether the item is a folder.
     pub is_dir: bool,
     /// The first folder in the item (the item itself included) whose contents
@@ -68,6 +70,7 @@ pub fn survey(
     let mut seen_links = HashSet::new();
     let mut size = allocated(&meta, &mut seen_links);
     let mut locked_dir = None;
+    let mut newest_modified = modified;
     if meta.is_dir() {
         note_locked(root, &meta, &mut locked_dir);
         size += walk(
@@ -77,6 +80,7 @@ pub fn survey(
             selected_individually,
             &mut seen_links,
             &mut locked_dir,
+            &mut newest_modified,
         )?;
     }
     Ok(Survey {
@@ -84,6 +88,7 @@ pub fn survey(
         dev: meta.dev(),
         ino: meta.ino(),
         modified,
+        newest_modified,
         is_dir: meta.is_dir(),
         locked_dir,
     })
@@ -99,7 +104,9 @@ fn note_locked(dir: &Path, meta: &Metadata, locked_dir: &mut Option<PathBuf>) {
 }
 
 /// Walks everything inside the folder `root` (not `root` itself) and returns
-/// its allocated bytes. Iterative, so a deep tree cannot overflow the stack.
+/// its allocated bytes, raising `newest` to the newest modification time
+/// seen. Iterative, so a deep tree cannot overflow the stack.
+#[allow(clippy::too_many_arguments)]
 fn walk(
     root: &Path,
     root_rel: Vec<String>,
@@ -107,6 +114,7 @@ fn walk(
     selected_individually: bool,
     seen_links: &mut HashSet<(u64, u64)>,
     locked_dir: &mut Option<PathBuf>,
+    newest: &mut SystemTime,
 ) -> Result<u64, ItemRefusal> {
     let mut size = 0u64;
     let mut stack = vec![(root.to_path_buf(), root_rel)];
@@ -131,6 +139,11 @@ fn walk(
                 return Err(ItemRefusal::OtherVolumeInside { at: path });
             }
             size = size.saturating_add(allocated(&meta, seen_links));
+            // A time that can't be read counts as now: it may be in use.
+            let changed = meta.modified().unwrap_or_else(|_| SystemTime::now());
+            if changed > *newest {
+                *newest = changed;
+            }
             if meta.is_dir() {
                 note_locked(&path, &meta, locked_dir);
                 stack.push((path, child_rel));

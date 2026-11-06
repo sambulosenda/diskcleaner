@@ -8,11 +8,25 @@ use std::os::unix::fs::{symlink, MetadataExt};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use executor::{execute, ExecuteError, ItemRefusal, Mode, Outcome, Report, TRASH_DIR};
+use executor::{
+    execute, ExecuteError, Guards, ItemRefusal, Mode, Outcome, Report, Running, TRASH_DIR,
+};
 use planner::{Expected, ItemRequest, Plan, PlanError, PLAN_LIFETIME};
 use safety::protected::{BlockReason, ReviewReason};
 use safety::Refusal;
 use sha2::{Digest, Sha256};
+
+/// The extra checks with the recent-change window off, no folders kept and
+/// no programs running. Test homes are made just now, so with the real
+/// window every item would be skipped as changed recently. The extra checks
+/// have their own tests in `extra_checks.rs`.
+fn quiet() -> Guards {
+    Guards {
+        recent_window: Duration::ZERO,
+        protected_folders: Vec::new(),
+        running: Running::Known(Vec::new()),
+    }
+}
 
 /// A fake home in a temp folder, with a Trash.
 struct Home {
@@ -89,6 +103,7 @@ impl Home {
             expected: self.expected(rel),
             regenerable: true,
             selected_individually: false,
+            owners: &[],
         }
     }
 
@@ -110,7 +125,7 @@ impl Home {
 }
 
 fn run(plan: Plan, mode: Mode) -> Report {
-    execute(plan, mode, SystemTime::now()).unwrap()
+    execute(plan, mode, &quiet(), SystemTime::now()).unwrap()
 }
 
 fn refusal(report: &Report, i: usize) -> &ItemRefusal {
@@ -407,7 +422,7 @@ fn an_expired_plan_touches_nothing() {
     home.file("Library/Caches/com.example/data", 1_000);
     let plan = home.plan_of(&["Library/Caches/com.example"]);
     let later = SystemTime::now() + PLAN_LIFETIME;
-    let err = execute(plan, Mode::Trash, later).unwrap_err();
+    let err = execute(plan, Mode::Trash, &quiet(), later).unwrap_err();
     assert!(matches!(err, ExecuteError::Plan(PlanError::Expired)));
     assert!(home.path("Library/Caches/com.example/data").exists());
 }
@@ -420,7 +435,7 @@ fn delete_is_refused_unless_every_item_is_regenerable() {
     let mut two = home.request("Library/Caches/two");
     two.regenerable = false;
     let plan = home.plan(vec![home.request("Library/Caches/one"), two]);
-    let err = execute(plan, Mode::Delete, SystemTime::now()).unwrap_err();
+    let err = execute(plan, Mode::Delete, &quiet(), SystemTime::now()).unwrap_err();
     assert!(matches!(err, ExecuteError::DeleteNeedsRegenerable));
     assert!(home.path("Library/Caches/one/a").exists());
     assert!(home.path("Library/Caches/two/a").exists());
@@ -432,7 +447,7 @@ fn a_missing_trash_touches_nothing() {
     home.file("Library/Caches/com.example/data", 1_000);
     let plan = home.plan_of(&["Library/Caches/com.example"]);
     fs::remove_dir(home.path(TRASH_DIR)).unwrap();
-    let err = execute(plan, Mode::Trash, SystemTime::now()).unwrap_err();
+    let err = execute(plan, Mode::Trash, &quiet(), SystemTime::now()).unwrap_err();
     assert!(matches!(err, ExecuteError::TrashUnavailable));
     assert!(home.path("Library/Caches/com.example/data").exists());
 }
@@ -447,7 +462,7 @@ fn a_trash_the_system_refuses_touches_nothing() {
     // Stands in for macOS privacy protection, which refuses with EPERM.
     fs::set_permissions(&trash, fs::Permissions::from_mode(0o000)).unwrap();
     let still_readable = fs::read_dir(&trash).is_ok();
-    let result = execute(plan, Mode::Trash, SystemTime::now());
+    let result = execute(plan, Mode::Trash, &quiet(), SystemTime::now());
     fs::set_permissions(&trash, fs::Permissions::from_mode(0o755)).unwrap();
     if still_readable {
         eprintln!("skipped: running as root, so the Trash is still readable");
@@ -465,7 +480,7 @@ fn a_trash_that_is_a_symlink_touches_nothing() {
     let plan = home.plan_of(&["Library/Caches/com.example"]);
     fs::remove_dir(home.path(TRASH_DIR)).unwrap();
     symlink(home.path("Documents"), home.path(TRASH_DIR)).unwrap();
-    let err = execute(plan, Mode::Trash, SystemTime::now()).unwrap_err();
+    let err = execute(plan, Mode::Trash, &quiet(), SystemTime::now()).unwrap_err();
     assert!(matches!(err, ExecuteError::TrashUnavailable));
     assert!(home.path("Library/Caches/com.example/data").exists());
     assert_eq!(fs::read_dir(home.path("Documents")).unwrap().count(), 0);
@@ -713,7 +728,7 @@ fn preview_reports_what_would_move_and_touches_nothing() {
         fixtures::paths::NPM_CACHE,
         "AndroidStudioProjects/Shopper/app",
     ]);
-    let checks = executor::preview(&plan, Mode::Trash, SystemTime::now()).unwrap();
+    let checks = executor::preview(&plan, Mode::Trash, &quiet(), SystemTime::now()).unwrap();
     assert_eq!(checks.len(), 3);
     for check in &checks[..2] {
         let bytes = check.result.as_ref().unwrap();
@@ -749,7 +764,7 @@ fn preview_sees_a_change_since_review() {
     home.file("Library/Caches/com.example/a.bin", 4096);
     let plan = home.plan_of(&["Library/Caches/com.example"]);
     home.file("Library/Caches/com.example/b.bin", 1 << 20);
-    let checks = executor::preview(&plan, Mode::Trash, SystemTime::now()).unwrap();
+    let checks = executor::preview(&plan, Mode::Trash, &quiet(), SystemTime::now()).unwrap();
     assert_eq!(checks[0].result, Err(ItemRefusal::ChangedSinceReview));
     assert!(home.path("Library/Caches/com.example/b.bin").exists());
 }
@@ -761,7 +776,7 @@ fn preview_of_an_expired_plan_is_refused() {
     let plan = home.plan_of(&["Library/Caches/com.example"]);
     let later = SystemTime::now() + PLAN_LIFETIME;
     assert!(matches!(
-        executor::preview(&plan, Mode::Trash, later),
+        executor::preview(&plan, Mode::Trash, &quiet(), later),
         Err(ExecuteError::Plan(PlanError::Expired))
     ));
 }
@@ -773,7 +788,7 @@ fn preview_without_a_trash_is_refused() {
     let plan = home.plan_of(&["Library/Caches/com.example"]);
     fs::remove_dir(home.path(TRASH_DIR)).unwrap();
     assert!(matches!(
-        executor::preview(&plan, Mode::Trash, SystemTime::now()),
+        executor::preview(&plan, Mode::Trash, &quiet(), SystemTime::now()),
         Err(ExecuteError::TrashUnavailable)
     ));
 }
