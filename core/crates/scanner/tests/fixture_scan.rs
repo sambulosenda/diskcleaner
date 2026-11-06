@@ -348,3 +348,66 @@ fn other_volumes_are_not_entered() {
         assert!(result.find(rel).is_none(), "{} was entered", m.display());
     }
 }
+
+#[test]
+fn records_files_only_in_folders_asked_for() {
+    let home = home();
+    let want = scanner::RecordFiles(std::sync::Arc::new(|rel: &Path| {
+        rel == Path::new(paths::DOWNLOADS)
+    }));
+    let opts = ScanOptions {
+        record_files: Some(want),
+        ..ScanOptions::default()
+    };
+    let result = scan(&home.root, opts, |_| {}).unwrap();
+    let downloads = result.find(Path::new(paths::DOWNLOADS)).unwrap();
+    let names: Vec<String> = result.dirs[downloads]
+        .files
+        .iter()
+        .map(|f| f.name.to_string_lossy().into_owned())
+        .collect();
+    let mut expected: Vec<String> = [
+        paths::DOWNLOAD_DMG,
+        paths::DOWNLOAD_NORMAL,
+        paths::DOWNLOAD_ZIP,
+        paths::DOWNLOAD_PKG,
+    ]
+    .iter()
+    .map(|p| p.rsplit('/').next().unwrap().to_string())
+    .collect();
+    expected.sort();
+    assert_eq!(names, expected);
+    let dmg = &result.dirs[downloads].files[0];
+    assert_eq!(
+        dmg.allocated_bytes,
+        allocated(&home.root.join(paths::DOWNLOAD_DMG))
+    );
+    // No other folder lists its files.
+    let others = result
+        .dirs
+        .iter()
+        .enumerate()
+        .filter(|(i, d)| *i != downloads && !d.files.is_empty())
+        .count();
+    assert_eq!(others, 0);
+    // Without the option nothing is listed.
+    assert!(scan_home(&home.root)
+        .dirs
+        .iter()
+        .all(|d| d.files.is_empty()));
+}
+
+#[test]
+fn marks_folders_that_hold_git() {
+    let home = home();
+    let result = scan_home(&home.root);
+    let repo = Path::new(paths::TRAP_GIT_DIR).parent().unwrap();
+    let with_git: Vec<PathBuf> = result
+        .dirs
+        .iter()
+        .enumerate()
+        .filter(|(_, d)| d.has_git)
+        .map(|(i, _)| result.path_of(i).unwrap())
+        .collect();
+    assert_eq!(with_git, vec![home.root.join(repo)]);
+}

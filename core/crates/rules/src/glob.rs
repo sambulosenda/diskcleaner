@@ -151,6 +151,59 @@ impl Glob {
         self.could_overlap(&names)
     }
 
+    /// Like [`Glob::matches`], for a path already split and folded with
+    /// [`FoldedPath::new`]. Use it when one path is checked against many
+    /// globs, so the path is folded once.
+    pub fn matches_folded(&self, path: &FoldedPath) -> bool {
+        if path.names.is_empty() {
+            return false;
+        }
+        // Fast reject: without `**` a glob matches paths of one depth only.
+        if !self.parts.iter().any(PathTok::is_any_depth) && self.parts.len() != path.names.len() {
+            return false;
+        }
+        self.could_overlap(&path.names)
+    }
+
+    /// Whether some path could match both this glob and `other`.
+    ///
+    /// Errs towards "yes", like the protected-path check.
+    pub fn could_overlap_glob(&self, other: &Glob) -> bool {
+        self.could_overlap(&other.parts)
+    }
+
+    /// Number of characters before the first wildcard (`*`, `?`, `[` or
+    /// `**`), counting the `/` between names. A longer literal prefix means
+    /// a more specific glob.
+    pub fn literal_prefix_len(&self) -> usize {
+        let mut len = 0;
+        for (i, part) in self.parts.iter().enumerate() {
+            if i > 0 {
+                len += 1;
+            }
+            let PathTok::Name(toks) = part else {
+                return len;
+            };
+            for tok in toks {
+                match tok {
+                    CharTok::Lit(_) => len += 1,
+                    _ => return len,
+                }
+            }
+        }
+        len
+    }
+
+    /// Whether the glob has a `**` part, so it can match paths of any depth.
+    pub fn has_any_depth(&self) -> bool {
+        self.parts.iter().any(PathTok::is_any_depth)
+    }
+
+    /// Number of folder names in the glob, counting `**` as one.
+    pub fn depth(&self) -> usize {
+        self.parts.len()
+    }
+
     /// One simple path that this glob matches, as folder names: `*` becomes
     /// nothing, `?` and `[...]` become one fitting character, and `**`
     /// becomes no folders at all. Used to ask the safety crate about the
@@ -163,6 +216,33 @@ impl Glob {
                 PathTok::Name(toks) => Some(name_witness(toks)),
             })
             .collect()
+    }
+}
+
+/// A relative path split into folded names, ready for
+/// [`Glob::matches_folded`]. Only compares text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FoldedPath {
+    names: Vec<PathTok>,
+}
+
+impl FoldedPath {
+    /// Splits `rel` (names separated by `/`, no leading slash) and folds
+    /// each name. An empty `rel` gives an empty path, which no glob matches.
+    pub fn new(rel: &str) -> Self {
+        if rel.is_empty() {
+            return Self { names: Vec::new() };
+        }
+        Self {
+            names: rel.split('/').map(PathTok::literal).collect(),
+        }
+    }
+
+    /// Builds a path from names that are each one folder or file name.
+    pub fn from_names<S: AsRef<str>>(names: &[S]) -> Self {
+        Self {
+            names: names.iter().map(|n| PathTok::literal(n.as_ref())).collect(),
+        }
     }
 }
 
@@ -429,6 +509,28 @@ mod tests {
         assert!(!deep.matches("a/x/c"));
         // A `*` in the path is a plain character, not a wildcard.
         assert!(!Glob::parse("a/b").unwrap().matches("a/*"));
+    }
+
+    #[test]
+    fn folded_matching_and_specificity() {
+        let g = Glob::parse("Library/Caches/*-cache").unwrap();
+        assert!(g.matches_folded(&FoldedPath::new("library/caches/A-CACHE")));
+        assert!(!g.matches_folded(&FoldedPath::new("Library/Caches")));
+        assert!(!g.matches_folded(&FoldedPath::new("")));
+        assert!(g.matches_folded(&FoldedPath::from_names(&["Library", "Caches", "x-cache"])));
+        assert!(Glob::parse("a/**/b")
+            .unwrap()
+            .matches_folded(&FoldedPath::new("a/x/y/b")));
+        assert_eq!(g.literal_prefix_len(), "library/caches/".len());
+        assert_eq!(
+            Glob::parse("Library/Logs").unwrap().literal_prefix_len(),
+            12
+        );
+        assert_eq!(Glob::parse("a/**/b").unwrap().literal_prefix_len(), 2);
+        assert_eq!(Glob::parse("*").unwrap().literal_prefix_len(), 0);
+        let a = Glob::parse("Downloads/*.dmg").unwrap();
+        assert!(!a.could_overlap_glob(&Glob::parse("Downloads/*.pkg").unwrap()));
+        assert!(a.could_overlap_glob(&Glob::parse("Downloads/*").unwrap()));
     }
 
     #[test]
