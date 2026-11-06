@@ -1,0 +1,88 @@
+# Python rules: pip, uv and Poetry. Every rule's wording and tier needs
+# Sam's sign-off. Bump `version` on any change to a rule.
+#
+# Left alone on purpose: uv's installed Pythons and tools
+# (~/.local/share/uv), pipx installs, conda and pyenv installs. Those are
+# tools the user installed, not caches.
+#
+# Poetry keeps its project environments inside its cache folder, so the
+# Poetry rules match the two download folders and each environment on its
+# own, never the whole pypoetry folder.
+
+[[rule]]
+id = "python.pip_cache"
+version = 1
+match.path = "Library/Caches/pip"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "pip download cache"
+explain = "Copies of Python packages pip has downloaded or built, kept so later installs are faster."
+risk = "The next install downloads or builds these packages again, which takes longer."
+restore = "pip fills the cache again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "python.uv_cache"
+version = 1
+match.path = ".cache/uv"
+match.requires = ["CACHEDIR.TAG"]
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "uv download cache"
+explain = "Copies of Python packages uv has downloaded or built, kept so later installs are faster."
+risk = "The next install downloads or builds these packages again, which takes longer and needs a network connection."
+restore = "uv fills the cache again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "python.poetry_cache"
+version = 1
+match.path = "Library/Caches/pypoetry/cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Poetry package list cache"
+explain = "Package details Poetry has looked up, kept so it can work out versions faster."
+risk = "Poetry looks the details up again next time, which takes longer."
+restore = "Poetry fills it again as you use it."
+action = "trash"
+
+[[rule]]
+id = "python.poetry_artifacts"
+version = 1
+match.path = "Library/Caches/pypoetry/artifacts"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Poetry download cache"
+explain = "Copies of Python packages Poetry has downloaded, kept so later installs are faster."
+risk = "The next install downloads these packages again, which takes longer."
+restore = "Poetry downloads them again when a project needs them."
+action = "trash"
+
+[[rule]]
+id = "python.poetry_virtualenv"
+version = 1
+match.path = "Library/Caches/pypoetry/virtualenvs/*"
+match.requires = ["pyvenv.cfg"]
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Poetry project environment"
+explain = "The Python and packages Poetry installed for one project. The folder name starts with the project's name."
+risk = "That project will not run until you install its packages again, which needs a network connection."
+restore = "Run poetry install in the project folder."
+action = "trash"

@@ -1,0 +1,43 @@
+# Java, Kotlin and Dart rules beyond Gradle's caches (which are in
+# android.toml). Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# The Maven repository can hold libraries you built yourself with
+# mvn install, which cannot be downloaded again. So it is review_first and
+# not regenerable (Trash only). ~/.m2/settings.xml can hold passwords and
+# is never matched.
+#
+# Dart and Flutter: only downloaded packages (~/.pub-cache/hosted) are
+# matched. Globally activated tools (~/.pub-cache/bin, global_packages)
+# are left alone.
+
+[[rule]]
+id = "maven.repository"
+version = 1
+match.path = ".m2/repository"
+category = "cache"
+tier = "review_first"
+confidence = "medium"
+regenerable = false
+mode = "developer"
+title = "Maven libraries"
+explain = "Java libraries Maven has downloaded for your projects, plus any you installed from your own projects."
+risk = "Builds download the libraries again. Libraries you installed from your own projects come back only when you build those projects again."
+restore = "Maven downloads libraries again on the next build. Run mvn install for your own."
+action = "trash"
+
+
+[[rule]]
+id = "dart.pub_cache"
+version = 1
+match.path = ".pub-cache/hosted"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "Dart and Flutter packages"
+explain = "Copies of Dart and Flutter packages your projects use, downloaded by pub."
+risk = "Each project needs flutter pub get (or dart pub get) before it builds again, which needs a network connection."
+restore = "Run flutter pub get or dart pub get in the project folder."
+action = "trash"
