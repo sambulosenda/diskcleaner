@@ -86,7 +86,7 @@ final class AppModelTests: XCTestCase {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
             "Overview", "Backups", "Downloads and installers", "Large files", "Apps and caches",
-            "System Data", "Cleanup", "History",
+            "System Data", "Remove apps", "Cleanup", "History",
         ])
         model.mode = .developer
         XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker"])
