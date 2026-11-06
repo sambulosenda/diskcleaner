@@ -25,6 +25,9 @@ struct RoomyApp: App {
                 Button("Scan") { model.startScan() }
                     .keyboardShortcut("r", modifiers: .command)
                     .disabled(model.isScanning)
+                Button("Search Roomy\u{2026}") { model.palette.toggle() }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .disabled(!model.palette.isPresented && !model.palette.canOpen)
             }
         }
 

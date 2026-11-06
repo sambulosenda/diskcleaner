@@ -41,6 +41,10 @@ final class ScreenshotTests: XCTestCase {
                 try capture(ContentView().environmentObject(model), size: CGSize(width: 1120, height: 740),
                             appearance: appearance, to: folder.appendingPathComponent("\(name)-\(suffix).png"))
             }
+            let paletteModel = makeListModel(mode: .simple, overview: normal, scannedAt: scannedAt)
+            paletteModel.palette.open()
+            try capture(ContentView().environmentObject(paletteModel), size: CGSize(width: 1120, height: 740),
+                        appearance: appearance, to: folder.appendingPathComponent("13-palette-\(suffix).png"))
             let model = makeModel(mode: .developer, state: .neverScanned)
             try capture(SettingsView().environmentObject(model), size: CGSize(width: 440, height: 200),
                         appearance: appearance, to: folder.appendingPathComponent("7-settings-\(suffix).png"))
