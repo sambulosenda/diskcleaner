@@ -347,3 +347,17 @@ pub const HUGGINGFACE_MODELS: [&str; 2] = [
 pub const HUGGINGFACE_DATASET: &str = "datasets--squad";
 /// The Hugging Face sign-in token. No rule may match it.
 pub const TRAP_HUGGINGFACE_TOKEN: &str = ".cache/huggingface/token";
+/// A Final Cut Pro library (review-only as a whole; caches inside may be
+/// matched by a specific rule).
+pub const FCP_LIBRARY: &str = "Movies/Holiday 2026.fcpbundle";
+/// The events inside the Final Cut library.
+pub const FCP_EVENTS: [&str; 2] = ["Day 1", "Day 2"];
+/// The Adobe media cache files folder.
+pub const ADOBE_MEDIA_CACHE_FILES: &str =
+    "Library/Application Support/Adobe/Common/Media Cache Files";
+/// The Adobe media cache database folder.
+pub const ADOBE_MEDIA_CACHE_DB: &str = "Library/Application Support/Adobe/Common/Media Cache";
+/// After Effects' disk cache root, one folder per version.
+pub const AFTER_EFFECTS_CACHE: &str = "Library/Caches/Adobe/After Effects";
+/// The After Effects versions in the fixture.
+pub const AFTER_EFFECTS_VERSIONS: [&str; 1] = ["25.0"];

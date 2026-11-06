@@ -23,6 +23,7 @@ mod docker;
 mod embedded_rules;
 mod engine;
 mod folders;
+mod javascript;
 mod low_space;
 mod run;
 #[cfg(feature = "testing")]
@@ -40,6 +41,7 @@ pub use docker::{
     DockerPreviewItem, DockerStatus, DockerUsageRow,
 };
 pub use engine::RoomyCore;
+pub use javascript::{ActivitySource, JavaScriptOverview, JsProject, PackageManager};
 pub use low_space::{
     check_low_space, low_space_default_threshold, low_space_threshold_choices, LowSpaceCheck,
 };
@@ -49,8 +51,9 @@ pub use types::{
     Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
     CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
     CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
-    HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea,
-    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    HistoryItemState, ItemDetail, ItemSummary, LibraryKind, LibrarySize, Mode, Overview,
+    PlanHandle, PrivateArea, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

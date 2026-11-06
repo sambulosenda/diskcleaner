@@ -24,6 +24,10 @@ pub(crate) const FILES: &[(&str, &str)] = &[
         include_str!("../../../../rules/android.toml"),
     ),
     (
+        "creative.toml",
+        include_str!("../../../../rules/creative.toml"),
+    ),
+    (
         "editors.toml",
         include_str!("../../../../rules/editors.toml"),
     ),

@@ -3,6 +3,8 @@
 pub mod apps;
 pub mod docker;
 pub mod ios_backup;
+pub mod js;
+pub mod libraries;
 
 #[cfg(test)]
 mod tests {

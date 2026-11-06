@@ -288,6 +288,28 @@ fn expected_simple() -> BTreeMap<String, &'static str> {
         paths::IPHONE_SOFTWARE_UPDATE.to_string(),
         "ios.software_update",
     );
+    for event in paths::FCP_EVENTS {
+        let e = join(paths::FCP_LIBRARY, event);
+        want.insert(join(&e, "Render Files"), "final_cut.render_files");
+        want.insert(
+            join(&e, "Transcoded Media/Proxy Media"),
+            "final_cut.proxy_media",
+        );
+    }
+    want.insert(
+        paths::ADOBE_MEDIA_CACHE_FILES.to_string(),
+        "adobe.media_cache_files",
+    );
+    want.insert(
+        paths::ADOBE_MEDIA_CACHE_DB.to_string(),
+        "adobe.media_cache_database",
+    );
+    for v in paths::AFTER_EFFECTS_VERSIONS {
+        want.insert(
+            join(paths::AFTER_EFFECTS_CACHE, v),
+            "adobe.after_effects_disk_cache",
+        );
+    }
     want
 }
 

@@ -118,11 +118,14 @@ final class MockCoreClient: CoreClient {
             .sorted(by: AppModel.order(for: sort))
     }
 
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize] {
+        _ = try await overview(handle: handle)
+        return MockData.libraries(for: scenario)
+    }
+
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail {
         _ = try await overview(handle: handle)
-        guard let item = MockData.found(for: scenario).first(where: { $0.id == itemId }) else {
-            throw CoreError.UnknownItem
-        }
+        guard let item = MockData.lookup(itemId, in: scenario) else { throw CoreError.UnknownItem }
         return MockData.detail(for: item, mode: modes[handle] ?? .simple)
     }
 
@@ -134,9 +137,7 @@ final class MockCoreClient: CoreClient {
         var seen: Set<String> = []
         var rows: [CleanupPreviewItem] = []
         for choice in choices where seen.insert(choice.itemId).inserted {
-            guard let item = MockData.found(for: scenario).first(where: { $0.id == choice.itemId }) else {
-                throw CoreError.UnknownItem
-            }
+            guard let item = MockData.lookup(choice.itemId, in: scenario) else { throw CoreError.UnknownItem }
             let check: CleanupCheck
             switch item.tier {
             case .keep:
@@ -315,6 +316,14 @@ final class MockCoreClient: CoreClient {
     /// The app last reviewed, so `previewUninstall` refuses any other, as the core does.
     private var reviewedApp: String?
 
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview {
+        _ = try await overview(handle: handle)
+        guard scenario != .nothingFound, modes[handle] == .developer else {
+            return JavaScriptOverview(projects: [], caches: [], totalBytes: 0)
+        }
+        return MockData.javascript(now: now())
+    }
+
     func listApps() async -> [AppSummary] {
         reviewedApp = nil
         return MockData.apps
@@ -460,6 +469,48 @@ enum MockData {
         scenario == .nothingFound ? [] : items
     }
 
+    /// The item with this id: one the scan lists, or a JavaScript project's `node_modules`. The projects
+    /// are kept out of `items`, so the Overview's figures stay as the wireframe shows them.
+    static func lookup(_ id: String, in scenario: MockCoreClient.Scenario) -> ItemSummary? {
+        guard scenario != .nothingFound else { return nil }
+        return (items + javascriptProjectItems).first { $0.id == id }
+    }
+
+    /// Made-up `node_modules` folders, one per JavaScript project, largest first.
+    static let javascriptProjectItems: [ItemSummary] = [
+        item("js-shop", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             1_840_000_000, .reviewFirst, .build),
+        item("js-blog", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             912_000_000, .reviewFirst, .build),
+        item("js-landing", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             640_000_000, .reviewFirst, .build),
+        item("js-cli", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             210_000_000, .reviewFirst, .build),
+    ]
+
+    /// The JavaScript screen for a Developer mode scan. Dates are counted back from `now`.
+    static func javascript(now: Date) -> JavaScriptOverview {
+        func daysAgo(_ days: Double) -> Int64 { Int64(now.timeIntervalSince1970 - days * 86_400) }
+        let p = javascriptProjectItems
+        let projects = [
+            JsProject(item: p[0], name: "shop", folder: "~/Developer/shop", lastActivityUnixSeconds: daysAgo(2),
+                      activitySource: .git, packageManager: .pnpm, installCommand: "pnpm install", hasManifest: true),
+            JsProject(item: p[1], name: "blog", folder: "~/projects/blog", lastActivityUnixSeconds: daysAgo(210),
+                      activitySource: .lockFile, packageManager: .npm, installCommand: "npm install", hasManifest: true),
+            JsProject(item: p[2], name: "landing", folder: "~/code/landing", lastActivityUnixSeconds: daysAgo(400),
+                      activitySource: .manifest, packageManager: nil, installCommand: nil, hasManifest: true),
+            JsProject(item: p[3], name: "cli", folder: "~/dev/cli", lastActivityUnixSeconds: nil,
+                      activitySource: nil, packageManager: nil, installCommand: nil, hasManifest: false),
+        ]
+        let caches = items.filter { $0.id == "npm-cache" }
+        let total = (p + caches).reduce(0) { $0 + $1.sizeBytes }
+        return JavaScriptOverview(projects: projects, caches: caches, totalBytes: total)
+    }
+
     /// The detail panel for a mock item. `path` is filled in only in Developer mode, as in the core.
     static func detail(for item: ItemSummary, mode: Mode) -> ItemDetail {
         let regenerable = item.tier == .likelySafe
@@ -494,6 +545,23 @@ enum MockData {
     }
 
     /// The Overview a finished scan returns, built the way the contract defines each field.
+    /// The pretend library sizes. Mail is only partly readable, as without Full Disk Access.
+    static func libraries(for scenario: MockCoreClient.Scenario) -> [LibrarySize] {
+        let empty = scenario == .nothingFound
+        func row(_ kind: LibraryKind, _ bytes: UInt64, count: UInt32 = 0, needsAccess: Bool = false) -> LibrarySize {
+            LibrarySize(kind: kind, bytes: empty ? 0 : bytes, libraryCount: empty ? 0 : count,
+                        found: !empty && bytes > 0, needsAccess: needsAccess)
+        }
+        return [
+            row(.photos, 41_300_000_000, count: 1),
+            row(.music, 8_200_000_000, count: 1),
+            row(.tv, 0),
+            row(.mail, 3_600_000_000, needsAccess: !empty),
+            row(.messagesAttachments, 12_700_000_000),
+            row(.finalCut, 0),
+        ]
+    }
+
     static func overview(for scenario: MockCoreClient.Scenario) -> Overview {
         let found = Self.found(for: scenario)
         return Overview(
