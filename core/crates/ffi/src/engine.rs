@@ -27,9 +27,9 @@ use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AndroidOverview, AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview,
-    CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LargeFiles, LibrarySize,
-    Mode, Overview, PlanHandle, PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress,
-    Sort, Tier,
+    CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary,
+    LargeFiles, LibrarySize, Mode, Overview, PlanHandle, PutBackResult, ScanChanges, ScanHandle,
+    ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
