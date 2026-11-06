@@ -6,7 +6,7 @@ import Foundation
 /// responsive however long a call takes. The scan itself already runs on the core's own thread;
 /// `AppModel` polls `scanProgress` at most ten times a second.
 ///
-/// The client sends scan handles, item ids and enum values. The one exception is the folders the user
+/// The client sends scan handles, item ids, app ids and enum values. The one exception is the folders the user
 /// asked Roomy to keep, which can only stop things being cleaned.
 @MainActor
 final class RustCoreClient: CoreClient {
@@ -116,5 +116,17 @@ final class RustCoreClient: CoreClient {
 
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult {
         try await offMain { try $0.runDockerCleanup(plan: plan) }
+    }
+
+    func listApps() async -> [AppSummary] {
+        (try? await offMain { $0.listApps() }) ?? []
+    }
+
+    func reviewApp(appId: String, mode: Mode) async throws -> AppReview {
+        try await offMain { try $0.reviewApp(appId: appId, mode: mode) }
+    }
+
+    func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview {
+        try await offMain { try $0.previewUninstall(appId: appId, partIds: partIds) }
     }
 }

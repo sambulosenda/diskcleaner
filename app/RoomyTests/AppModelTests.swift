@@ -672,4 +672,86 @@ final class AppModelTests: XCTestCase {
         let other = try await mock.itemDetail(handle: handle, itemId: otherId)
         XCTAssertNil(other.deviceBackup)
     }
+
+    // MARK: - App uninstaller
+
+    func testRemoveAppsIsInTheCleanUpGroup() {
+        XCTAssertEqual(SidebarItem.actionItems, [.apps, .cleanup, .history])
+        XCTAssertEqual(SidebarItem.apps.title, "Remove apps")
+        XCTAssertNil(SidebarItem.apps.itemFilter)
+    }
+
+    func testOpeningRemoveAppsListsTheApps() async {
+        let model = makeModel()
+        model.selection = .apps
+        await model.waitForApps()
+        XCTAssertEqual(model.appsState, .loaded(MockData.apps))
+        model.searchText = "notes"
+        XCTAssertEqual(model.visibleApps.map(\.name), ["Notes Pro"])
+    }
+
+    func testChoosingAnAppTicksOnlyWhatTheCoreSays() async throws {
+        let model = makeModel()
+        model.selection = .apps
+        await model.waitForApps()
+        model.selectedAppID = MockData.apps[0].appId
+        await model.waitForApps()
+        guard case .loaded(let review) = model.appReviewState else { return XCTFail("\(model.appReviewState)") }
+        XCTAssertEqual(model.checkedPartIDs, Set(review.parts.filter(\.preselected).map(\.itemId)))
+        XCTAssertFalse(model.checkedPartIDs.contains("part-1"), "app data is never ticked for the user")
+        XCTAssertFalse(model.checkedPartIDs.contains("part-2"), "a name match is never ticked for the user")
+        XCTAssertTrue(review.parts.allSatisfy { $0.path == nil }, "simple mode shows no paths")
+    }
+
+    func testUninstallGoesThroughTheCleanupReviewAndCanBePutBack() async throws {
+        let model = makeModel()
+        model.selection = .apps
+        await model.waitForApps()
+        model.selectedAppID = MockData.apps[1].appId
+        await model.waitForApps()
+        model.reviewUninstall()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(Set(preview.items.map(\.itemId)), model.checkedPartIDs)
+        XCTAssertTrue(preview.items.contains { $0.itemId == "app" })
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        guard case .done(let result) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(result.items.allSatisfy(\.done))
+        XCTAssertNotNil(model.lastCleanup)
+        model.putBack()
+        await model.waitForCleanupCheck()
+        guard case .putBack = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+    }
+
+    func testAnOpenAppIsRefusedWithPlainWords() async {
+        let client = MockCoreClient(scenario: .normal, totalSteps: 5)
+        client.appIsOpen = true
+        let model = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        model.selection = .apps
+        await model.waitForApps()
+        model.selectedAppID = MockData.apps[0].appId
+        await model.waitForApps()
+        model.reviewUninstall()
+        await model.waitForCleanupCheck()
+        XCTAssertEqual(model.cleanupState, .failed("Chat is open. Quit Chat, then try again."))
+    }
+
+    func testNothingTickedOpensNoReview() async {
+        let model = makeModel()
+        model.selection = .apps
+        await model.waitForApps()
+        model.selectedAppID = MockData.apps[0].appId
+        await model.waitForApps()
+        for id in model.checkedPartIDs {
+            model.setPartChecked(false, for: AppPart(itemId: id, title: "", explain: "", sizeBytes: 0,
+                                                     preselected: false, sure: true, path: nil))
+        }
+        model.reviewUninstall()
+        XCTAssertEqual(model.cleanupState, .closed)
+    }
+
+    func testUnknownAppErrorReadsPlainly() {
+        XCTAssertEqual(AppModel.message(for: CoreError.UnknownApp), "Roomy lost track of this app. Please look again.")
+    }
 }

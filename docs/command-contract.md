@@ -275,6 +275,7 @@ Why the core made an item's tier more careful. Carries no path.
 | `cleanup_unavailable { reason }` | The preview could not check anything, for example because the Trash could not be opened. `reason` is plain words with no path |
 | `nothing_to_put_back` | `put_back_cleanup` was given a cleanup the core no longer holds. Trying again won't help |
 | `docker_unavailable { reason }` | A Docker clean-up could not be previewed, or was refused before it ran (Docker missing or stopped, review expired, or something new appeared). Nothing was removed. Plain words, no path |
+| `unknown_app` | `review_app` or `preview_uninstall` was given an app id that is not from the latest `list_apps` (or not the app last reviewed) |
 
 ## Cleanup preview
 
@@ -445,12 +446,69 @@ All of these only read. They run in `preview_cleanup` and again in `run_cleanup`
 ### `HistoryItemState` (enum)
 `moved`, `not_moved { reason }`, `put_back`, `stayed_in_trash { reason }`.
 
+## App uninstaller
+
+Removes an app and what it left in the home folder. It reuses the cleanup machinery: the dry run
+makes the same single-use plan, `run_cleanup` carries it out, and `put_back_cleanup` and History
+work as for any cleanup. Trash only.
+
+Rules:
+
+1. Swift sends app ids and part ids, never paths. The core finds apps in `/Applications` and
+   `~/Applications` (top level only), reads each `Info.plist`, and never lists Apple's apps
+   (`com.apple.*`) or Roomy itself.
+2. Leftovers are matched by bundle id in `~/Library` (Application Support, Caches, Containers,
+   Group Containers, Preferences and `ByHost`, Saved Application State, HTTPStorages, WebKit,
+   Cookies, Logs, LaunchAgents, Application Scripts). A name that starts with the bundle id and a
+   dot, or a folder with the app's name (Application Support, Caches, Logs), is offered as "check
+   this" (`sure = false`). Symlinks, and anything the safety rules would refuse, are not offered.
+3. `preselected` is never true for a `sure = false` part, for Application Support, Containers or
+   Group Containers, or for any review-only path. The user ticks those themselves.
+4. The app itself is offered only when it is in `~/Applications`. `/Applications` is outside the
+   home folder, so the safety rules refuse it; the app shows it in Finder instead.
+5. `preview_uninstall` refuses (`cleanup_unavailable`) while anything inside the app is running,
+   or if the running programs can't be listed. The executor then skips each part, just before
+   acting, if anything inside the app or inside that part is running. All the other cleanup
+   checks apply unchanged, including the recent-change window and folders you keep.
+6. If another copy of the app (same bundle id) is installed, no leftovers are offered, since both
+   copies use them.
+7. `bundle_path` is given in both modes: an app in an Applications folder is not personal. Part
+   paths are given in Developer mode only.
+
+### `list_apps() -> [AppSummary]`
+Every app, sorted by name, with its size. New ids on each call; forgets the earlier review.
+
+### `review_app(app_id: String, mode: Mode) -> AppReview` throws
+What the app left behind, measured just now: the app itself first (if offered), then largest
+first. Replaces the earlier review. Throws `unknown_app`.
+
+### `preview_uninstall(app_id: String, part_ids: [String]) -> CleanupPreview` throws
+The dry run for the ticked parts of the latest review. Like `preview_cleanup`; History names each
+part "<app>: <part>". Throws `unknown_app`, `unknown_item`, `nothing_selected` or
+`cleanup_unavailable`.
+
+### `AppSummary` (record)
+`app_id`, `name`, `version: String?`, `bundle_id`, `size_bytes: u64`, `location: AppLocation`,
+`bundle_path: String`, `is_open: Bool`.
+
+### `AppLocation` (enum)
+`applications` (`/Applications`), `home_applications` (`~/Applications`).
+
+### `AppReview` (record)
+`app: AppSummary`, `parts: [AppPart]`, `note: String?`.
+
+### `AppPart` (record)
+`item_id`, `title`, `explain`, `size_bytes: u64`, `preselected: Bool`, `sure: Bool`,
+`path: String?` (Developer mode only).
+
 ## Testing
 
 The `ffi` crate has a `testing` Cargo feature. With it, and only with it, the core also exports:
 
 - `RoomyCore.with_home_for_testing(home: String)`: like `new()`, but scans `home` instead of the
   real home folder. `home` must be an absolute path to a folder.
+- `RoomyCore.use_home_applications_only_for_testing()`: the uninstaller looks for apps only in
+  the test home's `Applications` folder, never the test machine's `/Applications`.
 - `make_fixture_home(dir: String) -> String`: builds the T04 fixture home in `dir` (which must be
   empty or not exist yet) and returns its canonical path, ready for `with_home_for_testing`.
 

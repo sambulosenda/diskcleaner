@@ -590,7 +590,7 @@ impl From<history::Cleanup> for HistoryEntry {
 pub enum AppLocation {
     /// The main `/Applications` folder. Roomy's safety rules keep it out of
     /// everything outside the home folder, so the user moves the app itself
-    /// to the Bin in Finder; Roomy moves what it left behind.
+    /// to the Trash in Finder; Roomy moves what it left behind.
     Applications,
     /// `~/Applications`. Roomy can move the app itself too.
     HomeApplications,

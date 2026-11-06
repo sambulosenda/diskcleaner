@@ -67,4 +67,16 @@ protocol CoreClient: AnyObject {
     /// Runs the reviewed Docker clean-up. The core checks again first and refuses, removing nothing, if
     /// anything new appeared. The plan is used up.
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult
+
+    /// The app uninstaller: every app in /Applications and ~/Applications, except Apple's and Roomy, with
+    /// its size. Reads only. Each call gives new app ids.
+    func listApps() async -> [AppSummary]
+
+    /// What one app left in the home folder, measured just now, plus the app itself when it is in
+    /// ~/Applications. Reads only. Throws `CoreError.UnknownApp` for an id from an older list.
+    func reviewApp(appId: String, mode: Mode) async throws -> AppReview
+
+    /// The uninstaller's dry run: checks the ticked parts of the last review the way a cleanup would and
+    /// says what would move to the Trash. Moves nothing. Its plan runs with `runCleanup`, like any cleanup.
+    func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview
 }

@@ -77,6 +77,28 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// What the app uninstaller's list shows.
+    enum AppsState: Equatable {
+        /// Not looked yet.
+        case idle
+        /// Asking the core for the apps.
+        case loading
+        /// The apps, sorted by name.
+        case loaded([AppSummary])
+    }
+
+    /// What the app uninstaller shows for the chosen app.
+    enum AppReviewState: Equatable {
+        /// No app is chosen.
+        case none
+        /// Finding what the app left behind.
+        case loading
+        /// What the app left behind.
+        case loaded(AppReview)
+        /// The core couldn't look. The text is ready to show.
+        case failed(String)
+    }
+
     static let modeKey = "roomy.mode"
     /// Set once the Full Disk Access screen has been shown and closed, or once access was found on.
     static let accessOnboardingKey = "roomy.onboarding.fullDiskAccessDone"
@@ -133,6 +155,17 @@ final class AppModel: ObservableObject {
     @Published private(set) var protectedFolders: [String] = []
     /// Why the last change to the kept folders didn't work, shown in Settings.
     @Published private(set) var protectedFoldersMessage: String?
+    /// The app uninstaller's list of apps.
+    @Published private(set) var appsState: AppsState = .idle
+    /// The app chosen in the uninstaller.
+    @Published var selectedAppID: String? = nil {
+        didSet { if selectedAppID != oldValue { reloadAppReview() } }
+    }
+    /// What the chosen app left behind.
+    @Published private(set) var appReviewState: AppReviewState = .none
+    /// The parts of the chosen app that are ticked. The core says which to tick to begin with; data the
+    /// app keeps for itself, and anything matched only by name, is never ticked for the user.
+    @Published private(set) var checkedPartIDs: Set<String> = []
     /// Set once something has moved after the current scan started, so its sizes are out of date.
     /// Cleared when a new scan starts. A scan that was already running when files moved is followed by
     /// another one.
@@ -149,6 +182,8 @@ final class AppModel: ObservableObject {
     private var listTask: Task<Void, Never>?
     private var detailTask: Task<Void, Never>?
     private var cleanupTask: Task<Void, Never>?
+    private var appsTask: Task<Void, Never>?
+    private var appReviewTask: Task<Void, Never>?
     /// A put back started from History, with no sheet open.
     private var putBackTask: Task<Void, Never>?
     /// `needsRescan` as it was when the running scan started, restored if that scan is stopped.
@@ -309,6 +344,7 @@ final class AppModel: ObservableObject {
     /// a cleanup or a put back, scans again so the sizes are right. Does nothing while files are moving.
     func closeCleanupReview() {
         guard !cleanupState.isBusy else { return }
+        if cleanupState.showsOutcome, selection == .apps { reloadAppReview() }
         cleanupTask?.cancel()
         cleanupTask = nil
         if case .ready(let preview) = cleanupState, let plan = preview.plan {
@@ -326,6 +362,98 @@ final class AppModel: ObservableObject {
     private func rescanIfNeeded() {
         guard needsRescan, !isScanning, cleanupState == .closed else { return }
         startScan()
+    }
+
+    // MARK: - App uninstaller
+
+    /// Asks the core for the installed apps. Forgets the chosen app, since its id is no longer valid.
+    func loadApps() {
+        appsTask?.cancel()
+        selectedAppID = nil
+        appsState = .loading
+        let client = self.client
+        appsTask = Task { [weak self] in
+            let apps = await client.listApps()
+            guard !Task.isCancelled, let self else { return }
+            self.appsState = .loaded(apps)
+        }
+    }
+
+    /// The apps matching the search field.
+    var visibleApps: [AppSummary] {
+        guard case .loaded(let apps) = appsState else { return [] }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return apps }
+        return apps.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    }
+
+    func isPartChecked(_ part: AppPart) -> Bool { checkedPartIDs.contains(part.itemId) }
+
+    func setPartChecked(_ checked: Bool, for part: AppPart) {
+        if checked { checkedPartIDs.insert(part.itemId) } else { checkedPartIDs.remove(part.itemId) }
+    }
+
+    /// The ticked parts' total size.
+    var checkedPartBytes: UInt64 {
+        guard case .loaded(let review) = appReviewState else { return 0 }
+        return review.parts.filter { checkedPartIDs.contains($0.itemId) }.reduce(0) { $0 + $1.sizeBytes }
+    }
+
+    /// Asks the core what the chosen app left behind, and ticks what the core says to.
+    private func reloadAppReview() {
+        appReviewTask?.cancel()
+        checkedPartIDs = []
+        guard let id = selectedAppID else {
+            appReviewState = .none
+            return
+        }
+        appReviewState = .loading
+        let client = self.client
+        let mode = self.mode
+        appReviewTask = Task { [weak self] in
+            do {
+                let review = try await client.reviewApp(appId: id, mode: mode)
+                guard !Task.isCancelled, let self else { return }
+                self.appReviewState = .loaded(review)
+                self.checkedPartIDs = Set(review.parts.filter(\.preselected).map(\.itemId))
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.appReviewState = .failed(Self.message(for: error))
+            }
+        }
+    }
+
+    /// Opens the cleanup review for the ticked parts of the chosen app. Nothing moves until the user
+    /// confirms in the review, which then works exactly like any cleanup, with put back and History.
+    func reviewUninstall() {
+        guard case .loaded(let review) = appReviewState, !checkedPartIDs.isEmpty, cleanupState == .closed else {
+            return
+        }
+        let ids = review.parts.map(\.itemId).filter { checkedPartIDs.contains($0) }
+        let appId = review.app.appId
+        let client = self.client
+        let kept = protectedFolders
+        cleanupState = .checking
+        cleanupTask = Task { [weak self] in
+            do {
+                _ = try await client.setProtectedFolders(kept)
+                let preview = try await client.previewUninstall(appId: appId, partIds: ids)
+                guard !Task.isCancelled, let self else {
+                    if let plan = preview.plan { await client.discardCleanup(plan: plan) }
+                    return
+                }
+                self.cleanupState = .ready(preview)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.cleanupState = .failed(Self.cleanupMessage(for: error))
+            }
+        }
+    }
+
+    /// Waits for the uninstaller's list or review to load. Used by tests.
+    func waitForApps() async {
+        await appsTask?.value
+        await appReviewTask?.value
     }
 
     // MARK: - Folders to keep
@@ -666,6 +794,9 @@ final class AppModel: ObservableObject {
         if selection == .history {
             Task { [weak self] in await self?.reloadHistory() }
         }
+        if selection == .apps, appsState == .idle {
+            loadApps()
+        }
     }
 
     private func modeDidChange() {
@@ -675,6 +806,8 @@ final class AppModel: ObservableObject {
         }
         // Results from the other mode use the other mode's rules, and Developer results carry paths.
         // Scan again so what shows always matches the mode.
+        // The uninstaller's review shows paths only in Developer mode.
+        if selectedAppID != nil { reloadAppReview() }
         if overview != nil {
             selectedItemID = nil
             startScan()
@@ -702,6 +835,8 @@ final class AppModel: ObservableObject {
             return reason
         case .NothingToPutBack:
             return "Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash."
+        case .UnknownApp:
+            return "Roomy lost track of this app. Please look again."
         }
     }
 
