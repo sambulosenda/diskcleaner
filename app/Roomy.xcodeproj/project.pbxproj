@@ -11,6 +11,7 @@
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
 		A10000000000000000000003 /* RoomyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RoomyTests.swift */; };
 		A10000000000000000000004 /* roomy_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* roomy_core.swift */; };
+		A10000000000000000000040 /* CommandContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* CommandContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +29,7 @@
 		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* RoomyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomyTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* roomy_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = roomy_core.swift; sourceTree = "<group>"; };
+		A20000000000000000000040 /* CommandContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandContractTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000010 /* Roomy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Roomy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000011 /* RoomyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RoomyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -73,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000003 /* RoomyTests.swift */,
+				A20000000000000000000040 /* CommandContractTests.swift */,
 			);
 			path = RoomyTests;
 			sourceTree = "<group>";
@@ -203,6 +206,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000003 /* RoomyTests.swift in Sources */,
+				A10000000000000000000040 /* CommandContractTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

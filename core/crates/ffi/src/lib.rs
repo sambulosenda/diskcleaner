@@ -1,11 +1,32 @@
 //! UniFFI surface between the Rust core and the SwiftUI app.
 //!
-//! Every function here is a typed command the app can call. Nothing in this crate modifies the
-//! filesystem. `disk_summary` reads volume metadata only (via `statfs`).
+//! Every function here is a typed command the app can call; the contract is
+//! `docs/command-contract.md`. Nothing in this crate modifies the filesystem:
+//! scans are read only, and `disk_summary` reads volume metadata only (via
+//! `statfs`).
+//!
+//! No path goes to the app in simple mode, and the app never sends a path to
+//! the core except in the T02 `disk_summary` command and the test-only
+//! commands behind the `testing` feature.
+
+mod embedded_rules;
+mod engine;
+#[cfg(feature = "testing")]
+mod testing;
+mod types;
+mod views;
 
 use std::ffi::CString;
 use std::mem::MaybeUninit;
 use std::path::Path;
+
+pub use engine::RoomyCore;
+#[cfg(feature = "testing")]
+pub use testing::make_fixture_home;
+pub use types::{
+    Action, Category, CategoryTotal, Caution, Confidence, ItemDetail, ItemSummary, Mode, Overview,
+    ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+};
 
 uniffi::setup_scaffolding!("roomy_core");
 
@@ -18,6 +39,27 @@ pub enum CoreError {
     /// The operating system refused the request, for example because the path does not exist.
     #[error("could not read disk information: {reason}")]
     Io { reason: String },
+    /// The core could not find the home folder.
+    #[error("Roomy could not find your home folder.")]
+    HomeNotFound,
+    /// A built-in rule failed validation. A bug caught by tests.
+    #[error("the built-in rules are not valid: {reason}")]
+    RulesInvalid { reason: String },
+    /// The scan handle was never issued or has been closed.
+    #[error("Roomy lost track of this scan. Please scan again.")]
+    UnknownScan,
+    /// The scan is still running.
+    #[error("The scan hasn't finished yet.")]
+    ScanNotFinished,
+    /// The scan was cancelled.
+    #[error("The scan was cancelled.")]
+    ScanCancelled,
+    /// The scan could not run. `reason` is plain words with no path.
+    #[error("{reason}")]
+    ScanFailed { reason: String },
+    /// The scan has no item with that id.
+    #[error("Roomy could not find that item. Please scan again.")]
+    UnknownItem,
 }
 
 /// Space on the volume that holds a given path, in bytes.
@@ -42,6 +84,16 @@ pub fn core_version() -> String {
 #[uniffi::export]
 pub fn disk_summary(path: String) -> Result<DiskSummary, CoreError> {
     let c_path = validate_path(&path)?;
+    let stats = statfs(&c_path)?;
+    Ok(summary_from_stats(&stats))
+}
+
+/// Total and free space on the volume holding `path`, for core-internal callers.
+pub(crate) fn read_disk_summary(path: &Path) -> Result<DiskSummary, CoreError> {
+    let text = path.to_str().ok_or_else(|| CoreError::InvalidPath {
+        reason: "the path is not valid UTF-8".to_string(),
+    })?;
+    let c_path = validate_path(text)?;
     let stats = statfs(&c_path)?;
     Ok(summary_from_stats(&stats))
 }

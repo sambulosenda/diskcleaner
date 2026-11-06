@@ -7,9 +7,22 @@
 #   include/module.modulemap  Clang module "roomy_coreFFI" that the Swift bindings import
 #   roomy_core.swift          Swift bindings, compiled into the Roomy app target
 #
-# Run from anywhere: ./scripts/build-ffi.sh
+# Run from anywhere: ./scripts/build-ffi.sh [--release-app]
+#
+# By default the core is built with the `testing` feature, which adds the test-only commands the
+# Xcode test target uses (RoomyCore.withHomeForTesting and makeFixtureHome; see
+# docs/command-contract.md). --release-app builds without them. The release pipeline (T13) must
+# use --release-app, so a shipped app can only ever scan the real home folder.
+#
 # Needs macOS with Xcode command line tools (for lipo) and rustup.
 set -euo pipefail
+
+FEATURES=(--features testing)
+case "${1:-}" in
+    "") ;;
+    --release-app) FEATURES=() ;;
+    *) echo "usage: $0 [--release-app]" >&2; exit 2 ;;
+esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CORE_DIR="$REPO_ROOT/core"
@@ -31,7 +44,7 @@ rustup target add "${TARGETS[@]}"
 cd "$CORE_DIR"
 for target in "${TARGETS[@]}"; do
     echo "==> Building ffi for $target"
-    cargo build -p ffi --lib --release --target "$target"
+    cargo build -p ffi --lib --release --target "$target" ${FEATURES[@]+"${FEATURES[@]}"}
 done
 
 mkdir -p "$GEN_DIR/lib" "$GEN_DIR/include"
