@@ -171,7 +171,17 @@ fn an_odd_name_inside_an_item_needs_review() {
     let rules = parse(&rule("t.cache", "Library/Caches/Tool", "likely_safe", ""));
     let (_d, root) = home(&["Library/Caches/Tool/a"]);
     let odd = std::ffi::OsStr::from_bytes(b"bad\xffname");
-    std::fs::create_dir(root.join("Library/Caches/Tool").join(odd)).unwrap();
+    if let Err(e) = std::fs::create_dir(root.join("Library/Caches/Tool").join(odd)) {
+        // APFS refuses names that are not valid UTF-8 (EILSEQ, "Illegal byte
+        // sequence"), so this case can only be built on other file systems.
+        // CI also runs the core tests on Linux, where it is built and checked.
+        const EILSEQ_MACOS: i32 = 92;
+        if cfg!(target_os = "macos") && e.raw_os_error() == Some(EILSEQ_MACOS) {
+            eprintln!("skipped: this file system does not allow non-UTF-8 names");
+            return;
+        }
+        panic!("could not create the odd name: {e}");
+    }
     let items = run(&root, &rules);
     let it = item(&items, &root, "Library/Caches/Tool").unwrap();
     assert_eq!(it.tier, Tier::ReviewFirst);

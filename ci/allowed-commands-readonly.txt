@@ -1,0 +1,14 @@
+# Read-only commands the `analysers` crate may start (task T12).
+#
+# One entry per line: <repo-relative .rs file> <program>
+#   e.g. core/crates/analysers/src/xcode.rs xcrun
+#
+# An entry allows `Command::new("<program>")` in that one file only. The
+# program must be a string literal in the code. Only read-only queries
+# belong here (for example `xcrun simctl list -j`, `docker system df`);
+# anything that changes the disk goes through the executor allow-list in
+# docs/safety/allowed-commands.md instead.
+#
+# This file is protected: changing it needs the `sam-approved` label.
+#
+# Empty for now: no analyser runs a command yet.
