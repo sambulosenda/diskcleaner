@@ -81,11 +81,11 @@ final class MockCoreClient: CoreClient {
     }
 }
 
-/// Made-up numbers shaped like a real Mac with a 500 GB disk.
+/// Made-up numbers shaped like a real Mac with a 256 GB disk.
 enum MockData {
-    static let diskTotal: UInt64 = 500_000_000_000
-    static let diskFree: UInt64 = 61_000_000_000
-    static let scannedBytes: UInt64 = 310_000_000_000
+    static let diskTotal: UInt64 = 256_000_000_000
+    static let diskFree: UInt64 = 41_000_000_000
+    static let scannedBytes: UInt64 = 180_000_000_000
     static let unreadableCount: UInt64 = 212
 
     /// Every item the pretend scan finds. Likely safe items add up to the wireframe's 34 GB.
@@ -123,6 +123,12 @@ enum MockData {
         item("xcode-archives", "Old app archives",
              "Past app builds made for the App Store. You may want to keep recent ones.",
              3_900_000_000, .reviewFirst, .developerTools),
+        item("docker-images", "Docker images",
+             "Saved images and build layers. Docker downloads or rebuilds them when needed.",
+             14_500_000_000, .reviewFirst, .docker),
+        item("music-library", "Music library",
+             "Your music. Shown so you know where the space goes.",
+             38_000_000_000, .keep, .userData),
         item("photos-library", "Photos library",
              "Your photos. Shown so you know where the space goes.",
              22_000_000_000, .keep, .userData),

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The main window: sidebar, content and toolbar.
@@ -90,18 +91,33 @@ struct MainToolbar: ToolbarContent {
     }
 }
 
-/// Shows which mode is on, in words. The mode is changed in Settings.
+/// Shows which mode is on, in words. Clicking it opens Settings, where the mode is changed.
 struct ModeIndicator: View {
     let mode: Mode
 
     var body: some View {
-        Text("\(mode.label) mode")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
+        opener
             .help("Change the mode in Settings (⌘,)")
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(mode.label) mode")
-            .accessibilityHint("Change the mode in Settings.")
+            .accessibilityHint("Opens Settings, where you can change the mode.")
+    }
+
+    @ViewBuilder
+    private var opener: some View {
+        if #available(macOS 14.0, *) {
+            SettingsLink { label }
+        } else {
+            Button {
+                // macOS 13's name for the Settings window action. macOS 14 and later use SettingsLink above.
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            } label: {
+                label
+            }
+        }
+    }
+
+    private var label: some View {
+        Label("\(mode.label) mode", systemImage: mode == .developer ? "hammer" : "person")
+            .labelStyle(.titleAndIcon)
     }
 }
