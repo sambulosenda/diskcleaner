@@ -717,3 +717,66 @@ pub struct AppReview {
     /// for example that another copy of the app is installed.
     pub note: Option<String>,
 }
+
+/// Which of the Mac's own libraries a [`LibrarySize`] row is about. The
+/// app names each one and points to the app that manages it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum LibraryKind {
+    /// Photos libraries.
+    Photos,
+    /// The Music library and its media folder, and the older iTunes folder.
+    Music,
+    /// The TV library and its media folder.
+    Tv,
+    /// Mail's mailboxes and downloaded attachments.
+    Mail,
+    /// Photos, videos and files from Messages conversations.
+    MessagesAttachments,
+    /// Final Cut Pro libraries.
+    FinalCut,
+}
+
+impl From<analysers::libraries::LibraryKind> for LibraryKind {
+    fn from(k: analysers::libraries::LibraryKind) -> Self {
+        use analysers::libraries::LibraryKind as A;
+        match k {
+            A::Photos => Self::Photos,
+            A::Music => Self::Music,
+            A::Tv => Self::Tv,
+            A::Mail => Self::Mail,
+            A::MessagesAttachments => Self::MessagesAttachments,
+            A::FinalCut => Self::FinalCut,
+        }
+    }
+}
+
+/// How much space one kind of library takes, from the last scan. Shown
+/// only: Roomy never cleans inside these libraries, and the row holds no
+/// path.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct LibrarySize {
+    /// Which library.
+    pub kind: LibraryKind,
+    /// Allocated bytes, counted once.
+    pub bytes: u64,
+    /// How many separate libraries were found (Photos, Music, TV, Final
+    /// Cut). 0 for Mail and Messages attachments.
+    pub library_count: u32,
+    /// Whether anything of this kind was found.
+    pub found: bool,
+    /// Whether part of it couldn't be read (usually Full Disk Access is
+    /// off), so it may really be larger, or exist when `found` is false.
+    pub needs_access: bool,
+}
+
+impl From<&analysers::libraries::LibrarySize> for LibrarySize {
+    fn from(s: &analysers::libraries::LibrarySize) -> Self {
+        Self {
+            kind: s.kind.into(),
+            bytes: s.bytes,
+            library_count: s.bundle_count,
+            found: s.found,
+            needs_access: s.needs_access,
+        }
+    }
+}

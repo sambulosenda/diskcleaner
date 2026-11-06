@@ -68,10 +68,12 @@ pub fn build(root: &Path, now: SystemTime) -> Result<Manifest, FixtureError> {
     let root = builder::prepare_root(root)?;
     let mut b = builder::Builder::new(root, now);
     layout::everyday::build(&mut b)?;
+    layout::creative::build(&mut b)?;
     layout::xcode::build(&mut b)?;
     layout::android::build(&mut b)?;
     layout::js::build(&mut b)?;
     layout::devtools::build(&mut b)?;
+    layout::toolchains::build(&mut b)?;
     layout::traps::build(&mut b)?;
     b.finish()
 }

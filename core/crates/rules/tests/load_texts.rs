@@ -17,10 +17,16 @@ fn gives_the_same_rules_as_load_dir() {
     let names = [
         "ai_tools.toml",
         "android.toml",
+        "creative.toml",
         "editors.toml",
         "everyday.toml",
+        "go.toml",
+        "homebrew.toml",
         "js.toml",
+        "jvm.toml",
+        "python.toml",
         "rust.toml",
+        "web_tools.toml",
         "xcode.toml",
     ];
     let texts: Vec<String> = names.iter().map(|n| read(n)).collect();

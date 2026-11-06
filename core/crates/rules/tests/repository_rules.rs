@@ -127,6 +127,36 @@ fn the_t07_rules_are_all_there() {
         "vscode.cached_data",
         "vscode.extension_downloads",
         "jetbrains.cache",
+        // More developer rules (PRD P1)
+        "xcode.cache",
+        "xcode.previews",
+        "xcode.simulator_caches",
+        "swiftpm.cache",
+        "carthage.cache",
+        "python.pip_cache",
+        "python.uv_cache",
+        "python.poetry_cache",
+        "python.poetry_artifacts",
+        "python.poetry_virtualenv",
+        "go.build_cache",
+        "go.module_cache",
+        "homebrew.cache",
+        "deno.cache",
+        "pnpm.metadata_cache",
+        "node_gyp.headers",
+        "typescript.types_cache",
+        "electron.cache",
+        "electron_builder.cache",
+        "playwright.browser",
+        "puppeteer.browser",
+        "maven.repository",
+        "dart.pub_cache",
+        // Video apps
+        "final_cut.render_files",
+        "final_cut.proxy_media",
+        "adobe.media_cache_files",
+        "adobe.media_cache_database",
+        "adobe.after_effects_disk_cache",
     ]
     .into_iter()
     .map(str::to_string)
@@ -357,6 +387,56 @@ fn android_rust_ai_and_editor_rules_match_exactly_the_expected_items() {
 }
 
 #[test]
+fn video_app_rules_match_only_their_caches_and_are_never_likely_safe() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let in_events = |sub: &str| -> BTreeSet<String> {
+        paths::FCP_EVENTS
+            .iter()
+            .map(|e| format!("{}/{e}/{sub}", paths::FCP_LIBRARY))
+            .collect()
+    };
+    assert_eq!(found("final_cut.render_files"), in_events("Render Files"));
+    assert_eq!(
+        found("final_cut.proxy_media"),
+        in_events("Transcoded Media/Proxy Media")
+    );
+    let one = |p: &str| -> BTreeSet<String> { [p.to_string()].into_iter().collect() };
+    assert_eq!(
+        found("adobe.media_cache_files"),
+        one(paths::ADOBE_MEDIA_CACHE_FILES)
+    );
+    assert_eq!(
+        found("adobe.media_cache_database"),
+        one(paths::ADOBE_MEDIA_CACHE_DB)
+    );
+    assert_eq!(
+        found("adobe.after_effects_disk_cache"),
+        paths::AFTER_EFFECTS_VERSIONS
+            .iter()
+            .map(|v| format!("{}/{v}", paths::AFTER_EFFECTS_CACHE))
+            .collect()
+    );
+    // The library itself, its project data and original media never match.
+    for r in rules
+        .iter()
+        .filter(|r| r.id.starts_with("final_cut.") || r.id.starts_with("adobe."))
+    {
+        assert_eq!(r.tier, rules::Tier::ReviewFirst, "{}", r.id);
+        assert_eq!(r.action, rules::Action::Trash, "{}", r.id);
+        for m in matches_in(r, &manifest) {
+            assert!(!m.ends_with(".fcpbundle"), "{m}");
+            assert!(!m.contains("Original Media"), "{m}");
+        }
+    }
+}
+
+#[test]
 fn no_rule_matches_a_folder_called_target_that_is_not_cargos() {
     let (_dir, manifest) = fixture_manifest();
     for r in repo_rules() {
@@ -469,6 +549,114 @@ fn items_that_cannot_come_back_are_never_preselected_without_review() {
                 r.id
             );
             assert_eq!(r.category, Category::Logs, "{}", r.id);
+        }
+    }
+}
+
+#[test]
+fn more_developer_rules_match_exactly_the_expected_items() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let one = |p: &str| -> BTreeSet<String> { [p.to_string()].into_iter().collect() };
+    let under = |home: &str, names: &[&str]| -> BTreeSet<String> {
+        names.iter().map(|n| format!("{home}/{n}")).collect()
+    };
+
+    assert_eq!(found("python.pip_cache"), one(paths::PIP_CACHE));
+    assert_eq!(found("python.uv_cache"), one(paths::UV_CACHE));
+    assert_eq!(
+        found("python.poetry_cache"),
+        one(&format!("{}/cache", paths::POETRY_HOME))
+    );
+    assert_eq!(
+        found("python.poetry_artifacts"),
+        one(&format!("{}/artifacts", paths::POETRY_HOME))
+    );
+    // Only folders with a pyvenv.cfg are environments.
+    assert_eq!(
+        found("python.poetry_virtualenv"),
+        under(
+            &format!("{}/virtualenvs", paths::POETRY_HOME),
+            &paths::POETRY_VIRTUALENVS
+        )
+    );
+
+    assert_eq!(found("go.build_cache"), one(paths::GO_BUILD_CACHE));
+    assert_eq!(found("go.module_cache"), one(paths::GO_MODULE_CACHE));
+    assert_eq!(found("homebrew.cache"), one(paths::HOMEBREW_CACHE));
+
+    let web_ids = [
+        "deno.cache",
+        "pnpm.metadata_cache",
+        "node_gyp.headers",
+        "typescript.types_cache",
+        "electron.cache",
+        "electron_builder.cache",
+    ];
+    for (id, cache) in web_ids.iter().zip(paths::WEB_TOOL_CACHES) {
+        assert_eq!(found(id), one(cache), "{id}");
+    }
+    // One item per browser version, never Playwright's hidden .links folder.
+    assert_eq!(
+        found("playwright.browser"),
+        under(paths::PLAYWRIGHT_HOME, &paths::PLAYWRIGHT_BROWSERS)
+    );
+    assert_eq!(
+        found("puppeteer.browser"),
+        under(paths::PUPPETEER_HOME, &paths::PUPPETEER_BROWSERS)
+    );
+
+    assert_eq!(found("maven.repository"), one(paths::MAVEN_REPOSITORY));
+    assert_eq!(found("dart.pub_cache"), one(paths::PUB_HOSTED));
+
+    assert_eq!(found("xcode.cache"), one(paths::XCODE_CACHE));
+    assert_eq!(found("xcode.previews"), one(paths::XCODE_PREVIEWS));
+    assert_eq!(
+        found("xcode.simulator_caches"),
+        one(paths::SIMULATOR_CACHES)
+    );
+    assert_eq!(found("swiftpm.cache"), one(paths::SWIFTPM_CACHE));
+    assert_eq!(found("carthage.cache"), one(paths::CARTHAGE_CACHE));
+}
+
+#[test]
+fn no_rule_matches_installed_tools_settings_or_own_code() {
+    let (_dir, manifest) = fixture_manifest();
+    let never = [
+        paths::UV_PYTHONS,
+        paths::TRAP_POETRY_NOT_A_VENV,
+        paths::GO_BIN_TOOL,
+        paths::GO_OWN_CODE,
+        paths::PLAYWRIGHT_LINKS,
+        paths::MAVEN_SETTINGS,
+        paths::PUB_GLOBAL_TOOL,
+        paths::XCODE_KEY_BINDINGS,
+        paths::SWIFTPM_FINGERPRINTS,
+        ".cache",
+        ".local",
+        paths::POETRY_HOME,
+        "go",
+        "go/pkg",
+        ".m2",
+        ".pub-cache",
+        "Library/Developer/Xcode/UserData",
+        "Library/org.swift.swiftpm",
+    ];
+    for r in repo_rules() {
+        let hits = matches_in(&r, &manifest);
+        for p in never {
+            assert!(
+                !hits
+                    .iter()
+                    .any(|h| h == p || p.starts_with(&format!("{h}/"))),
+                "{} matches {p} or a folder holding it",
+                r.id
+            );
         }
     }
 }

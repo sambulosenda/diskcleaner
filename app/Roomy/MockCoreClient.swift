@@ -128,6 +128,11 @@ final class MockCoreClient: CoreClient {
             .sorted(by: AppModel.order(for: sort))
     }
 
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize] {
+        _ = try await overview(handle: handle)
+        return MockData.libraries(for: scenario)
+    }
+
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail {
         _ = try await overview(handle: handle)
         guard let item = MockData.found(for: scenario).first(where: { $0.id == itemId }) else {
@@ -504,6 +509,23 @@ enum MockData {
     }
 
     /// The Overview a finished scan returns, built the way the contract defines each field.
+    /// The pretend library sizes. Mail is only partly readable, as without Full Disk Access.
+    static func libraries(for scenario: MockCoreClient.Scenario) -> [LibrarySize] {
+        let empty = scenario == .nothingFound
+        func row(_ kind: LibraryKind, _ bytes: UInt64, count: UInt32 = 0, needsAccess: Bool = false) -> LibrarySize {
+            LibrarySize(kind: kind, bytes: empty ? 0 : bytes, libraryCount: empty ? 0 : count,
+                        found: !empty && bytes > 0, needsAccess: needsAccess)
+        }
+        return [
+            row(.photos, 41_300_000_000, count: 1),
+            row(.music, 8_200_000_000, count: 1),
+            row(.tv, 0),
+            row(.mail, 3_600_000_000, needsAccess: !empty),
+            row(.messagesAttachments, 12_700_000_000),
+            row(.finalCut, 0),
+        ]
+    }
+
     static func overview(for scenario: MockCoreClient.Scenario) -> Overview {
         let found = Self.found(for: scenario)
         return Overview(

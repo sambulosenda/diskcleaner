@@ -195,6 +195,55 @@ fn expected_android_rust_ai_and_editors(want: &mut BTreeMap<String, &'static str
         want.insert(join(app, c), ids.2);
     }
     want.insert(paths::JETBRAINS_CACHE.to_string(), "jetbrains.cache");
+    more_developer_items(want);
+}
+
+/// Items for the toolchain rules: Python, Go, Homebrew, web tools, Maven,
+/// Dart, Xcode, SwiftPM and Carthage.
+fn more_developer_items(want: &mut BTreeMap<String, &'static str>) {
+    let one = [
+        (paths::PIP_CACHE, "python.pip_cache"),
+        (paths::UV_CACHE, "python.uv_cache"),
+        (paths::GO_BUILD_CACHE, "go.build_cache"),
+        (paths::GO_MODULE_CACHE, "go.module_cache"),
+        (paths::HOMEBREW_CACHE, "homebrew.cache"),
+        (paths::MAVEN_REPOSITORY, "maven.repository"),
+        (paths::PUB_HOSTED, "dart.pub_cache"),
+        (paths::XCODE_CACHE, "xcode.cache"),
+        (paths::XCODE_PREVIEWS, "xcode.previews"),
+        (paths::SIMULATOR_CACHES, "xcode.simulator_caches"),
+        (paths::SWIFTPM_CACHE, "swiftpm.cache"),
+        (paths::CARTHAGE_CACHE, "carthage.cache"),
+    ];
+    for (p, id) in one {
+        want.insert(p.to_string(), id);
+    }
+    want.insert(join(paths::POETRY_HOME, "cache"), "python.poetry_cache");
+    want.insert(
+        join(paths::POETRY_HOME, "artifacts"),
+        "python.poetry_artifacts",
+    );
+    let venvs = join(paths::POETRY_HOME, "virtualenvs");
+    for v in paths::POETRY_VIRTUALENVS {
+        want.insert(join(&venvs, v), "python.poetry_virtualenv");
+    }
+    let web_ids = [
+        "deno.cache",
+        "pnpm.metadata_cache",
+        "node_gyp.headers",
+        "typescript.types_cache",
+        "electron.cache",
+        "electron_builder.cache",
+    ];
+    for (p, id) in paths::WEB_TOOL_CACHES.iter().zip(web_ids) {
+        want.insert(p.to_string(), id);
+    }
+    for b in paths::PLAYWRIGHT_BROWSERS {
+        want.insert(join(paths::PLAYWRIGHT_HOME, b), "playwright.browser");
+    }
+    for b in paths::PUPPETEER_BROWSERS {
+        want.insert(join(paths::PUPPETEER_HOME, b), "puppeteer.browser");
+    }
 }
 
 /// Every rule item the fixture should give in simple mode.
@@ -216,6 +265,28 @@ fn expected_simple() -> BTreeMap<String, &'static str> {
         paths::IPHONE_SOFTWARE_UPDATE.to_string(),
         "ios.software_update",
     );
+    for event in paths::FCP_EVENTS {
+        let e = join(paths::FCP_LIBRARY, event);
+        want.insert(join(&e, "Render Files"), "final_cut.render_files");
+        want.insert(
+            join(&e, "Transcoded Media/Proxy Media"),
+            "final_cut.proxy_media",
+        );
+    }
+    want.insert(
+        paths::ADOBE_MEDIA_CACHE_FILES.to_string(),
+        "adobe.media_cache_files",
+    );
+    want.insert(
+        paths::ADOBE_MEDIA_CACHE_DB.to_string(),
+        "adobe.media_cache_database",
+    );
+    for v in paths::AFTER_EFFECTS_VERSIONS {
+        want.insert(
+            join(paths::AFTER_EFFECTS_CACHE, v),
+            "adobe.after_effects_disk_cache",
+        );
+    }
     want
 }
 

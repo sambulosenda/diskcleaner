@@ -112,6 +112,14 @@ Every item of the scan, optionally only one category and/or one tier, in the giv
 Everything the detail panel shows for one item. Throws `unknown_item` if the scan has no item
 with that id, plus the same errors as `list_items`.
 
+### `libraries(handle: ScanHandle) -> [LibrarySize]` throws
+How much the Mac's own libraries take, measured from the same scan (PRD E6, E7, C1): Photos,
+Music, TV, Mail, Messages attachments and Final Cut Pro, one row per kind, always in that order.
+Pure: works on the scan's folder tree and reads nothing more. **Shown only**: Roomy never cleans
+inside a library (they are hard-blocked or review-only in `docs/safety/protected-paths.md`), and
+no row holds a path. The app names each library and opens the app that manages it. Same errors
+as `list_items`.
+
 ### `full_disk_access() -> FullDiskAccess`
 Whether Roomy can read the folders macOS keeps private, right now. Lists these folders inside
 home, never following a symlink, and reads nothing else: `Library/Application Support/com.apple.TCC`,
@@ -289,6 +297,23 @@ Why the core made an item's tier more careful. Carries no path.
 | `low_confidence` | The rule is not sure, which is never `likely_safe` |
 | `unreadable` | Part of it could not be read during the scan |
 | `unusual_name` | A name inside it could not be checked |
+
+### `LibraryKind` (enum)
+`photos` (every `*.photoslibrary` in home), `music` (every `*.musiclibrary`, plus
+`~/Music/Music/Media`, `~/Music/Music/Media.localized` and `~/Music/iTunes`), `tv` (every
+`*.tvlibrary`, plus `~/Movies/TV/Media` and `Media.localized`), `mail` (`~/Library/Mail` and
+`~/Library/Containers/com.apple.mail`), `messages_attachments` (`~/Library/Messages/Attachments`
+only, never the chat database), `final_cut` (every `*.fcpbundle`). A library inside another is
+counted once.
+
+### `LibrarySize` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | `LibraryKind` | Which library. |
+| `bytes` | `u64` | Allocated bytes, counted once. |
+| `library_count` | `u32` | How many separate library bundles were found. 0 for `mail` and `messages_attachments`. |
+| `found` | `bool` | Whether anything of this kind was found. |
+| `needs_access` | `bool` | Part of it couldn't be read (usually Full Disk Access is off), so it may be larger, or exist even though `found` is false. |
 
 ### `CoreError` (error)
 | Value | When |

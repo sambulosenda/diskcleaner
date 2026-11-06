@@ -27,7 +27,7 @@ use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult,
-    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
+    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LibrarySize, Mode, Overview, PlanHandle,
     PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
@@ -355,6 +355,14 @@ impl RoomyCore {
             unreadable_areas: f.unreadable_areas.clone(),
             quick_rescan: f.quick_rescan,
         })
+    }
+
+    /// How much the Mac's own libraries take in a finished scan: Photos,
+    /// Music, TV, Mail, Messages attachments and Final Cut Pro. One row per
+    /// kind, always in the same order. Shown only: Roomy never cleans inside
+    /// a library, and no row holds a path.
+    pub fn libraries(&self, handle: ScanHandle) -> Result<Vec<LibrarySize>, CoreError> {
+        Ok(self.finished(handle)?.libraries.clone())
     }
 
     /// Every item of a finished scan, optionally one category and/or tier.
@@ -705,6 +713,12 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         scan.root_dev,
         unreadable,
         items,
+    )
+    .with_libraries(
+        analysers::libraries::library_sizes(&scan)
+            .iter()
+            .map(LibrarySize::from)
+            .collect(),
     );
     finished.quick_rescan = quick_rescan;
     keep_tree(job, scan, since);
