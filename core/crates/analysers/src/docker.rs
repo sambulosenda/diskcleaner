@@ -11,10 +11,12 @@
 //! here is an estimate, close to what `docker system df` shows.
 
 use std::ffi::OsString;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use crate::process;
+pub use crate::process::{Output, RunError};
 
 /// How long the read-only query may take before Roomy gives up on it.
 pub const QUERY_TIMEOUT: Duration = Duration::from_secs(20);
@@ -81,31 +83,6 @@ pub enum DockerState {
     Ready(DockerUsage),
 }
 
-/// What a finished program printed.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Output {
-    /// Whether it exited with status 0.
-    pub success: bool,
-    /// What it printed on stdout, lossily decoded.
-    pub stdout: String,
-    /// What it printed on stderr, lossily decoded.
-    pub stderr: String,
-}
-
-/// Why a program could not be run to the end.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum RunError {
-    /// The program is not in any searched folder.
-    #[error("the program was not found")]
-    NotFound,
-    /// It did not finish in time and was stopped.
-    #[error("the program took too long")]
-    TimedOut,
-    /// Anything else, in plain words.
-    #[error("{0}")]
-    Other(String),
-}
-
 /// Runs the read-only `docker system df` query. A trait so that tests can
 /// answer with recorded output instead of a real Docker.
 pub trait DockerQuery {
@@ -145,51 +122,8 @@ impl DockerQuery for RealDocker {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        wait_with_timeout(command, QUERY_TIMEOUT)
+        process::wait_with_timeout(command, QUERY_TIMEOUT, "Docker")
     }
-}
-
-/// Starts `command`, collects what it prints and waits for it, stopping it
-/// if it takes longer than `timeout`.
-fn wait_with_timeout(mut command: Command, timeout: Duration) -> Result<Output, RunError> {
-    let mut child = command.spawn().map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => RunError::NotFound,
-        _ => RunError::Other(format!("Docker could not be started ({e}).")),
-    })?;
-    // Read both pipes on their own threads so a full pipe can't stall it.
-    let stdout = child.stdout.take().map(drain);
-    let stderr = child.stderr.take().map(drain);
-    let started = Instant::now();
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if started.elapsed() >= timeout => {
-                // Stopping the query is safe: it only reads.
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(RunError::TimedOut);
-            }
-            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
-            Err(e) => return Err(RunError::Other(format!("Docker could not be read ({e})."))),
-        }
-    };
-    let collect = |h: Option<std::thread::JoinHandle<String>>| {
-        h.and_then(|h| h.join().ok()).unwrap_or_default()
-    };
-    Ok(Output {
-        success: status.success(),
-        stdout: collect(stdout),
-        stderr: collect(stderr),
-    })
-}
-
-/// Reads a pipe to the end on its own thread.
-fn drain<R: Read + Send + 'static>(mut pipe: R) -> std::thread::JoinHandle<String> {
-    std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let _ = pipe.read_to_end(&mut bytes);
-        String::from_utf8_lossy(&bytes).into_owned()
-    })
 }
 
 /// Asks Docker how much space it uses. Never fails: every problem becomes

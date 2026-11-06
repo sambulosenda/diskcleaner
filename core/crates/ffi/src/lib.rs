@@ -8,7 +8,9 @@
 //! passes in, and the cleanup preview runs the executor's read-only checks.
 //! The cleanup and put-back commands hand a plan to the `executor` crate,
 //! which is the only code that moves files. The Docker commands do the same
-//! with the executor's allow-listed Docker clean-ups.
+//! with the executor's allow-listed Docker clean-ups. The System Data
+//! breakdown only reads sizes, including of a few folders outside the home
+//! folder, which nothing can clean.
 //!
 //! No path goes to the app in simple mode (except an installed app's own
 //! bundle location, for "Show in Finder", which is not personal), and the
@@ -27,6 +29,7 @@ mod folders;
 mod javascript;
 mod low_space;
 mod run;
+mod system_data;
 #[cfg(feature = "testing")]
 mod testing;
 mod tools;
@@ -46,6 +49,10 @@ pub use engine::RoomyCore;
 pub use javascript::{ActivitySource, JavaScriptOverview, JsProject, PackageManager};
 pub use low_space::{
     check_low_space, low_space_default_threshold, low_space_threshold_choices, LowSpaceCheck,
+};
+pub use system_data::{
+    LocalSnapshots, SnapshotStatus, SystemData, SystemDataKind, SystemDataOwner, SystemDataPart,
+    SystemDataPlace, SystemDataPlaceState,
 };
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
