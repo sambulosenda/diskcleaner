@@ -171,6 +171,14 @@ extension AppPart: Identifiable {
     public var id: String { itemId }
 }
 
+extension AndroidPart: Identifiable {
+    public var id: String { itemId }
+}
+
+extension AndroidProject: Identifiable {
+    public var id: String { (path ?? "") + "/" + name }
+}
+
 extension CategoryTotal: Identifiable {
     public var id: Category { category }
 }

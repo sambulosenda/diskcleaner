@@ -754,4 +754,78 @@ final class AppModelTests: XCTestCase {
     func testUnknownAppErrorReadsPlainly() {
         XCTAssertEqual(AppModel.message(for: CoreError.UnknownApp), "Roomy lost track of this app. Please look again.")
     }
+
+    // MARK: - Android
+
+    private func androidModel() async -> AppModel {
+        let model = makeModel()
+        model.mode = .developer
+        model.selection = .android
+        await model.waitForAndroid()
+        return model
+    }
+
+    func testOpeningAndroidListsEveryPartWithNothingTicked() async {
+        let model = await androidModel()
+        XCTAssertEqual(model.androidState, .loaded(MockData.android))
+        XCTAssertTrue(model.checkedAndroidIDs.isEmpty, "nothing is ticked for the user, even what no project uses")
+        XCTAssertNil(SidebarItem.android.itemFilter, "Android has its own screen, not an item list")
+        model.searchText = "ndk"
+        XCTAssertEqual(model.visibleAndroidParts.map(\.title), ["NDK 21.4.7075529"])
+    }
+
+    func testEveryAndroidPartIsInExactlyOneGroup() {
+        for part in MockData.android.parts {
+            XCTAssertEqual(AndroidGroup.allCases.filter { $0.kinds.contains(part.kind) }.count, 1, part.title)
+        }
+    }
+
+    func testAndroidCleanupGoesThroughTheCleanupReviewAndCanBePutBack() async {
+        let model = await androidModel()
+        let unused = MockData.android.parts.filter { $0.usage == .notUsed }
+        for part in unused { model.setAndroidChecked(true, for: part) }
+        XCTAssertEqual(model.checkedAndroidBytes, unused.reduce(0) { $0 + $1.sizeBytes })
+        model.reviewAndroidCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(Set(preview.items.map(\.itemId)), model.checkedAndroidIDs)
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        guard case .done(let result) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(result.items.allSatisfy(\.done))
+        model.putBack()
+        await model.waitForCleanupCheck()
+        guard case .putBack = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        // Closing the review looks again, so the sizes are right.
+        model.closeCleanupReview()
+        await model.waitForAndroid()
+        XCTAssertTrue(model.checkedAndroidIDs.isEmpty)
+    }
+
+    func testNothingTickedOpensNoAndroidReview() async {
+        let model = await androidModel()
+        model.reviewAndroidCleanup()
+        XCTAssertEqual(model.cleanupState, .closed)
+    }
+
+    func testSwitchingToSimpleModeForgetsTheAndroidScreen() async {
+        let model = await androidModel()
+        model.setAndroidChecked(true, for: MockData.android.parts[1])
+        model.mode = .simple
+        XCTAssertEqual(model.selection, .overview)
+        XCTAssertEqual(model.androidState, .idle)
+        XCTAssertTrue(model.checkedAndroidIDs.isEmpty)
+    }
+
+    func testAndroidOverviewInSimpleModeCarriesNoPaths() async {
+        let client = MockCoreClient(scenario: .normal, totalSteps: 5)
+        let overview = await client.androidOverview(mode: .simple)
+        XCTAssertTrue(overview.parts.allSatisfy { $0.path == nil })
+        XCTAssertTrue(overview.projects.allSatisfy { $0.path == nil })
+    }
+
+    func testAStaleAndroidIdReadsPlainly() {
+        XCTAssertEqual(AppModel.androidMessage(for: CoreError.UnknownItem),
+                       "Some of these are no longer where Roomy last looked. Please look again.")
+    }
 }

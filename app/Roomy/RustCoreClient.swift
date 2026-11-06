@@ -129,4 +129,14 @@ final class RustCoreClient: CoreClient {
     func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview {
         try await offMain { try $0.previewUninstall(appId: appId, partIds: partIds) }
     }
+
+    func androidOverview(mode: Mode) async -> AndroidOverview {
+        let fallback = AndroidOverview(sdkFound: false, parts: [], projects: [], totalBytes: 0, unusedBytes: 0,
+                                       note: "Roomy couldn't start, so it can't look at Android.")
+        return (try? await offMain { $0.androidOverview(mode: mode) }) ?? fallback
+    }
+
+    func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview {
+        try await offMain { try $0.previewAndroidCleanup(itemIds: itemIds) }
+    }
 }

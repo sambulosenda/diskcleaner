@@ -347,6 +347,11 @@ final class MockCoreClient: CoreClient {
             rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
                                            check: .willMove, path: nil, deviceBackup: nil))
         }
+        return makePendingPlan(rows)
+    }
+
+    /// Keeps `rows` as the waiting plan for `runCleanup`, as the core does, and returns its preview.
+    func makePendingPlan(_ rows: [CleanupPreviewItem]) -> CleanupPreview {
         let handle = PlanHandle(id: nextPlan)
         nextPlan += 1
         pendingPlan = (handle, rows)
@@ -355,8 +360,75 @@ final class MockCoreClient: CoreClient {
     }
 }
 
+extension MockCoreClient {
+    // MARK: Android
+
+    func androidOverview(mode: Mode) async -> AndroidOverview {
+        var overview = MockData.android
+        if mode == .simple {
+            overview.parts = overview.parts.map { var p = $0; p.path = nil; return p }
+            overview.projects = overview.projects.map { var p = $0; p.path = nil; return p }
+        }
+        return overview
+    }
+
+    /// Pretends every ticked row would move, and keeps the plan for `runCleanup`. Touches nothing.
+    func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview {
+        if itemIds.isEmpty { throw CoreError.NothingSelected }
+        var rows: [CleanupPreviewItem] = []
+        for id in itemIds {
+            guard let part = MockData.android.parts.first(where: { $0.itemId == id }) else {
+                throw CoreError.UnknownItem
+            }
+            rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
+                                           check: .willMove, path: nil, deviceBackup: nil))
+        }
+        return makePendingPlan(rows)
+    }
+}
+
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.
 enum MockData {
+    /// A made-up Android setup: one React Native project, an emulator, and parts nothing uses.
+    static let android = AndroidOverview(
+        sdkFound: true,
+        parts: [
+            androidPart("android-1-0", .systemImage, "Android 14 (API 34) emulator image",
+                        "Google Play, for Apple silicon Macs", 6_800_000_000, .used(by: ["Pixel 7"]), "Used by Pixel 7",
+                        "~/Library/Android/sdk/system-images/android-34/google_apis_playstore/arm64-v8a"),
+            androidPart("android-1-1", .systemImage, "Android 11 (API 30) emulator image",
+                        "Google APIs, for Intel Macs", 4_200_000_000, .notUsed, "No emulator Roomy found uses this",
+                        "~/Library/Android/sdk/system-images/android-30/google_apis/x86_64"),
+            androidPart("android-1-2", .emulator, "Pixel 7", "Runs Android 14 (API 34)", 3_100_000_000,
+                        .notApplicable, "", "~/.android/avd/Pixel_7.avd", lastUsed: 1_790_000_000),
+            androidPart("android-1-3", .platform, "Android 14 (API 34) SDK platform", nil, 160_000_000,
+                        .used(by: ["Shop"]), "Used by Shop", "~/Library/Android/sdk/platforms/android-34"),
+            androidPart("android-1-4", .buildTools, "Build tools 30.0.3", nil, 140_000_000, .notUsed,
+                        "No project Roomy found uses this", "~/Library/Android/sdk/build-tools/30.0.3"),
+            androidPart("android-1-5", .ndk, "NDK 21.4.7075529", nil, 2_400_000_000, .notUsed,
+                        "No project Roomy found uses this", "~/Library/Android/sdk/ndk/21.4.7075529"),
+            androidPart("android-1-6", .gradleVersion, "Gradle 7.2", "With its documentation and source",
+                        310_000_000, .notUsed, "No project Roomy found uses this",
+                        "~/.gradle/wrapper/dists/gradle-7.2-all"),
+            androidPart("android-1-7", .gradleCache, "Gradle cache", nil, 5_600_000_000, .notApplicable,
+                        "Shared by every Gradle project", "~/.gradle/caches"),
+        ],
+        projects: [AndroidProject(name: "Shop", path: "~/Developer/Shop/android",
+                                  lastActivityUnixSeconds: 1_795_000_000)],
+        totalBytes: 22_710_000_000,
+        unusedBytes: 7_050_000_000,
+        note: nil
+    )
+
+    private static func androidPart(
+        _ id: String, _ kind: AndroidKind, _ title: String, _ detail: String?, _ size: UInt64,
+        _ usage: AndroidUsage, _ usageText: String, _ path: String, lastUsed: Int64? = nil
+    ) -> AndroidPart {
+        AndroidPart(itemId: id, kind: kind, title: title, detail: detail,
+                    explain: "Made-up words for previews and tests.", sizeBytes: size, usage: usage,
+                    usageText: usageText, lastUsedUnixSeconds: lastUsed, path: path)
+    }
+
     /// Made-up apps for the uninstaller. One is in ~/Applications, one is open.
     static let apps: [AppSummary] = [
         AppSummary(appId: "app-1-0", name: "Chat", version: "4.41", bundleId: "com.example.chat",

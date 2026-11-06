@@ -71,6 +71,8 @@ struct DetailView: View {
                 DockerScreen()
             } else if item == .apps {
                 AppsScreen()
+            } else if item == .android {
+                AndroidScreen()
             } else if item.itemFilter != nil {
                 ItemListScreen(item: item)
             } else {

@@ -12,6 +12,13 @@ enum Format {
         NumberFormatter.localizedString(from: NSNumber(value: value), number: .decimal)
     }
 
+    /// How long ago `date` was, such as "3 weeks ago".
+    static func relative(_ date: Date, now: Date = Date()) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: min(date, now), relativeTo: now)
+    }
+
     /// "1 item" or "212 items".
     static func items(_ value: UInt64) -> String {
         value == 1 ? "1 item" : "\(count(value)) items"
