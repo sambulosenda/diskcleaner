@@ -27,8 +27,41 @@ pub struct PutBack {
     pub original: PathBuf,
     /// Where it is in the Trash (`Outcome::MovedToTrash::to`).
     pub in_trash: PathBuf,
-    /// The inode that was moved (`ItemReport::moved_ino`).
+    /// What the Trash entry looked like right after the move
+    /// (`ItemReport::moved`).
+    pub identity: TrashIdentity,
+}
+
+/// What a Trash entry looked like right after Roomy moved it there. An inode
+/// number alone is not enough: once the Trash is emptied the system can give
+/// the same number to a new file at once. The status-change time can't be
+/// set by hand and changes on every rename, so a new entry won't match.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TrashIdentity {
+    /// Inode number.
     pub ino: u64,
+    /// Whether it is a folder.
+    pub is_dir: bool,
+    /// Size in bytes as the system reports it (`st_size`).
+    pub size: i64,
+    /// Status-change time, seconds and nanoseconds.
+    pub ctime: (i64, i64),
+}
+
+impl TrashIdentity {
+    /// The identity of a `stat` result. `None` for a symlink, which Roomy
+    /// never puts back.
+    pub(crate) fn of(stat: &sys::Stat) -> Option<TrashIdentity> {
+        if stat.kind == sys::Kind::Symlink {
+            return None;
+        }
+        Some(TrashIdentity {
+            ino: stat.ino,
+            is_dir: stat.kind == sys::Kind::Dir,
+            size: stat.size,
+            ctime: stat.ctime,
+        })
+    }
 }
 
 /// Why one item was not put back. Nothing was changed for it.
@@ -86,7 +119,7 @@ fn put_back_one(ctx: &Context, item: &PutBack) -> Result<(), PutBackRefusal> {
     let trash_name = trash_name(&ctx.trash_path, &item.in_trash).ok_or(PutBackRefusal::NotOurs)?;
     let in_trash =
         sys::stat_at(&ctx.trash_fd, &trash_name).map_err(|_| PutBackRefusal::NotInTrash)?;
-    if in_trash.kind == sys::Kind::Symlink || in_trash.dev != ctx.dev || in_trash.ino != item.ino {
+    if in_trash.dev != ctx.dev || TrashIdentity::of(&in_trash) != Some(item.identity) {
         return Err(PutBackRefusal::NotInTrash);
     }
     let (parent_fd, name) = ctx

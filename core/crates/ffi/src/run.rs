@@ -80,13 +80,13 @@ fn from_report(
             .get(&item.recommendation_id)
             .cloned()
             .unwrap_or_default();
-        let reason = match (&item.outcome, item.moved_ino) {
-            (Outcome::MovedToTrash { to }, Some(ino)) => {
+        let reason = match (&item.outcome, item.moved) {
+            (Outcome::MovedToTrash { to }, Some(identity)) => {
                 moved.push(PutBack {
                     recommendation_id: item.recommendation_id.clone(),
                     original: item.path.clone(),
                     in_trash: to.clone(),
-                    ino,
+                    identity,
                 });
                 rows.insert(item.recommendation_id.clone(), (title.clone(), item.bytes));
                 None

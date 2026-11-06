@@ -771,7 +771,7 @@ fn put_backs(report: &Report) -> Vec<executor::PutBack> {
                 recommendation_id: i.recommendation_id.clone(),
                 original: i.path.clone(),
                 in_trash: to.clone(),
-                ino: i.moved_ino.unwrap(),
+                identity: i.moved.unwrap(),
             }),
             _ => None,
         })
@@ -831,6 +831,31 @@ fn put_back_refuses_something_else_in_the_trash() {
 }
 
 #[test]
+fn put_back_checks_more_than_the_inode_number() {
+    // Some file systems reuse a freed inode number at once, so a new entry
+    // in the Trash can carry the old number. Only a full match counts.
+    let home = Home::plain();
+    home.file("Library/Caches/big.log", 5_000);
+    let report = run(home.plan_of(&["Library/Caches/big.log"]), Mode::Trash);
+    let real = put_backs(&report);
+    let changes: [fn(&mut executor::TrashIdentity); 3] = [
+        |i| i.ctime.1 = (i.ctime.1 + 1) % 1_000_000_000,
+        |i| i.size += 1,
+        |i| i.is_dir = !i.is_dir,
+    ];
+    for change in changes {
+        let mut entries = real.clone();
+        change(&mut entries[0].identity);
+        let results = executor::put_back(&home.root, home.dev, &entries).unwrap();
+        assert_eq!(results, vec![Err(executor::PutBackRefusal::NotInTrash)]);
+        assert!(!home.path("Library/Caches/big.log").exists());
+    }
+    // The real identity still works.
+    let results = executor::put_back(&home.root, home.dev, &real).unwrap();
+    assert_eq!(results, vec![Ok(())]);
+}
+
+#[test]
 fn put_back_never_follows_a_swapped_folder() {
     let home = Home::plain();
     home.file("Library/Caches/com.example/data", 1_000);
@@ -848,7 +873,13 @@ fn put_back_never_follows_a_swapped_folder() {
 fn put_back_refuses_entries_it_did_not_make() {
     let home = Home::plain();
     home.file(".Trash/x", 10);
-    let ino = home.path(".Trash/x").symlink_metadata().unwrap().ino();
+    let meta = home.path(".Trash/x").symlink_metadata().unwrap();
+    let identity = executor::TrashIdentity {
+        ino: meta.ino(),
+        is_dir: meta.is_dir(),
+        size: meta.size() as i64,
+        ctime: (meta.ctime(), meta.ctime_nsec()),
+    };
     let bad = [
         ("/etc/x", ".Trash/x"),
         ("Library/../../x", ".Trash/x"),
@@ -860,7 +891,7 @@ fn put_back_refuses_entries_it_did_not_make() {
             recommendation_id: "r".into(),
             original: home.root.join(original),
             in_trash: home.root.join(in_trash),
-            ino,
+            identity,
         };
         let results = executor::put_back(&home.root, home.dev, &[entry]).unwrap();
         assert_eq!(
