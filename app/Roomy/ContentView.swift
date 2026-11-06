@@ -69,6 +69,8 @@ struct DetailView: View {
                 HistoryScreen()
             } else if item == .docker {
                 DockerScreen()
+            } else if item == .tools {
+                ToolCleanupsScreen()
             } else if item == .apps {
                 AppsScreen()
             } else if item.itemFilter != nil {

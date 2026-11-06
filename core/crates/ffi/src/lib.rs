@@ -27,6 +27,7 @@ mod low_space;
 mod run;
 #[cfg(feature = "testing")]
 mod testing;
+mod tools;
 mod types;
 mod uninstall;
 mod views;
@@ -45,6 +46,9 @@ pub use low_space::{
 };
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
+pub use tools::{
+    ToolCleanupKind, ToolCleanupPreview, ToolCleanupResult, ToolPlanHandle, ToolPreviewItem,
+};
 pub use types::{
     Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
     CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
@@ -106,6 +110,12 @@ pub enum CoreError {
     /// `list_apps` (or, for `preview_uninstall`, not the app last reviewed).
     #[error("Roomy lost track of this app. Please look again.")]
     UnknownApp,
+    /// A tool clean-up (Homebrew, simulators, Android SDK) could not be
+    /// previewed or was refused before it ran: the tool is missing, the
+    /// review expired, the package was not in the review, or something
+    /// changed. Nothing was removed. `reason` is plain words, no path.
+    #[error("{reason}")]
+    ToolUnavailable { reason: String },
 }
 
 /// Space on the volume that holds a given path, in bytes.

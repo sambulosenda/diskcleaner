@@ -23,6 +23,7 @@
 		A10000000000000000000070 /* CleanupReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000070 /* CleanupReview.swift */; };
 		A10000000000000000000071 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000071 /* HistoryView.swift */; };
 		A100000000000000D0C4E501 /* DockerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000D0C4E501 /* DockerView.swift */; };
+		A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000070C1C1E5 /* ToolCleanupsView.swift */; };
 		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
 		A10000000000000000000081 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* AppsView.swift */; };
 		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
@@ -74,6 +75,7 @@
 		A20000000000000000000070 /* CleanupReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupReview.swift; sourceTree = "<group>"; };
 		A20000000000000000000071 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A200000000000000D0C4E501 /* DockerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerView.swift; sourceTree = "<group>"; };
+		A20000000000000070C1C1E5 /* ToolCleanupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCleanupsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				A20000000000000000000070 /* CleanupReview.swift */,
 				A20000000000000000000071 /* HistoryView.swift */,
 				A200000000000000D0C4E501 /* DockerView.swift */,
+				A20000000000000070C1C1E5 /* ToolCleanupsView.swift */,
 				A20000000000000000000072 /* FullDiskAccessView.swift */,
 				A20000000000000000000081 /* AppsView.swift */,
 				A20000000000000000000025 /* Formatting.swift */,
@@ -310,6 +313,7 @@
 				A10000000000000000000070 /* CleanupReview.swift in Sources */,
 				A10000000000000000000071 /* HistoryView.swift in Sources */,
 				A100000000000000D0C4E501 /* DockerView.swift in Sources */,
+				A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */,
 				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
 				A10000000000000000000081 /* AppsView.swift in Sources */,
 				A10000000000000000000025 /* Formatting.swift in Sources */,

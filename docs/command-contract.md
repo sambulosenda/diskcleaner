@@ -275,6 +275,7 @@ Why the core made an item's tier more careful. Carries no path.
 | `cleanup_unavailable { reason }` | The preview could not check anything, for example because the Trash could not be opened. `reason` is plain words with no path |
 | `nothing_to_put_back` | `put_back_cleanup` was given a cleanup the core no longer holds. Trying again won't help |
 | `docker_unavailable { reason }` | A Docker clean-up could not be previewed, or was refused before it ran (Docker missing or stopped, review expired, or something new appeared). Nothing was removed. Plain words, no path |
+| `tool_unavailable { reason }` | A tool clean-up (Homebrew, simulators, Android SDK) could not be previewed, or was refused before it ran (tool missing, Java missing for `sdkmanager`, review expired, package not in the review, or something changed). Nothing was removed. Plain words, no path |
 | `unknown_app` | `review_app` or `preview_uninstall` was given an app id that is not from the latest `list_apps` (or not the app last reviewed) |
 
 ## Cleanup preview
@@ -597,3 +598,61 @@ these are estimates.
 
 ### `DockerCleanupResult` (record)
 `kind`, `success`, `reclaimed_bytes: u64?`, `saved_to_history`.
+
+## Tool clean-ups
+
+The Tool clean-ups screen (developer mode): the other three commands on the allow-list in
+`docs/safety/allowed-commands.md`. The app sends a `ToolCleanupKind`, never a command line or a path.
+For the Android SDK it also sends the id of one package that the preview listed.
+
+| Kind | Preview (read only) | Command |
+|---|---|---|
+| `homebrew` (`brew_cleanup`) | `brew cleanup --dry-run` | `brew cleanup` |
+| `unavailable_simulators` (`xcrun_simctl_delete_unavailable`) | `xcrun simctl list devices unavailable -j` | `xcrun simctl delete unavailable` |
+| `android_sdk_package` (`sdkmanager_uninstall`) | `sdkmanager --list_installed` | `sdkmanager --uninstall <package>` |
+
+Where the core looks, because a Mac app's own `PATH` holds none of these:
+
+- `brew`: `/opt/homebrew/bin/brew`, then `/usr/local/bin/brew`. Runs with `HOMEBREW_NO_AUTO_UPDATE`,
+  `HOMEBREW_NO_ANALYTICS`, `HOMEBREW_NO_ENV_HINTS` and `HOMEBREW_NO_COLOR` set.
+- `xcrun`: `/usr/bin/xcrun`, only when an Xcode with `simctl` is in `/Applications/Xcode.app`,
+  `/Applications/Xcode-beta.app` or `~/Applications/Xcode.app`. `DEVELOPER_DIR` is set to that Xcode,
+  so a Mac without Xcode never sees the "install developer tools" prompt.
+- `sdkmanager`: inside `~/Library/Android/sdk` only: `cmdline-tools/latest/bin`, else the newest
+  other `cmdline-tools/<version>/bin`, else `tools/bin`. Must be a regular file, not a symlink.
+  `JAVA_HOME` is set to Android Studio's own Java (`/Applications/Android Studio.app/Contents/jbr`)
+  when it is there.
+
+Every program runs with an argument array and a fixed `PATH`, never through a shell. Sizes are
+measured from metadata without following symlinks or leaving the volume: the simulator's folder in
+`~/Library/Developer/CoreSimulator/Devices`, the package's `Location` folder inside the SDK, and
+Homebrew's own figures for `brew`.
+
+### `preview_tool_cleanup(kind: ToolCleanupKind) -> ToolCleanupPreview` throws
+Runs the kind's read-only preview (at most two minutes) and keeps what it listed as a single-use
+plan, replacing any earlier tool plan. For the Android SDK the `cmdline-tools` packages are never
+listed, as removing them would remove `sdkmanager` itself. `plan` is `nil` when there is nothing to
+remove. Throws `tool_unavailable`.
+
+### `discard_tool_cleanup(plan: ToolPlanHandle)`
+Drops the waiting tool plan if it is `plan`.
+
+### `run_tool_cleanup(plan: ToolPlanHandle, package: String?) -> ToolCleanupResult` throws
+Throws `cleanup_unavailable` if `plan` is not the waiting tool plan. The plan is used up either way.
+The executor refuses with `tool_unavailable`, running nothing, if the plan is ten minutes old or
+more; if `package` is missing or not one the preview listed (Android SDK), or given at all (the
+others); or if the preview, run again just now, lists anything the user did not see (for the
+Android SDK: if the package is no longer installed). Then it runs the command, waits up to 30
+minutes, and saves the run to History (`command_runs`, as for Docker). `reclaimed_bytes` is
+Homebrew's "freed approximately" figure, or for the others the size the preview measured when the
+tool succeeded.
+
+### `ToolCleanupKind` (enum)
+`homebrew`, `unavailable_simulators`, `android_sdk_package`.
+
+### `ToolCleanupPreview` (record)
+`plan: ToolPlanHandle?`, `kind`, `command_line` (for the Android SDK, ending in `<package>`),
+`items` (each `id`, `title`, `detail`, `size_bytes`), `total_bytes`, `expires_in_seconds`.
+
+### `ToolCleanupResult` (record)
+`kind`, `command_line`, `success`, `reclaimed_bytes: u64?`, `saved_to_history`.
