@@ -6,6 +6,7 @@ pub mod android;
 pub mod devtools;
 pub mod everyday;
 pub mod js;
+pub mod toolchains;
 pub mod traps;
 pub mod xcode;
 

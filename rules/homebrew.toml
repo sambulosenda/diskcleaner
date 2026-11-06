@@ -1,0 +1,20 @@
+# Homebrew rules. Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# Only Homebrew's download cache is matched. Installed formulae and casks
+# live outside the home folder and are never touched.
+
+[[rule]]
+id = "homebrew.cache"
+version = 1
+match.path = "Library/Caches/Homebrew"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Homebrew downloads"
+explain = "Installers Homebrew downloaded for apps and tools you have already installed or upgraded."
+risk = "Reinstalling one of these downloads it again. Installed apps and tools keep working."
+restore = "Homebrew downloads them again when needed."
+action = "trash"

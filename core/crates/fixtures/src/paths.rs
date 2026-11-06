@@ -246,3 +246,75 @@ pub const CURSOR_CHAT_DB: &str =
     "Library/Application Support/Cursor/User/workspaceStorage/4f1a2b3c/state.vscdb";
 /// A JetBrains IDE cache folder for one version.
 pub const JETBRAINS_CACHE: &str = "Library/Caches/JetBrains/RustRover2024.3";
+
+/// pip's download cache.
+pub const PIP_CACHE: &str = "Library/Caches/pip";
+/// uv's cache, which holds a CACHEDIR.TAG.
+pub const UV_CACHE: &str = ".cache/uv";
+/// Pythons uv installed. No rule may match them.
+pub const UV_PYTHONS: &str = ".local/share/uv/python";
+/// Poetry's cache folder, which also holds its project environments.
+pub const POETRY_HOME: &str = "Library/Caches/pypoetry";
+/// Poetry project environments, each with a pyvenv.cfg.
+pub const POETRY_VIRTUALENVS: [&str; 2] =
+    ["weather-api-Xk3pQ2aB-py3.12", "invoices-9fLm2Rt0-py3.11"];
+/// A folder among Poetry's environments with no pyvenv.cfg. No rule may match it.
+pub const TRAP_POETRY_NOT_A_VENV: &str = "Library/Caches/pypoetry/virtualenvs/notes";
+
+/// Go's build cache.
+pub const GO_BUILD_CACHE: &str = "Library/Caches/go-build";
+/// Go's module cache.
+pub const GO_MODULE_CACHE: &str = "go/pkg/mod";
+/// A tool installed with go install. No rule may match it.
+pub const GO_BIN_TOOL: &str = "go/bin/gopls";
+/// Your own code in the old GOPATH layout. No rule may match it.
+pub const GO_OWN_CODE: &str = "go/src/github.com/sam/notes/main.go";
+
+/// Homebrew's download cache.
+pub const HOMEBREW_CACHE: &str = "Library/Caches/Homebrew";
+
+/// Web tool caches matched as one folder each.
+pub const WEB_TOOL_CACHES: [&str; 6] = [
+    "Library/Caches/deno",
+    "Library/Caches/pnpm",
+    "Library/Caches/node-gyp",
+    "Library/Caches/typescript",
+    "Library/Caches/electron",
+    "Library/Caches/electron-builder",
+];
+/// Playwright's browser folder.
+pub const PLAYWRIGHT_HOME: &str = "Library/Caches/ms-playwright";
+/// The browser versions inside it.
+pub const PLAYWRIGHT_BROWSERS: [&str; 3] = ["chromium-1140", "chromium-1148", "webkit-2083"];
+/// Playwright's hidden bookkeeping folder. No rule may match it.
+pub const PLAYWRIGHT_LINKS: &str = "Library/Caches/ms-playwright/.links";
+/// Puppeteer's browser folder.
+pub const PUPPETEER_HOME: &str = ".cache/puppeteer";
+/// The browsers inside it.
+pub const PUPPETEER_BROWSERS: [&str; 2] = ["chrome", "chrome-headless-shell"];
+
+/// Maven's library folder.
+pub const MAVEN_REPOSITORY: &str = ".m2/repository";
+/// Maven's settings, which can hold passwords. No rule may match it.
+pub const MAVEN_SETTINGS: &str = ".m2/settings.xml";
+/// Dart and Flutter downloaded packages.
+pub const PUB_HOSTED: &str = ".pub-cache/hosted";
+/// A globally activated Dart tool. No rule may match it.
+pub const PUB_GLOBAL_TOOL: &str = ".pub-cache/bin/flutterfire";
+
+/// Xcode's own cache folder.
+pub const XCODE_CACHE: &str = "Library/Caches/com.apple.dt.Xcode";
+/// SwiftUI preview data.
+pub const XCODE_PREVIEWS: &str = "Library/Developer/Xcode/UserData/Previews";
+/// Xcode's key bindings, next to the previews. No rule may match it.
+pub const XCODE_KEY_BINDINGS: &str =
+    "Library/Developer/Xcode/UserData/KeyBindings/Default.idekeybindings";
+/// The simulators' shared cache.
+pub const SIMULATOR_CACHES: &str = "Library/Developer/CoreSimulator/Caches";
+/// SwiftPM's download cache.
+pub const SWIFTPM_CACHE: &str = "Library/Caches/org.swift.swiftpm";
+/// SwiftPM's security data (package fingerprints). No rule may match it.
+pub const SWIFTPM_FINGERPRINTS: &str =
+    "Library/org.swift.swiftpm/security/fingerprints/swift-log.json";
+/// Carthage's download cache.
+pub const CARTHAGE_CACHE: &str = "Library/Caches/org.carthage.CarthageKit";
