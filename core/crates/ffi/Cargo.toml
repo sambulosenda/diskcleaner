@@ -41,4 +41,5 @@ uniffi = "0.32"
 [dev-dependencies]
 fixtures = { path = "../fixtures" }
 history = { path = "../history" }
+sha2 = "0.10"
 tempfile = "3"

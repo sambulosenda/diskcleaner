@@ -439,6 +439,7 @@ dependencies = [
  "rules",
  "safety",
  "scanner",
+ "sha2",
  "tempfile",
  "thiserror",
  "tracing",
