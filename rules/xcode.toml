@@ -82,21 +82,28 @@ risk = "Apps, settings and test data inside this simulator are lost. Xcode can m
 restore = "Create a new simulator in Xcode under Window, Devices and Simulators."
 action = "trash"
 
-[[rule]]
-id = "xcode.simulators_unavailable"
-version = 1
-match.path = "Library/Developer/CoreSimulator/Devices/*"
-match.requires = ["device.plist"]
-category = "developer_tools"
-tier = "likely_safe"
-confidence = "high"
-regenerable = true
-mode = "developer"
-title = "Unavailable simulators"
-explain = "Simulators for iOS versions no longer installed in Xcode."
-risk = "None; they cannot run without their iOS runtime."
-action = "command"
-command = "xcrun_simctl_delete_unavailable"
+# xcode.simulators_unavailable is switched off. It had the same match.path
+# as xcode.simulator_device, so the two rules tied and every simulator showed
+# as unknown. Whether a simulator is unavailable is written inside its
+# device.plist (isAvailable), which a path rule cannot see, and the command
+# acts on all unavailable simulators at once, not on one folder. It needs the
+# Xcode analyser to come back. Kept here, commented out, so it is not lost:
+#
+# [[rule]]
+# id = "xcode.simulators_unavailable"
+# version = 1
+# match.path = "Library/Developer/CoreSimulator/Devices/*"
+# match.requires = ["device.plist"]
+# category = "developer_tools"
+# tier = "likely_safe"
+# confidence = "high"
+# regenerable = true
+# mode = "developer"
+# title = "Unavailable simulators"
+# explain = "Simulators for iOS versions no longer installed in Xcode."
+# risk = "None; they cannot run without their iOS runtime."
+# action = "command"
+# command = "xcrun_simctl_delete_unavailable"
 
 [[rule]]
 id = "cocoapods.cache"

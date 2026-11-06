@@ -1,6 +1,6 @@
 //! The parallel walk. Reads folder listings and `lstat` metadata only.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{self, Metadata};
 use std::io;
@@ -31,7 +31,29 @@ struct Node {
     unreadable: bool,
     has_git: bool,
     files: Vec<FileEntry>,
+    /// Files in this folder with more than one hard link. Counted or skipped
+    /// after the walk, by [`settle_links`].
+    links: Vec<LinkedFile>,
     children: Vec<Node>,
+}
+
+/// A file with more than one hard link, waiting for the walk to finish.
+///
+/// Threads reach the names of a hard-linked file in no fixed order, so
+/// counting the first name seen would put its bytes in a different folder
+/// from one scan to the next. Instead every name is noted, and after the
+/// walk the file is counted once, under the name whose full path sorts
+/// first. The same tree then always gives the same sizes.
+struct LinkedFile {
+    key: (u64, u64),
+    path: PathBuf,
+    name: OsString,
+    allocated: u64,
+    logical: u64,
+    modified: Option<std::time::SystemTime>,
+    is_file: bool,
+    is_symlink: bool,
+    record: bool,
 }
 
 /// State shared by every worker thread.
@@ -41,7 +63,8 @@ struct Shared<'a> {
     dev: u64,
     cancel: &'a AtomicBool,
     largest: Largest,
-    seen_links: Mutex<HashSet<(u64, u64)>>,
+    /// For each hard-linked inode, the name that sorts first so far.
+    link_owner: Mutex<HashMap<(u64, u64), PathBuf>>,
     unreadable: Mutex<Vec<Unreadable>>,
     other_volumes: Mutex<Vec<PathBuf>>,
     files: AtomicU64,
@@ -84,10 +107,11 @@ pub fn run(
         });
         wait_with_progress(&rx, shared, opts, progress)
     });
-    let root_node = root_node.ok_or(ScanError::Internal)?;
+    let mut root_node = root_node.ok_or(ScanError::Internal)?;
     if opts.cancel.load(Ordering::Relaxed) {
         return Err(ScanError::Cancelled);
     }
+    settle_links(&mut root_node, &shared);
     progress(shared.snapshot(true));
     Ok(shared.into_result(root, root_node))
 }
@@ -130,6 +154,7 @@ fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Shared<'_>) -
         unreadable: false,
         has_git: false,
         files: Vec::new(),
+        links: Vec::new(),
         children: Vec::new(),
     };
     shared.dirs.fetch_add(1, Ordering::Relaxed);
@@ -150,6 +175,47 @@ fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Shared<'_>) -
         .map(|sub| walk_dir(&sub.path, sub.name, &sub.meta, shared))
         .collect();
     node
+}
+
+/// Counts each hard-linked file once, in the folder of the name its inode is
+/// owned by (see [`LinkedFile`]); its other names are skipped. Iterative, so
+/// a deep tree cannot overflow the stack.
+fn settle_links(root: &mut Node, shared: &Shared<'_>) {
+    let mut stack: Vec<&mut Node> = vec![root];
+    while let Some(node) = stack.pop() {
+        let links = std::mem::take(&mut node.links);
+        let mut recorded = false;
+        for link in links {
+            if !shared.owns_link(link.key, &link.path) {
+                shared.hard_links_skipped.fetch_add(1, Ordering::Relaxed);
+                continue;
+            }
+            node.own_bytes += link.allocated;
+            if link.is_symlink {
+                shared.symlinks.fetch_add(1, Ordering::Relaxed);
+            } else if link.is_file {
+                node.own_files += 1;
+                node.own_logical += link.logical;
+                shared.files.fetch_add(1, Ordering::Relaxed);
+                if link.record {
+                    node.files.push(FileEntry {
+                        name: link.name,
+                        allocated_bytes: link.allocated,
+                        logical_bytes: link.logical,
+                    });
+                    recorded = true;
+                }
+                let path = link.path;
+                shared
+                    .largest
+                    .offer(link.allocated, link.logical, link.modified, || path);
+            }
+        }
+        if recorded {
+            node.files.sort_by(|a, b| a.name.cmp(&b.name));
+        }
+        stack.extend(node.children.iter_mut());
+    }
 }
 
 /// Reads one listing. Counts files and symlinks into `node` and returns the
@@ -187,11 +253,26 @@ fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec
             });
             continue;
         }
-        if meta.nlink() > 1 && !shared.first_sighting(&meta) {
-            shared.hard_links_skipped.fetch_add(1, Ordering::Relaxed);
+        let bytes = allocated(&meta);
+        if meta.nlink() > 1 {
+            let path = entry.path();
+            let key = (meta.dev(), meta.ino());
+            if shared.note_link(key, &path) {
+                shared.add_bytes(bytes);
+            }
+            node.links.push(LinkedFile {
+                key,
+                path,
+                name: entry.file_name(),
+                allocated: bytes,
+                logical: meta.len(),
+                modified: meta.modified().ok(),
+                is_file: file_type.is_file(),
+                is_symlink: file_type.is_symlink(),
+                record,
+            });
             continue;
         }
-        let bytes = allocated(&meta);
         node.own_bytes += bytes;
         shared.add_bytes(bytes);
         if file_type.is_symlink() {
@@ -241,7 +322,7 @@ impl<'a> Shared<'a> {
             dev,
             cancel,
             largest: Largest::new(largest_files),
-            seen_links: Mutex::new(HashSet::new()),
+            link_owner: Mutex::new(HashMap::new()),
             unreadable: Mutex::new(Vec::new()),
             other_volumes: Mutex::new(Vec::new()),
             files: AtomicU64::new(0),
@@ -272,12 +353,35 @@ impl<'a> Shared<'a> {
         self.bytes.fetch_add(bytes, Ordering::Relaxed);
     }
 
-    /// `true` the first time this inode is seen, `false` after that.
-    fn first_sighting(&self, meta: &Metadata) -> bool {
-        match self.seen_links.lock() {
-            Ok(mut seen) => seen.insert((meta.dev(), meta.ino())),
+    /// Notes one name of a hard-linked inode, keeping the name that sorts
+    /// first. Returns `true` the first time the inode is seen (for progress
+    /// only; which name is counted is decided after the walk).
+    fn note_link(&self, key: (u64, u64), path: &Path) -> bool {
+        match self.link_owner.lock() {
+            Ok(mut owners) => match owners.get_mut(&key) {
+                Some(owner) => {
+                    if path < owner.as_path() {
+                        *owner = path.to_path_buf();
+                    }
+                    false
+                }
+                None => {
+                    owners.insert(key, path.to_path_buf());
+                    true
+                }
+            },
             // A poisoned lock means another worker panicked; the scan is
-            // failing anyway. Count the file rather than guess.
+            // failing anyway.
+            Err(_) => false,
+        }
+    }
+
+    /// Whether `path` is the name a hard-linked inode is counted under. If
+    /// the owner list is unusable (a worker panicked), every name counts:
+    /// counting too much is safer than hiding a file.
+    fn owns_link(&self, key: (u64, u64), path: &Path) -> bool {
+        match self.link_owner.lock() {
+            Ok(owners) => owners.get(&key).is_none_or(|owner| owner == path),
             Err(_) => true,
         }
     }

@@ -69,11 +69,19 @@ fn the_t07_rules_are_all_there() {
         "xcode.ios_device_support",
         "xcode.watchos_device_support",
         "xcode.simulator_device",
-        "xcode.simulators_unavailable",
         "cocoapods.cache",
         // JavaScript
         "js.node_modules",
+        "js.node_modules_developer",
+        "js.node_modules_code",
+        "js.node_modules_dev",
+        "js.node_modules_src",
+        "js.node_modules_repos",
+        "js.node_modules_github",
+        "js.node_modules_documents",
+        "js.node_modules_home",
         "js.npm_cache",
+        "js.npx_cache",
         "js.pnpm_store",
         "js.yarn_cache",
         "js.bun_cache",
@@ -125,6 +133,53 @@ fn rules_match_exactly_the_expected_fixture_items() {
             .map(|p| format!("{p}/node_modules"))
             .collect())
     );
+    // Each code folder's rule finds its project's node_modules, and, since
+    // the manifest lists every path, the package nested inside it too. The
+    // classifier makes the nested one part of the outer item.
+    assert_eq!(
+        found("js.node_modules_developer"),
+        set(vec![
+            format!("{}/node_modules", paths::JS_PROJECTS_ELSEWHERE[0]),
+            paths::JS_NESTED_MODULES.to_string(),
+        ])
+    );
+    assert_eq!(
+        found("js.node_modules_code"),
+        set(vec![format!(
+            "{}/node_modules",
+            paths::JS_PROJECTS_ELSEWHERE[1]
+        )])
+    );
+    assert_eq!(
+        found("js.node_modules_documents"),
+        set(vec![format!(
+            "{}/node_modules",
+            paths::JS_PROJECTS_DOCS_AND_HOME[0]
+        )])
+    );
+    assert_eq!(
+        found("js.node_modules_home"),
+        set(vec![format!(
+            "{}/node_modules",
+            paths::JS_PROJECTS_DOCS_AND_HOME[1]
+        )])
+    );
+    // No rule reaches a project on the Desktop, or an editor extension in a
+    // hidden folder.
+    for target in [paths::JS_PROJECT_ON_DESKTOP, paths::JS_EDITOR_EXTENSION] {
+        let modules = format!("{target}/node_modules");
+        for r in &rules {
+            assert!(
+                !matches_in(r, &manifest).contains(&modules),
+                "{} matches {modules}",
+                r.id
+            );
+        }
+    }
+    assert_eq!(
+        found("js.npx_cache"),
+        set(vec![paths::NPX_CACHE.to_string()])
+    );
     assert_eq!(
         found("xcode.ios_device_support"),
         set(paths::IOS_DEVICE_SUPPORT_VERSIONS
@@ -150,7 +205,6 @@ fn rules_match_exactly_the_expected_fixture_items() {
         .map(|d| format!("{}/{d}", paths::SIM_DEVICES))
         .collect());
     assert_eq!(found("xcode.simulator_device"), devices);
-    assert_eq!(found("xcode.simulators_unavailable"), devices);
 
     // Expo's sign-in state is not a cache.
     assert_eq!(

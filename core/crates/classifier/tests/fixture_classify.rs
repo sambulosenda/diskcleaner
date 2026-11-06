@@ -84,15 +84,32 @@ fn expected_developer() -> BTreeMap<String, &'static str> {
     for p in paths::JS_PROJECTS {
         want.insert(join(p, "node_modules"), "js.node_modules");
     }
+    let elsewhere = [
+        "js.node_modules_developer",
+        "js.node_modules_code",
+        "js.node_modules_dev",
+        "js.node_modules_src",
+        "js.node_modules_repos",
+        "js.node_modules_github",
+    ];
+    for (p, id) in paths::JS_PROJECTS_ELSEWHERE.iter().zip(elsewhere) {
+        want.insert(join(p, "node_modules"), id);
+    }
+    let docs_and_home = ["js.node_modules_documents", "js.node_modules_home"];
+    for (p, id) in paths::JS_PROJECTS_DOCS_AND_HOME.iter().zip(docs_and_home) {
+        want.insert(join(p, "node_modules"), id);
+    }
     want.insert(join(paths::NPM_CACHE, "_cacache"), "js.npm_cache");
+    want.insert(paths::NPX_CACHE.to_string(), "js.npx_cache");
     want.insert(join(paths::PNPM_STORE, "store"), "js.pnpm_store");
     want.insert(paths::YARN_CACHE.to_string(), "js.yarn_cache");
     want.insert(paths::BUN_CACHE.to_string(), "js.bun_cache");
     for c in paths::EXPO_CACHES {
         want.insert(join(paths::EXPO_HOME, c), "js.expo_cache");
     }
-    // The two simulator rules tie (same match.path), so neither is used and
-    // the simulator devices stay unknown.
+    for id in paths::SIM_DEVICE_IDS {
+        want.insert(join(paths::SIM_DEVICES, id), "xcode.simulator_device");
+    }
     want
 }
 
@@ -284,11 +301,13 @@ fn unknown_space_is_grouped_by_top_level_folder_as_keep() {
             "no unknown item for {name}"
         );
     }
-    // The simulator devices (tied rules) are part of Library's unknown space.
-    for id in paths::SIM_DEVICE_IDS {
-        let p = root.join(paths::SIM_DEVICES).join(id);
-        assert!(!items.iter().any(|i| i.path == p));
-    }
+    // The project on the Desktop is not matched: its node_modules is part of
+
+    let on_desktop = root.join(paths::JS_PROJECT_ON_DESKTOP).join("node_modules");
+    assert!(!items.iter().any(|i| i.path == on_desktop));
+    // Nor is an editor extension's node_modules in a hidden folder.
+    let extension = root.join(paths::JS_EDITOR_EXTENSION).join("node_modules");
+    assert!(!items.iter().any(|i| i.path == extension));
     // Every byte below home is in exactly one item, except files directly in home.
     let sum: u64 = items.iter().map(|i| i.size_bytes).sum();
     assert_eq!(sum, result.total_bytes() - result.root_dir().own_bytes);
@@ -335,13 +354,73 @@ fn output_is_sorted_by_size_then_id() {
 }
 
 #[test]
-fn the_simulator_rules_tie() {
-    let ties = check_ties(&repo_rules(), Mode::Developer);
-    assert_eq!(ties.len(), 1);
-    let pair = [ties[0].first.as_str(), ties[0].second.as_str()];
-    assert!(pair.contains(&"xcode.simulator_device"));
-    assert!(pair.contains(&"xcode.simulators_unavailable"));
+fn no_rules_tie() {
+    assert!(check_ties(&repo_rules(), Mode::Developer).is_empty());
     assert!(check_ties(&repo_rules(), Mode::Simple).is_empty());
+}
+
+#[test]
+fn simulator_devices_are_one_review_first_item_each() {
+    let rules = repo_rules();
+    let (_dir, root) = home();
+    let items = run(&root, &rules, Mode::Developer);
+    for id in paths::SIM_DEVICE_IDS {
+        let p = root.join(paths::SIM_DEVICES).join(id);
+        let item = items.iter().find(|i| i.path == p).unwrap();
+        assert_eq!(item.rule_id, "xcode.simulator_device");
+        assert_eq!(item.tier, Tier::ReviewFirst);
+        assert!(!item.regenerable);
+    }
+    // The device set file next to the devices is not a device.
+    let set = root.join(paths::SIM_DEVICES).join("device_set.plist");
+    assert!(!items.iter().any(|i| i.path == set));
+}
+
+#[test]
+fn node_modules_are_found_in_code_folders_at_any_depth() {
+    let rules = repo_rules();
+    let (_dir, root) = home();
+    let items = run(&root, &rules, Mode::Developer);
+    for project in paths::JS_PROJECTS
+        .iter()
+        .chain(paths::JS_PROJECTS_ELSEWHERE.iter())
+        .chain(paths::JS_PROJECTS_DOCS_AND_HOME.iter())
+    {
+        let p = root.join(project).join("node_modules");
+        let item = items
+            .iter()
+            .find(|i| i.path == p)
+            .unwrap_or_else(|| panic!("no item for {}", p.display()));
+        assert!(item.rule_id.starts_with("js.node_modules"));
+        // Never likely_safe: the user picks each project.
+        assert_ne!(item.tier, Tier::LikelySafe);
+    }
+    // A node_modules nested inside another is part of the outer item, not
+    // an item of its own.
+    let nested = root.join(paths::JS_NESTED_MODULES);
+    assert!(!items.iter().any(|i| i.path == nested));
+    let outer = root
+        .join(paths::JS_PROJECTS_ELSEWHERE[0])
+        .join("node_modules");
+    let outer = items.iter().find(|i| i.path == outer).unwrap();
+    assert_eq!(outer.tier, Tier::ReviewFirst);
+    assert!(outer.lowered.is_empty(), "{:?}", outer.lowered);
+}
+
+#[test]
+fn npx_tools_are_one_cache_item_beside_the_npm_cache() {
+    let rules = repo_rules();
+    let (_dir, root) = home();
+    let items = run(&root, &rules, Mode::Developer);
+    let npx = items
+        .iter()
+        .find(|i| i.path == root.join(paths::NPX_CACHE))
+        .unwrap();
+    assert_eq!(npx.rule_id, "js.npx_cache");
+    assert_eq!(npx.tier, Tier::LikelySafe);
+    // The node_modules inside an npx tool is part of the npx item.
+    let inside = root.join(paths::NPX_TOOL).join("node_modules");
+    assert!(!items.iter().any(|i| i.path == inside));
 }
 
 #[test]

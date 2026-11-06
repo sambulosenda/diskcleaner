@@ -8,6 +8,7 @@ use crate::FixtureError;
 /// Builds the JavaScript part of the fixture.
 pub fn build(b: &mut Builder) -> Result<(), FixtureError> {
     projects(b)?;
+    projects_elsewhere(b)?;
     caches(b)
 }
 
@@ -37,7 +38,32 @@ fn projects(b: &mut Builder) -> Result<(), FixtureError> {
     b.set_age_days(paths::JS_STALE_PACKAGE_JSON, paths::JS_STALE_AGE_DAYS)
 }
 
-/// npm, pnpm and Yarn caches.
+/// Projects outside `projects/`: one in Developer with a package nested
+/// inside its `node_modules`, one in a monorepo under code, and one in
+/// Documents.
+fn projects_elsewhere(b: &mut Builder) -> Result<(), FixtureError> {
+    let all = paths::JS_PROJECTS_ELSEWHERE
+        .iter()
+        .chain(paths::JS_PROJECTS_DOCS_AND_HOME.iter())
+        .chain([paths::JS_PROJECT_ON_DESKTOP, paths::JS_EDITOR_EXTENSION].iter());
+    for project in all {
+        b.text(
+            &format!("{project}/package.json"),
+            "{ \"name\": \"site\", \"version\": \"1.0.0\" }\n",
+        )?;
+        b.bytes(&format!("{project}/node_modules/left-pad/index.js"), 4 * KB)?;
+        b.bytes(
+            &format!("{project}/node_modules/.package-lock.json"),
+            3 * KB,
+        )?;
+    }
+    b.bytes(
+        &format!("{}/inner/index.js", paths::JS_NESTED_MODULES),
+        2 * KB,
+    )
+}
+
+/// npm, npx, pnpm and Yarn caches.
 fn caches(b: &mut Builder) -> Result<(), FixtureError> {
     b.bytes(
         &format!(
@@ -49,6 +75,14 @@ fn caches(b: &mut Builder) -> Result<(), FixtureError> {
     b.bytes(
         &format!("{}/_cacache/index-v5/12/34/1234abcd", paths::NPM_CACHE),
         2 * KB,
+    )?;
+    b.text(
+        &format!("{}/package.json", paths::NPX_TOOL),
+        "{ \"dependencies\": { \"create-site\": \"1.0.0\" } }\n",
+    )?;
+    b.bytes(
+        &format!("{}/node_modules/create-site/index.js", paths::NPX_TOOL),
+        12 * KB,
     )?;
     b.bytes(
         &format!(

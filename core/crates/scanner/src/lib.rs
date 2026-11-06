@@ -12,8 +12,10 @@
 //!   counted as the small entry it is and never entered.
 //! - **One volume.** A folder whose `st_dev` differs from the root's is a
 //!   mount point; it is listed in [`ScanResult::other_volumes`] and skipped.
-//! - **Hard links once.** A file with more than one link is counted the first
-//!   time its `(st_dev, st_ino)` is seen and skipped after that.
+//! - **Hard links once.** A file with more than one link is counted once per
+//!   `(st_dev, st_ino)`, under the name whose full path sorts first, so the
+//!   same tree always gives the same folder sizes. Its other names are
+//!   skipped.
 //! - **Unreadable folders are not errors.** A folder that cannot be listed is
 //!   recorded in [`ScanResult::unreadable`] with its path and the walk goes on.
 //!

@@ -1,10 +1,149 @@
 # JavaScript rules (T07). Every rule's wording and tier needs Sam's sign-off.
 # Bump `version` on any change to a rule.
 
+# node_modules folders. A rule may not match `**/node_modules` across the
+# whole home folder (it could reach protected places such as Keychains), so
+# there is one rule for each common code folder. `**` finds projects at any
+# depth inside it; the walk stops at the first node_modules, so packages
+# nested inside one are part of it.
+#
+# js.node_modules_home finds a project folder straight inside home, one
+# level only. `[!.]` leaves out hidden folders such as .vscode, .cursor and
+# .nvm: their node_modules belong to editor extensions and Node installs,
+# not to projects. Desktop is left out on purpose until Sam decides.
+
 [[rule]]
 id = "js.node_modules"
+version = 2
+match.path = "projects/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_developer"
 version = 1
-match.path = "projects/*/node_modules"
+match.path = "Developer/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_code"
+version = 1
+match.path = "code/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_dev"
+version = 1
+match.path = "dev/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_src"
+version = 1
+match.path = "src/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_repos"
+version = 1
+match.path = "repos/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_github"
+version = 1
+match.path = "GitHub/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_documents"
+version = 1
+match.path = "Documents/**/node_modules"
+category = "build"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Project packages (node_modules)"
+explain = "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again."
+risk = "The project will not run until you install its packages again, which needs a network connection."
+restore = "Run npm install (or your project's install command) in the project folder."
+action = "trash"
+
+[[rule]]
+id = "js.node_modules_home"
+version = 1
+match.path = "[!.]*/node_modules"
 category = "build"
 tier = "review_first"
 confidence = "high"
@@ -30,6 +169,21 @@ title = "npm download cache"
 explain = "Copies of packages npm has downloaded, kept so later installs are faster."
 risk = "The next install downloads packages again, which takes longer."
 restore = "npm fills the cache again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "js.npx_cache"
+version = 1
+match.path = ".npm/_npx"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "npx tool cache"
+explain = "Command-line tools that npx has downloaded to run once, such as project starters."
+risk = "The next time you run one of these tools with npx, it is downloaded again."
+restore = "npx downloads each tool again when you next run it."
 action = "trash"
 
 [[rule]]

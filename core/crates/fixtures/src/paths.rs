@@ -119,8 +119,34 @@ pub const JS_PROJECTS: [&str; 3] = ["projects/a", "projects/b", "projects/c"];
 pub const JS_STALE_PACKAGE_JSON: &str = "projects/c/package.json";
 /// How old the stale project's `package.json` is, in days.
 pub const JS_STALE_AGE_DAYS: u64 = 120;
+/// JavaScript projects in the other code folders the node_modules rules
+/// cover, one each, with `node_modules`. The code one is a package inside a
+/// monorepo, three levels down.
+pub const JS_PROJECTS_ELSEWHERE: [&str; 6] = [
+    "Developer/web-shop",
+    "code/monorepo/packages/app",
+    "dev/cli-tool",
+    "src/api",
+    "repos/site",
+    "GitHub/acme/landing",
+];
+/// A package nested inside a project's `node_modules`, which belongs to the
+/// outer `node_modules` item.
+pub const JS_NESTED_MODULES: &str = "Developer/web-shop/node_modules/left-pad/node_modules";
+/// JavaScript projects in Documents (two levels down) and straight in home.
+pub const JS_PROJECTS_DOCS_AND_HOME: [&str; 2] = ["Documents/clients/site", "my-app"];
+/// An editor extension with its own `node_modules`, in a hidden folder. No
+/// rule may match it: removing it breaks the editor.
+pub const JS_EDITOR_EXTENSION: &str = ".vscode/extensions/acme.helper-1.0.0";
+/// A JavaScript project on the Desktop. No rule matches its `node_modules`
+/// yet, on purpose: the Desktop holds personal files.
+pub const JS_PROJECT_ON_DESKTOP: &str = "Desktop/old-site";
 /// npm cache.
 pub const NPM_CACHE: &str = ".npm";
+/// npx tool cache, inside the npm folder.
+pub const NPX_CACHE: &str = ".npm/_npx";
+/// The one tool in the npx cache.
+pub const NPX_TOOL: &str = ".npm/_npx/0a1b2c3d4e5f6a7b";
 /// pnpm store.
 pub const PNPM_STORE: &str = "Library/pnpm";
 /// Yarn cache.
