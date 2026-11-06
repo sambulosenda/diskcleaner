@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use classifier::ClassifiedItem;
 
 use crate::types::{
-    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, Mode, PrivateArea, Sort, Tier,
-    UnreadableArea,
+    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, LibrarySize, Mode, PrivateArea,
+    Sort, Tier, UnreadableArea,
 };
 use crate::CoreError;
 
@@ -54,6 +54,9 @@ pub struct Finished {
     pub items: Vec<ClassifiedItem>,
     /// Item id to index in `items`.
     pub by_id: HashMap<String, usize>,
+    /// How much the Mac's own libraries take (Photos, Mail and so on).
+    /// Shown only; never cleaned.
+    pub libraries: Vec<LibrarySize>,
 }
 
 impl Finished {
@@ -83,7 +86,14 @@ impl Finished {
             unreadable_areas,
             items,
             by_id,
+            libraries: Vec::new(),
         }
+    }
+
+    /// Adds the library sizes measured from the same scan.
+    pub fn with_libraries(mut self, libraries: Vec<LibrarySize>) -> Self {
+        self.libraries = libraries;
+        self
     }
 
     /// Exact sum of the sizes of every `likely_safe` item (F2).

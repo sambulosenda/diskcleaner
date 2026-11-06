@@ -49,8 +49,9 @@ pub use types::{
     Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
     CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
     CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
-    HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea,
-    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    HistoryItemState, ItemDetail, ItemSummary, LibraryKind, LibrarySize, Mode, Overview,
+    PlanHandle, PrivateArea, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");
