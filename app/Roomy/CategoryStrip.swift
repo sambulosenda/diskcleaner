@@ -94,12 +94,13 @@ struct CategoryLegend: View {
                         detail: Self.detail(for: entry)
                     )
                 }
-                LegendEntry(color: Color.secondary.opacity(0.3), title: "Free space", detail: Format.bytes(overview.diskFree))
+                LegendEntry(color: Color.secondary.opacity(0.25), title: "Free space", detail: Format.bytes(overview.diskFree), outlined: true)
             }
-            Text("The solid part of each colour is space you can likely free.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+            if overview.likelySafeBytes > 0 {
+                Text("The solid part of each colour is space you can likely free.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .accessibilityHidden(true) // The strip above reads the same information as one summary.
     }
@@ -125,12 +126,18 @@ private struct LegendEntry: View {
     let color: Color
     let title: String
     let detail: String
+    /// Draws an edge round the swatch, so a pale swatch still shows in dark mode.
+    var outlined = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(color)
                 .frame(width: 12, height: 12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(outlined ? Color.secondary : Color.clear, lineWidth: 1)
+                )
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.callout)

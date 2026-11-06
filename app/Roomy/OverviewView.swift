@@ -220,6 +220,7 @@ struct OverviewFooter: View {
                     Text("\(Format.items(unreadableCount)) couldn't be measured because Roomy doesn't have access.")
                     if let url = Self.fullDiskAccessURL {
                         Link("Grant Full Disk Access", destination: url)
+                            .foregroundColor(.accentColor)
                             .accessibilityHint("Opens System Settings.")
                     }
                 }

@@ -33,7 +33,7 @@ final class ScreenshotTests: XCTestCase {
             let suffix = appearance == .aqua ? "light" : "dark"
             for (name, mode, state) in states {
                 let model = makeModel(mode: mode, state: state)
-                try capture(ContentView().environmentObject(model), size: CGSize(width: 1120, height: 820),
+                try capture(ContentView().environmentObject(model), size: CGSize(width: 1120, height: 1080),
                             appearance: appearance, to: folder.appendingPathComponent("\(name)-\(suffix).png"))
             }
             let model = makeModel(mode: .developer, state: .neverScanned)
@@ -74,6 +74,10 @@ final class ScreenshotTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(1.5))
         window.displayIfNeeded()
 
+        // A real window-server capture draws sidebars and glass materials exactly as on screen.
+        // It needs Screen Recording permission for Terminal; without it, fall back to drawing the views.
+        if Self.screencapture(windowNumber: window.windowNumber, to: url) { return }
+
         guard let frameView = window.contentView?.superview ?? window.contentView else {
             throw CaptureError.noView
         }
@@ -83,6 +87,22 @@ final class ScreenshotTests: XCTestCase {
         frameView.cacheDisplay(in: frameView.bounds, to: rep)
         guard let data = rep.representation(using: .png, properties: [:]) else { throw CaptureError.noPNG }
         try data.write(to: url)
+    }
+
+    /// Captures one window with the system `screencapture` tool. True if a usable PNG was written.
+    private static func screencapture(windowNumber: Int, to url: URL) -> Bool {
+        try? FileManager.default.removeItem(at: url)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-x", "-o", "-l", String(windowNumber), url.path]
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return false
+        }
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+        return process.terminationStatus == 0 && size > 10_000
     }
 
     private enum CaptureError: Error { case noView, noBitmap, noPNG }

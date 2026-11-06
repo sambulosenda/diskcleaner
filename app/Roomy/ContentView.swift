@@ -86,7 +86,6 @@ struct MainToolbar: ToolbarContent {
         ToolbarItem(placement: .automatic) {
             ModeIndicator(mode: model.mode)
                 .fixedSize()
-                .padding(.horizontal, 4)
         }
     }
 }
@@ -98,9 +97,8 @@ struct ModeIndicator: View {
     var body: some View {
         Text("\(mode.label) mode")
             .font(.callout)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Capsule().strokeBorder(Color.secondary.opacity(0.5)))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
             .help("Change the mode in Settings (⌘,)")
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(mode.label) mode")
