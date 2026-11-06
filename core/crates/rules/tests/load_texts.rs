@@ -14,7 +14,15 @@ fn read(name: &str) -> String {
 
 #[test]
 fn gives_the_same_rules_as_load_dir() {
-    let names = ["everyday.toml", "js.toml", "xcode.toml"];
+    let names = [
+        "ai_tools.toml",
+        "android.toml",
+        "editors.toml",
+        "everyday.toml",
+        "js.toml",
+        "rust.toml",
+        "xcode.toml",
+    ];
     let texts: Vec<String> = names.iter().map(|n| read(n)).collect();
     let files: Vec<(&str, &str)> = names
         .iter()

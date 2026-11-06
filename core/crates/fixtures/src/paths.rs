@@ -178,3 +178,68 @@ pub const TRAP_ENV_FILE: &str = "projects/a/.env";
 pub const TRAP_KEYSTORE: &str = "AndroidStudioProjects/Shopper/app/release.keystore";
 /// Personal documents the Documents symlink trap points at.
 pub const DOCUMENTS: &str = "Documents";
+
+/// Gradle's shared cache (downloaded libraries and build results).
+pub const GRADLE_CACHES: &str = ".gradle/caches";
+/// Android Studio's cache folder for one version.
+pub const ANDROID_STUDIO_CACHE: &str = "Library/Caches/Google/AndroidStudio2024.2";
+
+/// Cargo's download cache.
+pub const CARGO_REGISTRY_CACHE: &str = ".cargo/registry/cache";
+/// Cargo's unpacked crates.
+pub const CARGO_REGISTRY_SRC: &str = ".cargo/registry/src";
+/// Tools installed with `cargo install`. No rule may match them.
+pub const CARGO_BIN: &str = ".cargo/bin/cargo-watch";
+/// Cargo's registry sign-in token file. No rule may match it.
+pub const CARGO_CREDENTIALS: &str = ".cargo/credentials.toml";
+/// A git dependency checkout, which is a git repository. No rule may match it.
+pub const CARGO_GIT_CHECKOUT: &str = ".cargo/git/checkouts/tokio-1a2b3c4d5e6f7a8b/0123abc";
+/// rustup toolchains root.
+pub const RUSTUP_TOOLCHAINS: &str = ".rustup/toolchains";
+/// The two installed toolchains.
+pub const RUSTUP_TOOLCHAIN_NAMES: [&str; 2] =
+    ["stable-aarch64-apple-darwin", "1.79.0-aarch64-apple-darwin"];
+/// rustup's settings, which no rule may match.
+pub const RUSTUP_SETTINGS: &str = ".rustup/settings.toml";
+/// Rust projects, one in each code folder the `target` rules cover, in the
+/// same order as the rules: projects, Developer, code, dev, src, repos,
+/// GitHub, Documents and straight in home. Each has a Cargo `target` folder.
+/// The Developer one is a git repository.
+pub const RUST_PROJECTS: [&str; 9] = [
+    "projects/rust-cli",
+    "Developer/roomy-core",
+    "code/engine",
+    "dev/parser",
+    "src/server",
+    "repos/tools",
+    "GitHub/acme/agent",
+    "Documents/rust/book-examples",
+    "rust-tool",
+];
+/// Trap: a personal folder that happens to be called `target`, with no
+/// Cargo marker files. No rule may match it.
+pub const TRAP_PLAIN_TARGET: &str = "Documents/Sales/target";
+/// Trap: a `target` folder with Cargo's CACHEDIR.TAG but no
+/// `.rustc_info.json`. No rule may match it.
+pub const TRAP_HALF_TARGET: &str = "Developer/other-tool/target";
+
+/// Claude Code's home folder.
+pub const CLAUDE_HOME: &str = ".claude";
+/// Claude Code conversations for one project folder.
+pub const CLAUDE_CONVERSATIONS: &str = ".claude/projects/-Users-sam-Developer-roomy-core";
+/// Claude Code's settings, which no rule may match.
+pub const CLAUDE_SETTINGS: &str = ".claude/settings.json";
+/// Claude Code's log folder.
+pub const CLAUDE_LOGS: &str = "Library/Caches/claude-cli-nodejs";
+
+/// Cursor's app data folder.
+pub const CURSOR_DATA: &str = "Library/Application Support/Cursor";
+/// VS Code's app data folder.
+pub const VSCODE_DATA: &str = "Library/Application Support/Code";
+/// The cache folders inside each of them that the editor rules match.
+pub const EDITOR_CACHE_FOLDERS: [&str; 3] = ["Cache", "CachedData", "CachedExtensionVSIXs"];
+/// Cursor's chat database for one workspace (review-only). No rule may match it.
+pub const CURSOR_CHAT_DB: &str =
+    "Library/Application Support/Cursor/User/workspaceStorage/4f1a2b3c/state.vscdb";
+/// A JetBrains IDE cache folder for one version.
+pub const JETBRAINS_CACHE: &str = "Library/Caches/JetBrains/RustRover2024.3";

@@ -110,7 +110,91 @@ fn expected_developer() -> BTreeMap<String, &'static str> {
     for id in paths::SIM_DEVICE_IDS {
         want.insert(join(paths::SIM_DEVICES, id), "xcode.simulator_device");
     }
+    expected_android_rust_ai_and_editors(&mut want);
     want
+}
+
+/// The developer-mode items from the Android, Rust, AI tool and editor rules.
+fn expected_android_rust_ai_and_editors(want: &mut BTreeMap<String, &'static str>) {
+    want.insert(paths::GRADLE_CACHES.to_string(), "android.gradle_caches");
+    for v in paths::GRADLE_VERSIONS {
+        want.insert(join(paths::GRADLE_DISTS, v), "android.gradle_wrapper");
+    }
+    for api in paths::ANDROID_SYSTEM_IMAGE_APIS {
+        want.insert(
+            format!(
+                "{}/system-images/android-{api}/google_apis/arm64-v8a",
+                paths::ANDROID_SDK
+            ),
+            "android.system_image",
+        );
+    }
+    want.insert(
+        format!("{}/ndk/{}", paths::ANDROID_SDK, paths::ANDROID_NDK),
+        "android.ndk",
+    );
+    for n in paths::ANDROID_AVD_NAMES {
+        want.insert(
+            format!("{}/{n}.avd", paths::ANDROID_AVD),
+            "android.emulator",
+        );
+    }
+    want.insert(
+        paths::ANDROID_STUDIO_CACHE.to_string(),
+        "android.studio_cache",
+    );
+    want.insert(
+        paths::CARGO_REGISTRY_CACHE.to_string(),
+        "rust.cargo_registry_cache",
+    );
+    want.insert(
+        paths::CARGO_REGISTRY_SRC.to_string(),
+        "rust.cargo_registry_src",
+    );
+    for n in paths::RUSTUP_TOOLCHAIN_NAMES {
+        want.insert(join(paths::RUSTUP_TOOLCHAINS, n), "rust.toolchain");
+    }
+    let targets = [
+        "rust.target",
+        "rust.target_developer",
+        "rust.target_code",
+        "rust.target_dev",
+        "rust.target_src",
+        "rust.target_repos",
+        "rust.target_github",
+        "rust.target_documents",
+        "rust.target_home",
+    ];
+    for (p, id) in paths::RUST_PROJECTS.iter().zip(targets) {
+        want.insert(join(p, "target"), id);
+    }
+    want.insert(
+        paths::CLAUDE_CONVERSATIONS.to_string(),
+        "claude_code.conversations",
+    );
+    want.insert(paths::CLAUDE_LOGS.to_string(), "claude_code.logs");
+    let editor_ids = [
+        (
+            "cursor.cache",
+            "cursor.cached_data",
+            "cursor.extension_downloads",
+        ),
+        (
+            "vscode.cache",
+            "vscode.cached_data",
+            "vscode.extension_downloads",
+        ),
+    ];
+    for (app, ids) in [paths::CURSOR_DATA, paths::VSCODE_DATA]
+        .into_iter()
+        .zip(editor_ids)
+    {
+        let [a, b, c] = paths::EDITOR_CACHE_FOLDERS;
+        want.insert(join(app, a), ids.0);
+        want.insert(join(app, b), ids.1);
+        want.insert(join(app, c), ids.2);
+    }
+    want.insert(paths::JETBRAINS_CACHE.to_string(), "jetbrains.cache");
 }
 
 /// Every rule item the fixture should give in simple mode.

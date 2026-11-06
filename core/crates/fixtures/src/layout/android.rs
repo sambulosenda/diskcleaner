@@ -1,4 +1,5 @@
-//! Android: SDK parts, AVDs, two projects and Gradle wrapper downloads.
+//! Android: SDK parts, AVDs, two projects, Gradle downloads and caches, and
+//! Android Studio's cache.
 
 use super::KB;
 use crate::builder::{Builder, HOME_TOKEN};
@@ -10,7 +11,8 @@ pub fn build(b: &mut Builder) -> Result<(), FixtureError> {
     sdk(b)?;
     avds(b)?;
     projects(b)?;
-    gradle(b)
+    gradle(b)?;
+    caches(b)
 }
 
 /// System images for API 33, 34 and 35, two build-tools versions, one NDK.
@@ -113,4 +115,17 @@ fn gradle(b: &mut Builder) -> Result<(), FixtureError> {
         b.text(&format!("{dir}/{version}.zip.ok"), "")?;
     }
     Ok(())
+}
+
+/// Gradle's shared cache and one Android Studio cache folder.
+fn caches(b: &mut Builder) -> Result<(), FixtureError> {
+    let caches = paths::GRADLE_CACHES;
+    b.bytes(
+        &format!("{caches}/modules-2/files-2.1/androidx.core/core/1.13.1/core-1.13.1.aar"),
+        32 * KB,
+    )?;
+    b.bytes(&format!("{caches}/build-cache-1/0a1b2c3d4e5f"), 16 * KB)?;
+    let studio = paths::ANDROID_STUDIO_CACHE;
+    b.bytes(&format!("{studio}/caches/content.dat"), 24 * KB)?;
+    b.bytes(&format!("{studio}/index/shared_indexes/jdk.ijx"), 16 * KB)
 }

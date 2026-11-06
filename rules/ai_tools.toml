@@ -1,0 +1,37 @@
+# AI coding tool rules. Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# Claude Code keeps its conversations in ~/.claude/projects, one folder per
+# project folder it was used in. That is review-only in protected-paths.md
+# (AI-tool session history). Everything else in ~/.claude (settings,
+# CLAUDE.md, the local install) is never matched.
+
+[[rule]]
+id = "claude_code.conversations"
+version = 1
+match.path = ".claude/projects/*"
+match.requires = ["*.jsonl"]
+category = "app_data"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "Claude Code conversations"
+explain = "Saved Claude Code conversations from one project folder, used to resume or look back at past sessions."
+risk = "You can no longer resume or look back at these conversations. The project's own files are not affected."
+action = "trash"
+
+[[rule]]
+id = "claude_code.logs"
+version = 1
+match.path = "Library/Caches/claude-cli-nodejs"
+category = "logs"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = false
+mode = "developer"
+title = "Claude Code logs"
+explain = "Records Claude Code writes about its tool connections (MCP servers), mainly to help find problems."
+risk = "If you are looking into a problem with a tool connection, its older records are gone."
+action = "trash"

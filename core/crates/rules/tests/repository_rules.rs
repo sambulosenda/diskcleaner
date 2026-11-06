@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 
 use common::repo_root;
 use fixtures::{paths, Manifest};
-use rules::{load_dir, Glob, Rule, Tier};
+use rules::{load_dir, Category, Glob, Rule, Tier};
 
 /// Every rule in `rules/`, failing the test if any has a problem.
 fn repo_rules() -> Vec<Rule> {
@@ -96,6 +96,37 @@ fn the_t07_rules_are_all_there() {
         "slack.cache",
         "logs.user",
         "ios.software_update",
+        // Android
+        "android.gradle_caches",
+        "android.gradle_wrapper",
+        "android.system_image",
+        "android.ndk",
+        "android.emulator",
+        "android.studio_cache",
+        // Rust
+        "rust.cargo_registry_cache",
+        "rust.cargo_registry_src",
+        "rust.toolchain",
+        "rust.target",
+        "rust.target_developer",
+        "rust.target_code",
+        "rust.target_dev",
+        "rust.target_src",
+        "rust.target_repos",
+        "rust.target_github",
+        "rust.target_documents",
+        "rust.target_home",
+        // AI tools
+        "claude_code.conversations",
+        "claude_code.logs",
+        // Editors
+        "cursor.cache",
+        "cursor.cached_data",
+        "cursor.extension_downloads",
+        "vscode.cache",
+        "vscode.cached_data",
+        "vscode.extension_downloads",
+        "jetbrains.cache",
     ]
     .into_iter()
     .map(str::to_string)
@@ -227,6 +258,156 @@ fn rules_match_exactly_the_expected_fixture_items() {
 }
 
 #[test]
+fn android_rust_ai_and_editor_rules_match_exactly_the_expected_items() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let one = |p: &str| -> BTreeSet<String> { [p.to_string()].into_iter().collect() };
+
+    assert_eq!(found("android.gradle_caches"), one(paths::GRADLE_CACHES));
+    assert_eq!(
+        found("android.gradle_wrapper"),
+        paths::GRADLE_VERSIONS
+            .iter()
+            .map(|v| format!("{}/{v}", paths::GRADLE_DISTS))
+            .collect()
+    );
+    assert_eq!(
+        found("android.system_image"),
+        paths::ANDROID_SYSTEM_IMAGE_APIS
+            .iter()
+            .map(|api| format!(
+                "{}/system-images/android-{api}/google_apis/arm64-v8a",
+                paths::ANDROID_SDK
+            ))
+            .collect()
+    );
+    assert_eq!(
+        found("android.ndk"),
+        one(&format!(
+            "{}/ndk/{}",
+            paths::ANDROID_SDK,
+            paths::ANDROID_NDK
+        ))
+    );
+    // The `.avd` folders only, never the `.ini` files beside them.
+    assert_eq!(
+        found("android.emulator"),
+        paths::ANDROID_AVD_NAMES
+            .iter()
+            .map(|n| format!("{}/{n}.avd", paths::ANDROID_AVD))
+            .collect()
+    );
+    assert_eq!(
+        found("android.studio_cache"),
+        one(paths::ANDROID_STUDIO_CACHE)
+    );
+
+    assert_eq!(
+        found("rust.cargo_registry_cache"),
+        one(paths::CARGO_REGISTRY_CACHE)
+    );
+    assert_eq!(
+        found("rust.cargo_registry_src"),
+        one(paths::CARGO_REGISTRY_SRC)
+    );
+    assert_eq!(
+        found("rust.toolchain"),
+        paths::RUSTUP_TOOLCHAIN_NAMES
+            .iter()
+            .map(|n| format!("{}/{n}", paths::RUSTUP_TOOLCHAINS))
+            .collect()
+    );
+    let target_rules = [
+        "rust.target",
+        "rust.target_developer",
+        "rust.target_code",
+        "rust.target_dev",
+        "rust.target_src",
+        "rust.target_repos",
+        "rust.target_github",
+        "rust.target_documents",
+        "rust.target_home",
+    ];
+    for (id, project) in target_rules.iter().zip(paths::RUST_PROJECTS) {
+        assert_eq!(found(id), one(&format!("{project}/target")), "{id}");
+    }
+
+    assert_eq!(
+        found("claude_code.conversations"),
+        one(paths::CLAUDE_CONVERSATIONS)
+    );
+    assert_eq!(found("claude_code.logs"), one(paths::CLAUDE_LOGS));
+
+    for (prefix, app) in [
+        ("cursor", paths::CURSOR_DATA),
+        ("vscode", paths::VSCODE_DATA),
+    ] {
+        let ids = ["cache", "cached_data", "extension_downloads"];
+        for (id, folder) in ids.iter().zip(paths::EDITOR_CACHE_FOLDERS) {
+            let id = format!("{prefix}.{id}");
+            assert_eq!(found(&id), one(&format!("{app}/{folder}")), "{id}");
+        }
+    }
+    assert_eq!(found("jetbrains.cache"), one(paths::JETBRAINS_CACHE));
+}
+
+#[test]
+fn no_rule_matches_a_folder_called_target_that_is_not_cargos() {
+    let (_dir, manifest) = fixture_manifest();
+    for r in repo_rules() {
+        let hits = matches_in(&r, &manifest);
+        for trap in [paths::TRAP_PLAIN_TARGET, paths::TRAP_HALF_TARGET] {
+            assert!(!hits.iter().any(|h| h == trap), "{} matches {trap}", r.id);
+        }
+    }
+}
+
+#[test]
+fn no_rule_matches_tool_settings_installs_or_git_checkouts() {
+    let (_dir, manifest) = fixture_manifest();
+    let never = [
+        paths::CARGO_BIN,
+        paths::CARGO_CREDENTIALS,
+        paths::CARGO_GIT_CHECKOUT,
+        paths::RUSTUP_SETTINGS,
+        paths::CLAUDE_SETTINGS,
+        paths::CURSOR_CHAT_DB,
+        ".cargo",
+        ".cargo/bin",
+        ".cargo/git",
+        ".cargo/registry",
+        ".rustup",
+        ".claude",
+        ".claude/projects",
+        ".claude/CLAUDE.md",
+        ".gradle",
+        ".android",
+        ".android/avd",
+        "Library/Android/sdk",
+        "Library/Application Support/Cursor",
+        "Library/Application Support/Cursor/User",
+        "Library/Application Support/Code/User/settings.json",
+    ];
+    for r in repo_rules() {
+        let hits = matches_in(&r, &manifest);
+        for p in never {
+            assert!(
+                !hits
+                    .iter()
+                    .any(|h| h == p || p.starts_with(&format!("{h}/"))),
+                "{} matches {p} or a folder holding it",
+                r.id
+            );
+        }
+    }
+}
+
+#[test]
 fn no_rule_matches_personal_or_sign_in_data() {
     let rules = repo_rules();
     let must_not_match = [
@@ -282,11 +463,12 @@ fn items_that_cannot_come_back_are_never_preselected_without_review() {
     for r in repo_rules() {
         if !r.regenerable && r.tier == Tier::LikelySafe {
             // Only logs are allowed this: they are not needed, but do not come back.
-            assert_eq!(
-                r.id, "logs.user",
+            assert!(
+                ["logs.user", "claude_code.logs"].contains(&r.id.as_str()),
                 "{} is likely_safe but not regenerable",
                 r.id
             );
+            assert_eq!(r.category, Category::Logs, "{}", r.id);
         }
     }
 }
