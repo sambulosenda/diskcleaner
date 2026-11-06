@@ -3,7 +3,7 @@
 
 [[rule]]
 id = "ios.device_backup"
-version = 1
+version = 2
 match.path = "Library/Application Support/MobileSync/Backup/*"
 match.requires = ["Info.plist"]
 category = "backups"
@@ -14,7 +14,7 @@ mode = "simple"
 per_item = true
 title = "iPhone or iPad backup"
 explain = "A full local backup of one of your devices."
-risk = "If this device has no iCloud backup, its data could be lost for good."
+risk = "This may be your only copy of this iPhone or iPad. Check it's backed up to iCloud first, or its photos, messages and other data could be lost for good."
 action = "trash"
 
 [[rule]]

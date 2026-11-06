@@ -600,7 +600,8 @@ fn developer_mode_everything_chosen_alone() {
 
 #[test]
 fn developer_mode_everything_chosen_as_a_group() {
-    run(Mode::Developer, Pick::Everything, false);
+    let c = run(Mode::Developer, Pick::Everything, false);
+    assert!(!c.moved.is_empty());
 }
 
 #[test]
@@ -611,7 +612,8 @@ fn simple_mode_likely_safe() {
 
 #[test]
 fn simple_mode_everything_chosen_alone() {
-    run(Mode::Simple, Pick::Everything, true);
+    let c = run(Mode::Simple, Pick::Everything, true);
+    assert!(!c.moved.is_empty());
 }
 
 /// Things already in the Trash, with the same names as the items that will

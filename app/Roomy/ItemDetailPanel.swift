@@ -47,6 +47,9 @@ struct ItemDetailContent: View {
                         TierLabel(tier: detail.tier)
                     }
                 }
+                if let backup = detail.deviceBackup {
+                    BackupWarningBox(backup: backup)
+                }
                 DetailSection(title: "What it is", text: detail.explain)
                 DetailSection(title: "Why it's here", text: ItemDetailText.whyHere(detail))
                 DetailSection(title: "If you remove it", text: detail.risk)
@@ -119,6 +122,89 @@ private struct LabeledRow: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The warning for an iPhone or iPad backup: which device it is, when it was last backed up, and to
+/// check iCloud first. Shown in the detail panel and the cleanup review whenever the core says an item
+/// is a device backup, even if it couldn't read the device's details.
+struct BackupWarningBox: View {
+    let backup: DeviceBackup
+    var compact = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(BackupWarning.headline(backup))
+                    .font(compact ? .callout.weight(.semibold) : .body.weight(.semibold))
+                Text(compact ? BackupWarning.shortDetails(backup) : BackupWarning.details(backup))
+                    .font(compact ? .callout : .body)
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(compact ? 8 : 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Warning. \(BackupWarning.headline(backup)) \(BackupWarning.details(backup))")
+    }
+}
+
+/// The words of the device backup warning, kept together so tests can check them.
+enum BackupWarning {
+    /// The device's name, or a plain description when the core couldn't read it.
+    static func device(_ backup: DeviceBackup) -> String {
+        backup.deviceName ?? "this iPhone or iPad"
+    }
+
+    /// "This may be your only copy of Sam's iPhone."
+    static func headline(_ backup: DeviceBackup) -> String {
+        "This may be your only copy of \(device(backup))."
+    }
+
+    /// When it was last backed up, then what to check.
+    static func details(
+        _ backup: DeviceBackup,
+        locale: Locale = .current,
+        timeZone: TimeZone = .current
+    ) -> String {
+        [lastBackedUp(backup, locale: locale, timeZone: timeZone), checkICloud].joined(separator: " ")
+    }
+
+    /// The same, without the steps, for a row in the cleanup review.
+    static func shortDetails(
+        _ backup: DeviceBackup,
+        locale: Locale = .current,
+        timeZone: TimeZone = .current
+    ) -> String {
+        [lastBackedUp(backup, locale: locale, timeZone: timeZone), "Check it's backed up to iCloud first."]
+            .joined(separator: " ")
+    }
+
+    static let checkICloud =
+        "Check it's backed up to iCloud first: on the device, open Settings, tap your name, "
+        + "then iCloud, then iCloud Backup."
+
+    /// "Last backed up on 30 October 2026." or a plain line when the date is unknown.
+    static func lastBackedUp(
+        _ backup: DeviceBackup,
+        locale: Locale = .current,
+        timeZone: TimeZone = .current
+    ) -> String {
+        guard let seconds = backup.lastBackupUnixSeconds else {
+            return "Roomy couldn't tell when it was last backed up to this Mac."
+        }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        let date = Date(timeIntervalSince1970: TimeInterval(seconds))
+        return "Last backed up to this Mac on \(formatter.string(from: date))."
     }
 }
 

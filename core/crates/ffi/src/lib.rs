@@ -12,6 +12,7 @@
 //! the core except in the T02 `disk_summary` command and the test-only
 //! commands behind the `testing` feature.
 
+mod backup;
 mod cleanup;
 mod embedded_rules;
 mod engine;
@@ -30,9 +31,9 @@ pub use engine::RoomyCore;
 pub use testing::make_fixture_home;
 pub use types::{
     Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupHandle,
-    CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, HistoryEntry,
-    HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
-    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup,
+    HistoryEntry, HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode, Overview,
+    PlanHandle, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

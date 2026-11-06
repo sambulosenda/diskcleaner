@@ -142,7 +142,8 @@ final class MockCoreClient: CoreClient {
             }
             let path = modes[handle] == .developer ? "~/Library/Mock/\(item.id)" : nil
             rows.append(CleanupPreviewItem(itemId: item.id, title: item.title, sizeBytes: item.sizeBytes,
-                                           check: check, path: path))
+                                           check: check, path: path,
+                                           deviceBackup: MockData.deviceBackup(for: item)))
         }
         let moving = rows.filter { $0.check == .willMove }
         var plan: PlanHandle?
@@ -294,8 +295,16 @@ enum MockData {
             action: item.tier == .keep ? .showOnly : .trash,
             command: nil,
             cautions: item.tier == .reviewFirst ? [.reviewOnly] : [],
-            path: mode == .developer ? "~/Library/Mock/\(item.id)" : nil
+            path: mode == .developer ? "~/Library/Mock/\(item.id)" : nil,
+            deviceBackup: deviceBackup(for: item)
         )
+    }
+
+    /// The device details the core reads from a backup's Info.plist, for the mock iPhone backup only.
+    static func deviceBackup(for item: ItemSummary) -> DeviceBackup? {
+        guard item.id == "iphone-backup" else { return nil }
+        // 14 March 2026, 09:30 UTC.
+        return DeviceBackup(deviceName: "Sam's iPhone", lastBackupUnixSeconds: 1_773_480_600)
     }
 
     /// The Overview a finished scan returns, built the way the contract defines each field.

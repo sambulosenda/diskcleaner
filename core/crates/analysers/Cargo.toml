@@ -6,3 +6,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
+libc = "0.2"
+plist = "1"
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
