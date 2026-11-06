@@ -4,5 +4,15 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+description = "Matches scan results to rules. Pure: never touches the filesystem."
 
 [dependencies]
+rules = { path = "../rules" }
+safety = { path = "../safety" }
+scanner = { path = "../scanner" }
+sha2 = "0.10"
+tracing = "0.1"
+
+[dev-dependencies]
+fixtures = { path = "../fixtures" }
+tempfile = "3"

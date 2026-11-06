@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 pub use error::{Problem, RuleError};
-pub use glob::{Glob, GlobProblem};
+pub use glob::{FoldedPath, Glob, GlobProblem};
 
 /// Generates a plain enum with serde names and a `NAMES` list, so that the
 /// readable "use one of" messages always list exactly what serde accepts.

@@ -12,8 +12,8 @@ use std::sync::{mpsc, Mutex};
 use rayon::prelude::*;
 
 use crate::largest::Largest;
-use crate::result::{Dir, ScanResult, Unreadable, UnreadableReason};
-use crate::{ScanError, ScanOptions, ScanProgress};
+use crate::result::{Dir, FileEntry, ScanResult, Unreadable, UnreadableReason};
+use crate::{RecordFiles, ScanError, ScanOptions, ScanProgress};
 
 /// Stack size for walk threads. The walk recurses once per folder level and
 /// rayon may stack stolen work on top, so leave plenty of room.
@@ -29,11 +29,15 @@ struct Node {
     own_logical: u64,
     own_files: u64,
     unreadable: bool,
+    has_git: bool,
+    files: Vec<FileEntry>,
     children: Vec<Node>,
 }
 
 /// State shared by every worker thread.
 struct Shared<'a> {
+    root: &'a Path,
+    record_files: Option<&'a RecordFiles>,
     dev: u64,
     cancel: &'a AtomicBool,
     largest: Largest,
@@ -63,7 +67,13 @@ pub fn run(
     progress: &impl Fn(ScanProgress),
 ) -> Result<ScanResult, ScanError> {
     let pool = build_pool(opts.threads)?;
-    let shared = Shared::new(root_meta.dev(), &opts.cancel, opts.largest_files);
+    let shared = Shared::new(
+        root,
+        opts.record_files.as_ref(),
+        root_meta.dev(),
+        &opts.cancel,
+        opts.largest_files,
+    );
     let (tx, rx) = mpsc::channel();
     let root_node = pool.in_place_scope(|scope| {
         let shared = &shared;
@@ -118,6 +128,8 @@ fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Shared<'_>) -
         own_logical: 0,
         own_files: 0,
         unreadable: false,
+        has_git: false,
+        files: Vec::new(),
         children: Vec::new(),
     };
     shared.dirs.fetch_add(1, Ordering::Relaxed);
@@ -144,6 +156,7 @@ fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Shared<'_>) -
 /// sub-folders on the same volume, sorted by name.
 fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec<SubDir>> {
     let mut subdirs = Vec::new();
+    let record = shared.wants_files(path);
     for (i, entry) in fs::read_dir(path)?.enumerate() {
         if i % CANCEL_CHECK_EVERY == 0 && shared.cancelled() {
             break;
@@ -159,6 +172,9 @@ fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec
             }
         };
         let file_type = meta.file_type();
+        if is_git_name(&entry.file_name()) {
+            node.has_git = true;
+        }
         if file_type.is_dir() {
             if meta.dev() != shared.dev {
                 shared.record_other_volume(entry.path());
@@ -184,13 +200,26 @@ fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec
             node.own_files += 1;
             node.own_logical += meta.len();
             shared.files.fetch_add(1, Ordering::Relaxed);
+            if record {
+                node.files.push(FileEntry {
+                    name: entry.file_name(),
+                    allocated_bytes: bytes,
+                    logical_bytes: meta.len(),
+                });
+            }
             shared
                 .largest
                 .offer(bytes, meta.len(), meta.modified().ok(), || entry.path());
         }
     }
     subdirs.sort_by(|a, b| a.name.cmp(&b.name));
+    node.files.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(subdirs)
+}
+
+/// Whether a name is `.git`, ignoring ASCII case.
+fn is_git_name(name: &std::ffi::OsStr) -> bool {
+    name.as_encoded_bytes().eq_ignore_ascii_case(b".git")
 }
 
 /// Space on disk: `st_blocks` is always in 512-byte units.
@@ -199,8 +228,16 @@ fn allocated(meta: &Metadata) -> u64 {
 }
 
 impl<'a> Shared<'a> {
-    fn new(dev: u64, cancel: &'a AtomicBool, largest_files: usize) -> Self {
+    fn new(
+        root: &'a Path,
+        record_files: Option<&'a RecordFiles>,
+        dev: u64,
+        cancel: &'a AtomicBool,
+        largest_files: usize,
+    ) -> Self {
         Self {
+            root,
+            record_files,
             dev,
             cancel,
             largest: Largest::new(largest_files),
@@ -213,6 +250,17 @@ impl<'a> Shared<'a> {
             symlinks: AtomicU64::new(0),
             hard_links_skipped: AtomicU64::new(0),
             entries_skipped: AtomicU64::new(0),
+        }
+    }
+
+    /// Whether the caller asked for the files in folder `path` to be listed.
+    fn wants_files(&self, path: &Path) -> bool {
+        let Some(RecordFiles(want)) = self.record_files else {
+            return false;
+        };
+        match path.strip_prefix(self.root) {
+            Ok(rel) => want(rel),
+            Err(_) => false,
         }
     }
 
@@ -308,6 +356,8 @@ fn flatten(root: Node) -> Vec<Dir> {
             total_logical_bytes: node.own_logical,
             total_files: node.own_files,
             unreadable: node.unreadable,
+            has_git: node.has_git,
+            files: node.files,
         });
         if let Some(p) = parent {
             dirs[p].children.push(id);

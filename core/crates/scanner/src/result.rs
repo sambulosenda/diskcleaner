@@ -26,6 +26,25 @@ pub struct Dir {
     pub total_files: u64,
     /// The folder could not be listed, so its contents are not counted.
     pub unreadable: bool,
+    /// The folder directly holds an entry named `.git` (any type, any
+    /// case), so it is probably a git repository.
+    pub has_git: bool,
+    /// The plain files directly in this folder, sorted by name. Only filled
+    /// in for folders that [`crate::ScanOptions::record_files`] asked for;
+    /// empty otherwise. Symlinks and repeat names of hard-linked files are
+    /// never listed.
+    pub files: Vec<FileEntry>,
+}
+
+/// One plain file, recorded only in folders the caller asked about.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileEntry {
+    /// The file's name.
+    pub name: OsString,
+    /// Space on disk (`st_blocks * 512`).
+    pub allocated_bytes: u64,
+    /// File length.
+    pub logical_bytes: u64,
 }
 
 /// A large file kept for E2.

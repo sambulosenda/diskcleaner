@@ -29,7 +29,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub use result::{Dir, DirId, LargeFile, ScanResult, Unreadable, UnreadableReason};
+pub use result::{Dir, DirId, FileEntry, LargeFile, ScanResult, Unreadable, UnreadableReason};
 
 /// How many of the largest files E2 asks for.
 pub const DEFAULT_LARGEST_FILES: usize = 500;
@@ -46,6 +46,25 @@ pub struct ScanOptions {
     pub threads: Option<usize>,
     /// How often the progress callback is called while the scan runs.
     pub progress_interval: Duration,
+    /// Folders whose files should be listed by name in [`Dir::files`].
+    /// `None` (the default) lists none.
+    pub record_files: Option<RecordFiles>,
+}
+
+/// Says which folders should have their files listed by name.
+///
+/// The function is called once per folder with its path relative to the
+/// scan root (empty for the root itself) and returns `true` to list the
+/// plain files directly in it. The classifier uses this to see the few
+/// files its rules name, without the scan keeping every file name in
+/// memory.
+#[derive(Clone)]
+pub struct RecordFiles(pub Arc<dyn Fn(&Path) -> bool + Send + Sync>);
+
+impl std::fmt::Debug for RecordFiles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("RecordFiles(..)")
+    }
 }
 
 impl Default for ScanOptions {
@@ -55,6 +74,7 @@ impl Default for ScanOptions {
             largest_files: DEFAULT_LARGEST_FILES,
             threads: None,
             progress_interval: Duration::from_millis(100),
+            record_files: None,
         }
     }
 }
