@@ -1,0 +1,91 @@
+# Local AI model rules (PRD D12). Every rule's wording and tier needs Sam's
+# sign-off. Bump `version` on any change to a rule.
+#
+# Models are large and can take hours to download again, and some were
+# imported by hand or need an account to download, so every rule here is
+# review_first and none is regenerable (Trash only, never permanent delete).
+#
+# Ollama keeps its models in ~/.ollama/models as shared layers ("blobs"),
+# so one model's files can't be told apart from another's and moving
+# folders by hand would break other models. That rule is show_only and
+# points to `ollama rm`. ~/.ollama itself also holds Ollama's private key
+# (id_ed25519) and history, which no rule matches.
+
+[[rule]]
+id = "ollama.models"
+version = 1
+match.path = ".ollama/models"
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+title = "Ollama models"
+explain = "AI models you downloaded with Ollama to run on this Mac. Models share parts, so Roomy shows their total size only."
+risk = "Removing models by hand would break the ones you keep. Use Ollama's own command instead."
+restore = "To remove one model, run: ollama rm <model name>. To get it back, run: ollama pull <model name>."
+action = "show_only"
+
+[[rule]]
+id = "lm_studio.model"
+version = 1
+match.path = ".lmstudio/models/[!.]*/[!.]*"
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "LM Studio model"
+explain = "One AI model you downloaded or added to LM Studio to run on this Mac."
+risk = "LM Studio can no longer run this model. A model you added yourself may not be downloadable again."
+restore = "Download it again from LM Studio's Discover tab."
+action = "trash"
+
+[[rule]]
+id = "lm_studio.model_legacy"
+version = 1
+match.path = ".cache/lm-studio/models/[!.]*/[!.]*"
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "LM Studio model (older folder)"
+explain = "One AI model kept in the folder older versions of LM Studio used."
+risk = "LM Studio can no longer run this model. A model you added yourself may not be downloadable again."
+restore = "Download it again from LM Studio's Discover tab."
+action = "trash"
+
+[[rule]]
+id = "huggingface.model"
+version = 1
+match.path = ".cache/huggingface/hub/models--*"
+category = "cache"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "Hugging Face model"
+explain = "One AI model that Python tools downloaded from Hugging Face and keep for the next run."
+risk = "The next run downloads the model again, which can be slow. Some models need you to sign in first."
+restore = "Downloads again the next time a tool uses this model."
+action = "trash"
+
+[[rule]]
+id = "huggingface.dataset"
+version = 1
+match.path = ".cache/huggingface/hub/datasets--*"
+category = "cache"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+per_item = true
+title = "Hugging Face dataset"
+explain = "One dataset that Python tools downloaded from Hugging Face and keep for the next run."
+risk = "The next run downloads the dataset again, which can be slow. Some datasets need you to sign in first."
+restore = "Downloads again the next time a tool uses this dataset."
+action = "trash"

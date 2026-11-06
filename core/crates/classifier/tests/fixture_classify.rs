@@ -244,6 +244,29 @@ fn more_developer_items(want: &mut BTreeMap<String, &'static str>) {
     for b in paths::PUPPETEER_BROWSERS {
         want.insert(join(paths::PUPPETEER_HOME, b), "puppeteer.browser");
     }
+    ai_model_items(want);
+}
+
+/// Items for the local AI model rules: Ollama, LM Studio and Hugging Face.
+fn ai_model_items(want: &mut BTreeMap<String, &'static str>) {
+    want.insert(paths::OLLAMA_MODELS.to_string(), "ollama.models");
+    for m in paths::LM_STUDIO_MODEL_NAMES {
+        want.insert(join(paths::LM_STUDIO_MODELS, m), "lm_studio.model");
+    }
+    want.insert(
+        join(
+            paths::LM_STUDIO_LEGACY_MODELS,
+            paths::LM_STUDIO_LEGACY_MODEL,
+        ),
+        "lm_studio.model_legacy",
+    );
+    for m in paths::HUGGINGFACE_MODELS {
+        want.insert(join(paths::HUGGINGFACE_HUB, m), "huggingface.model");
+    }
+    want.insert(
+        join(paths::HUGGINGFACE_HUB, paths::HUGGINGFACE_DATASET),
+        "huggingface.dataset",
+    );
 }
 
 /// Every rule item the fixture should give in simple mode.
@@ -377,6 +400,9 @@ const TRAPS: &[&str] = &[
     paths::MOBILESYNC_BACKUP,
     paths::XCODE_ARCHIVE,
     paths::ANDROID_AVD,
+    paths::TRAP_OLLAMA_KEY,
+    paths::TRAP_LM_STUDIO_CONVERSATIONS,
+    paths::TRAP_HUGGINGFACE_TOKEN,
 ];
 
 /// Symlink traps: nothing may be classified at or below them, because

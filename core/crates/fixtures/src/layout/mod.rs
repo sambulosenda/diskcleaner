@@ -2,6 +2,7 @@
 //!
 //! Sizes are small (a few KB) so a whole fixture stays well under 20 MB.
 
+pub mod ai_models;
 pub mod android;
 pub mod creative;
 pub mod devtools;
