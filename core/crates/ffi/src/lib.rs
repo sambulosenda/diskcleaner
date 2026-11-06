@@ -4,7 +4,8 @@
 //! `docs/command-contract.md`. Nothing in this crate itself modifies the
 //! filesystem (History writes only its own database, in its own crate):
 //! scans are read only, `disk_summary` reads volume metadata only (via
-//! `statfs`), and the cleanup preview runs the executor's read-only checks.
+//! `statfs`), the low-space check is pure arithmetic on a number the app
+//! passes in, and the cleanup preview runs the executor's read-only checks.
 //! The cleanup and put-back commands hand a plan to the `executor` crate,
 //! which is the only code that moves files.
 //!
@@ -18,6 +19,7 @@ mod cleanup;
 mod embedded_rules;
 mod engine;
 mod folders;
+mod low_space;
 mod run;
 #[cfg(feature = "testing")]
 mod testing;
@@ -29,6 +31,9 @@ use std::mem::MaybeUninit;
 use std::path::Path;
 
 pub use engine::RoomyCore;
+pub use low_space::{
+    check_low_space, low_space_default_threshold, low_space_threshold_choices, LowSpaceCheck,
+};
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{

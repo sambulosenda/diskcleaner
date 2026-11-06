@@ -444,6 +444,28 @@ All of these only read. They run in `preview_cleanup` and again in `run_cleanup`
 ### `HistoryItemState` (enum)
 `moved`, `not_moved { reason }`, `put_back`, `stayed_in_trash { reason }`.
 
+## Low-space alerts
+
+Free functions, not methods on `RoomyCore`. Pure arithmetic: they read nothing and change nothing.
+The app reads free space with `disk_summary(path)` and passes the number in. Nothing here can start
+a scan or a cleanup; an alert only tells the user.
+
+### `check_low_space(free_bytes: u64, threshold_bytes: u64, warned: bool) -> LowSpaceCheck`
+Decides whether free space is low and whether to show a notification now. `warned` is the value
+the previous call returned (false the first time). The threshold is kept between 1 GB and 200 GB.
+An alert fires once when free space drops below the threshold, and cannot fire again until free
+space climbs back above the threshold by a margin (a tenth of the threshold, at least 1 GB).
+
+### `low_space_threshold_choices() -> [u64]`
+The thresholds Settings offers, in bytes, smallest first: 5, 10, 20 and 50 GB.
+
+### `low_space_default_threshold() -> u64`
+The threshold used until the user picks one: 10 GB.
+
+### `LowSpaceCheck` (record)
+`is_low: bool`, `should_alert: bool`, `warned: bool` (pass back next time), `threshold_bytes: u64`
+(after clamping).
+
 ## Testing
 
 The `ffi` crate has a `testing` Cargo feature. With it, and only with it, the core also exports:

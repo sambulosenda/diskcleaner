@@ -1,9 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// The Settings window (⌘,): the mode picker and the folders Roomy must keep.
+/// The Settings window (⌘,): the mode picker, low-space alerts and the folders Roomy must keep.
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
+    /// The menu bar item and low-space alert settings.
+    @ObservedObject var lowSpace: LowSpaceMonitor
 
     var body: some View {
         Form {
@@ -22,6 +24,10 @@ struct SettingsView: View {
 
             FullDiskAccessSetting()
                 .padding(.top, 8)
+
+            Divider().padding(.vertical, 8)
+
+            LowSpaceSettingsSection(monitor: lowSpace)
 
             Divider().padding(.vertical, 8)
 

@@ -9,11 +9,14 @@ struct RoomyApp: App {
     )
     /// Sparkle updates. Off in development builds; see UpdaterController.
     @StateObject private var updater = UpdaterController()
+    /// Free space for the menu bar item and the low-space alert. Read only.
+    @StateObject private var lowSpace = LowSpaceMonitor.live()
 
     var body: some Scene {
         Window("Roomy", id: "main") {
             ContentView()
                 .environmentObject(model)
+                .background(MainWindowOpener(monitor: lowSpace))
         }
         .defaultSize(width: 1120, height: 740)
         .commands {
@@ -29,8 +32,15 @@ struct RoomyApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(lowSpace: lowSpace)
                 .environmentObject(model)
         }
+
+        MenuBarExtra(isInserted: $lowSpace.showInMenuBar) {
+            MenuBarMenu(monitor: lowSpace)
+        } label: {
+            MenuBarLabel(monitor: lowSpace)
+        }
+        .menuBarExtraStyle(.menu)
     }
 }
