@@ -322,6 +322,18 @@ impl RoomyCore {
         Ok(detail)
     }
 
+    /// What the JavaScript screen shows: each project's `node_modules` with
+    /// when the project was last worked on, and the package managers'
+    /// caches. Reads only the modified times of each project's
+    /// `package.json`, lock files and git files.
+    pub fn javascript_projects(
+        &self,
+        handle: ScanHandle,
+    ) -> Result<crate::javascript::JavaScriptOverview, CoreError> {
+        let f = self.finished(handle)?;
+        Ok(crate::javascript::overview(&f))
+    }
+
     /// The dry run: checks the ticked items exactly as a cleanup would, just
     /// before it acts, and says what would move to the Trash. Moves nothing.
     ///

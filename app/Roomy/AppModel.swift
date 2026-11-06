@@ -99,6 +99,33 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
+    /// What the JavaScript screen shows.
+    enum JavaScriptState: Equatable {
+        /// Not on the screen, or no scan has finished.
+        case idle
+        /// Asking the core for the projects.
+        case loading
+        /// The projects and caches.
+        case loaded(JavaScriptOverview)
+        /// The core could not list them. The text is ready to show.
+        case failed(String)
+    }
+
+    /// How the JavaScript screen orders its projects.
+    enum JavaScriptSort: String, CaseIterable {
+        /// Largest `node_modules` first.
+        case largestFirst
+        /// The project worked on longest ago first; projects with no date come last.
+        case leastRecent
+
+        var label: String {
+            switch self {
+            case .largestFirst: return "Largest first"
+            case .leastRecent: return "Not worked on longest"
+            }
+        }
+    }
+
     static let modeKey = "roomy.mode"
     /// Set once the Full Disk Access screen has been shown and closed, or once access was found on.
     static let accessOnboardingKey = "roomy.onboarding.fullDiskAccessDone"
@@ -156,6 +183,8 @@ final class AppModel: ObservableObject {
     /// Why the last change to the kept folders didn't work, shown in Settings.
     @Published private(set) var protectedFoldersMessage: String?
     /// The app uninstaller's list of apps.
+    @Published private(set) var javascriptState: JavaScriptState = .idle
+    @Published var javascriptSort: JavaScriptSort = .largestFirst
     @Published private(set) var appsState: AppsState = .idle
     /// The app chosen in the uninstaller.
     @Published var selectedAppID: String? = nil {
@@ -183,6 +212,7 @@ final class AppModel: ObservableObject {
     private var detailTask: Task<Void, Never>?
     private var cleanupTask: Task<Void, Never>?
     private var appsTask: Task<Void, Never>?
+    private var javascriptTask: Task<Void, Never>?
     private var appReviewTask: Task<Void, Never>?
     /// A put back started from History, with no sheet open.
     private var putBackTask: Task<Void, Never>?
@@ -366,6 +396,71 @@ final class AppModel: ObservableObject {
     private func rescanIfNeeded() {
         guard needsRescan, !isScanning, cleanupState == .closed else { return }
         startScan()
+    }
+
+    // MARK: - JavaScript
+
+    /// Asks the core for the JavaScript screen's projects and caches, from the finished scan.
+    private func reloadJavaScript() {
+        javascriptTask?.cancel()
+        guard selection == .javascript, let handle = loadedHandle, overview != nil else {
+            javascriptState = .idle
+            return
+        }
+        javascriptState = .loading
+        let client = self.client
+        javascriptTask = Task { [weak self] in
+            do {
+                let overview = try await client.javascriptProjects(handle: handle)
+                guard !Task.isCancelled, let self else { return }
+                self.javascriptState = .loaded(overview)
+                let ids = Set(overview.projects.map(\.item.id) + overview.caches.map(\.id))
+                if let selected = self.selectedItemID, !ids.contains(selected) { self.selectedItemID = nil }
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.javascriptState = .failed(Self.message(for: error))
+            }
+        }
+    }
+
+    /// The projects to show: matching the search field (name, folder or package manager), in the chosen
+    /// order. Ties are broken by item id, as the core does.
+    var visibleJavaScriptProjects: [JsProject] {
+        guard case .loaded(let overview) = javascriptState else { return [] }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matching = query.isEmpty ? overview.projects : overview.projects.filter {
+            $0.name.localizedCaseInsensitiveContains(query)
+                || ($0.folder?.localizedCaseInsensitiveContains(query) ?? false)
+                || ($0.installCommand?.localizedCaseInsensitiveContains(query) ?? false)
+        }
+        return Self.sorted(matching, by: javascriptSort)
+    }
+
+    /// The package and tool caches to show, matching the search field.
+    var visibleJavaScriptCaches: [ItemSummary] {
+        guard case .loaded(let overview) = javascriptState else { return [] }
+        return matchingSearch(overview.caches)
+    }
+
+    /// `projects` in `sort` order, ties by item id.
+    static func sorted(_ projects: [JsProject], by sort: JavaScriptSort) -> [JsProject] {
+        switch sort {
+        case .largestFirst:
+            return projects.sorted {
+                $0.item.sizeBytes != $1.item.sizeBytes ? $0.item.sizeBytes > $1.item.sizeBytes : $0.item.id < $1.item.id
+            }
+        case .leastRecent:
+            return projects.sorted {
+                // No date sorts last: Roomy can't say it is old.
+                let a = $0.lastActivityUnixSeconds ?? Int64.max, b = $1.lastActivityUnixSeconds ?? Int64.max
+                return a != b ? a < b : $0.item.id < $1.item.id
+            }
+        }
+    }
+
+    /// Waits for the JavaScript screen to load. Used by tests.
+    func waitForJavaScript() async {
+        await javascriptTask?.value
     }
 
     // MARK: - App uninstaller
@@ -699,6 +794,7 @@ final class AppModel: ObservableObject {
         checkedSizes = [:]
         selectedItemID = nil
         reloadItems()
+        reloadJavaScript()
     }
 
     /// Asks the core for the current category screen's items.
@@ -795,6 +891,7 @@ final class AppModel: ObservableObject {
         selectedItemID = nil
         tierFilter = nil
         reloadItems()
+        reloadJavaScript()
         if selection == .history {
             Task { [weak self] in await self?.reloadHistory() }
         }

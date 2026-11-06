@@ -71,6 +71,8 @@ struct DetailView: View {
                 LibrariesScreen()
             } else if item == .docker {
                 DockerScreen()
+            } else if item == .javascript {
+                JavaScriptScreen()
             } else if item == .apps {
                 AppsScreen()
             } else if item.itemFilter != nil {

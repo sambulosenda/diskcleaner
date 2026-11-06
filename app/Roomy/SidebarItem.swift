@@ -81,9 +81,10 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     /// What this screen lists, or `nil` for screens that are not item lists (yet).
     ///
     /// The core sorts items into the rule categories of `docs/safety/rule-schema.md`; the sidebar groups
-    /// them the way the wireframe names them. Android and JavaScript need the core to group items by
-    /// tool, which it does not do yet, so they stay placeholders. Every `developer_tools` rule today is an
-    /// Xcode one, so Xcode lists that category.
+    /// them the way the wireframe names them. JavaScript has its own screen (`JavaScriptScreen`), which
+    /// groups `node_modules` by project. Android needs the core to group items by tool, which it does not
+    /// do yet, so it stays a placeholder. Every `developer_tools` rule today is an Xcode one, so Xcode
+    /// lists that category.
     var itemFilter: ItemFilter? {
         switch self {
         case .backups: return .categories([.backups])

@@ -155,6 +155,7 @@ private final class FailingCore: CoreClient {
     }
     func discardDockerCleanup(plan: DockerPlanHandle) async {}
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult { throw CoreError.HomeNotFound }
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview { throw CoreError.HomeNotFound }
     func listApps() async -> [AppSummary] { [] }
     func reviewApp(appId: String, mode: Mode) async throws -> AppReview { throw CoreError.HomeNotFound }
     func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview {

@@ -33,6 +33,11 @@ protocol CoreClient: AnyObject {
     /// Everything the detail panel shows for one item. Throws `CoreError.UnknownItem` for an unknown id.
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail
 
+    /// The JavaScript screen: each project's `node_modules` with when the project was last worked on, and
+    /// the package managers' caches, from a finished scan. Reads file dates only. Rows carry item ids, so
+    /// they are cleaned with `previewCleanup` like any item.
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview
+
     /// The dry run: checks the ticked items the way a cleanup would and says what would move to the
     /// Trash. Moves nothing. Sends item ids only, never paths.
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview
