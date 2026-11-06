@@ -215,12 +215,59 @@ pub fn usage(query: &dyn DockerQuery) -> DockerState {
 }
 
 /// Whether Docker's error says that Docker itself is not running.
+///
+/// Docker CLI 28 and later say "failed to connect to the docker API at
+/// unix://…; check if the path is correct and if the daemon is running";
+/// older versions say "Cannot connect to the Docker daemon … Is the docker
+/// daemon running?". Both, and a socket that is missing or refusing
+/// connections, mean Docker is not running.
 pub fn is_not_running(stderr: &str) -> bool {
     let lower = stderr.to_ascii_lowercase();
+    let socket_gone = lower.contains("docker.sock")
+        && (lower.contains("no such file or directory") || lower.contains("connection refused"));
     lower.contains("cannot connect to the docker daemon")
         || lower.contains("is the docker daemon running")
+        || lower.contains("failed to connect to the docker api")
+        || lower.contains("if the daemon is running")
         || lower.contains("docker desktop is not running")
         || lower.contains("error during connect")
+        || socket_gone
+}
+
+/// Docker's own error, in one short line the app can show: the first line
+/// of stderr that says something, with every path replaced by "…" so no
+/// path reaches the app, and cut to 160 characters. `None` if Docker
+/// printed nothing.
+pub fn error_line(stderr: &str) -> Option<String> {
+    let line = stderr
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty() && !l.to_ascii_lowercase().starts_with("warning"))
+        .or_else(|| stderr.lines().map(str::trim).find(|l| !l.is_empty()))?;
+    let cleaned: Vec<String> = line
+        .split_whitespace()
+        .map(|word| {
+            if word.contains('/') {
+                "…".to_string()
+            } else {
+                word.to_string()
+            }
+        })
+        .collect();
+    let mut text = cleaned.join(" ");
+    if text.chars().count() > 160 {
+        text = text.chars().take(159).collect::<String>() + "…";
+    }
+    Some(text)
+}
+
+/// "Docker said: …" for an error Roomy doesn't recognise, or `fallback`
+/// if Docker printed nothing.
+pub fn explain_failure(stderr: &str, fallback: &str) -> String {
+    match error_line(stderr) {
+        Some(line) => format!("Docker said: {line}"),
+        None => fallback.to_string(),
+    }
 }
 
 /// The state for a query that exited with an error.
@@ -230,7 +277,10 @@ fn failure_state(stderr: &str) -> DockerState {
     } else {
         tracing::warn!(stderr = %stderr.trim(), "docker system df failed");
         DockerState::Unavailable {
-            reason: "Docker reported a problem, so Roomy could not read its sizes.".to_string(),
+            reason: explain_failure(
+                stderr,
+                "Docker stopped with an error but didn't say why, so Roomy could not read its sizes.",
+            ),
         }
     }
 }
@@ -650,6 +700,35 @@ mod tests {
             usage(&ok("not json")),
             DockerState::Unavailable { .. }
         ));
+    }
+
+    #[test]
+    fn newer_docker_not_running_messages_are_recognised() {
+        // Docker CLI 28 and later.
+        assert!(is_not_running(
+            "failed to connect to the docker API at unix:///Users/me/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/me/.docker/run/docker.sock: connect: no such file or directory"
+        ));
+        assert!(is_not_running(
+            "dial unix /Users/me/.docker/run/docker.sock: connect: connection refused"
+        ));
+        assert!(!is_not_running("permission denied"));
+    }
+
+    #[test]
+    fn unknown_errors_are_shown_in_dockers_words_without_paths() {
+        let state = usage(&failed(
+            "WARNING: something minor\nerror: context \"colima\" not found: open /Users/me/.docker/contexts/meta/x/meta.json: no such file\n",
+        ));
+        let DockerState::Unavailable { reason } = state else {
+            panic!("expected unavailable");
+        };
+        assert!(
+            reason.starts_with("Docker said: error: context"),
+            "{reason}"
+        );
+        assert!(!reason.contains('/'), "{reason}");
+        assert_eq!(error_line("  \n"), None);
+        assert!(error_line(&"x".repeat(500)).unwrap().chars().count() <= 160);
     }
 
     #[test]
