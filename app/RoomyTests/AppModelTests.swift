@@ -14,11 +14,12 @@ final class AppModelTests: XCTestCase {
     }()
 
     private func makeModel(_ scenario: MockCoreClient.Scenario = .normal) -> AppModel {
-        AppModel(
+        let date = fixedDate
+        return AppModel(
             client: MockCoreClient(scenario: scenario, totalSteps: 5),
             defaults: defaults,
             pollInterval: 0,
-            now: { [fixedDate] in fixedDate }
+            now: { date }
         )
     }
 
