@@ -47,3 +47,11 @@ the app's copy of the library.
   compiled into the app's library.
 - Free space comes from `statfs` (`f_bavail`), which does not count purgeable space. Finder's figure may be
   higher. This is fine for T02; T09 can revisit it.
+
+## App shell (T10)
+- New app sources live flat in `app/Roomy/` and were added to the Roomy target's Sources by hand in `project.pbxproj`;
+  new tests in `app/RoomyTests/` were added to the RoomyTests target the same way.
+- The app runs on `MockCoreClient` until T11. Launch with `-RoomyMockScenario failure` or `-RoomyMockScenario nothingFound`
+  to see the error and nothing-found states.
+- Screenshots of every state, light and dark:
+  `TEST_RUNNER_ROOMY_SCREENSHOTS_DIR=/tmp/roomy-shots xcodebuild -scheme Roomy -destination 'platform=macOS' test -only-testing:RoomyTests/ScreenshotTests`
