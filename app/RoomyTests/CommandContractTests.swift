@@ -150,6 +150,8 @@ final class CommandContractTests: XCTestCase {
         let trash = home.appendingPathComponent(".Trash")
         try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: false)
         core = try RoomyCore.withHomeForTesting(home: home.path)
+        // The fixture was made just now: without this every item changed "in the last few minutes".
+        core.relaxInUseChecksForTesting()
         let handle = try finishedScan(.simple)
         let likely = try core.listItems(handle: handle, category: nil, tier: .likelySafe, sort: .largestFirst)
         XCTAssertFalse(likely.isEmpty)
@@ -188,6 +190,8 @@ final class CommandContractTests: XCTestCase {
         let trash = home.appendingPathComponent(".Trash")
         try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: false)
         core = try RoomyCore.withHomeForTesting(home: home.path)
+        // The fixture was made just now: without this every item changed "in the last few minutes".
+        core.relaxInUseChecksForTesting()
         let handle = try finishedScan(.simple)
         let likely = try core.listItems(handle: handle, category: nil, tier: .likelySafe, sort: .largestFirst)
         let preview = try core.previewCleanup(handle: handle, choices: likely.map {

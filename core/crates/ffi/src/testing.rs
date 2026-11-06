@@ -16,6 +16,15 @@ impl RoomyCore {
         validate_path(&home)?;
         Self::build(PathBuf::from(home))
     }
+
+    /// Switches off two of the extra cleanup checks for Swift tests: the
+    /// recent-change window (a fixture home is made moments before the test,
+    /// so everything in it changed just now) and the open-app check (the
+    /// test machine runs its own apps). The other checks stay on.
+    pub fn relax_in_use_checks_for_testing(&self) {
+        self.set_recent_change_window_for_testing(std::time::Duration::ZERO);
+        self.set_running_programs_for_testing(Some(Vec::new()));
+    }
 }
 
 /// Builds the T04 fixture home in `dir` (empty or not there yet) and returns
