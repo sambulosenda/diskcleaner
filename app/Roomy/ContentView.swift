@@ -1,38 +1,106 @@
 import SwiftUI
 
-/// Placeholder main window until the Overview screen arrives (T10).
-/// Shows the Rust core version and the free space on the home folder's disk, to prove the bridge works.
+/// The main window: sidebar, content and toolbar.
 struct ContentView: View {
-    @State private var spaceText = "Checking free space…"
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Roomy")
-                .font(.title)
-            Text("Core version \(coreVersion())")
-                .foregroundStyle(.secondary)
-            Text(spaceText)
+        NavigationSplitView {
+            SidebarView()
+                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
+        } detail: {
+            DetailView()
         }
-        .padding()
-        .frame(minWidth: 480, minHeight: 320)
-        .task {
-            spaceText = Self.describeHomeDisk()
+        .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search items")
+        .toolbar { MainToolbar(model: model) }
+        .frame(minWidth: 960, minHeight: 640)
+    }
+}
+
+/// The sidebar. Arrow keys move through it; the Developer group appears only in Developer mode.
+struct SidebarView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        List(selection: $model.selection) {
+            ForEach(model.sidebarSections, id: \.self) { items in
+                Section(header: sectionHeader(for: items)) {
+                    ForEach(items) { item in
+                        Label(item.title, systemImage: item.symbol)
+                            .tag(item)
+                    }
+                }
+            }
         }
+        .listStyle(.sidebar)
+        .accessibilityLabel("Sections")
     }
 
-    /// Asks the core for the space on the disk that holds the home folder, as a short sentence.
-    static func describeHomeDisk() -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        do {
-            let summary = try diskSummary(path: home)
-            return "\(formatBytes(summary.freeBytes)) free of \(formatBytes(summary.totalBytes))"
-        } catch {
-            return "Free space is not available right now."
+    @ViewBuilder
+    private func sectionHeader(for items: [SidebarItem]) -> some View {
+        if items == SidebarItem.developerItems {
+            Text("Developer")
+        } else if items == SidebarItem.actionItems {
+            Text("Clean up")
+        } else {
+            EmptyView()
         }
     }
+}
 
-    /// Formats a byte count the way Finder does. The core always works in bytes.
-    static func formatBytes(_ bytes: UInt64) -> String {
-        ByteCountFormatter.string(fromByteCount: Int64(clamping: bytes), countStyle: .file)
+/// The content area for the selected sidebar entry.
+struct DetailView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let item = model.selection ?? .overview
+        Group {
+            if item == .overview {
+                OverviewScreen()
+            } else {
+                PlaceholderView(item: item)
+            }
+        }
+        .navigationTitle(item.title)
+    }
+}
+
+/// Toolbar: Scan, the mode indicator, and (added by `.searchable`) the search field.
+struct MainToolbar: ToolbarContent {
+    @ObservedObject var model: AppModel
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                model.startScan()
+            } label: {
+                Label("Scan", systemImage: "arrow.clockwise")
+            }
+            .labelStyle(.titleAndIcon)
+            .disabled(model.isScanning)
+            .help("Scan this Mac (⌘R)")
+            .accessibilityLabel("Scan")
+            .accessibilityHint("Measures what is filling your Mac. Nothing is removed.")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            ModeIndicator(mode: model.mode)
+        }
+    }
+}
+
+/// Shows which mode is on, in words. The mode is changed in Settings.
+struct ModeIndicator: View {
+    let mode: Mode
+
+    var body: some View {
+        Text("\(mode.label) mode")
+            .font(.callout)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().strokeBorder(Color.secondary.opacity(0.5)))
+            .help("Change the mode in Settings (⌘,)")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(mode.label) mode")
+            .accessibilityHint("Change the mode in Settings.")
     }
 }
