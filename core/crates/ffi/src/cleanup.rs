@@ -6,7 +6,7 @@
 //! are the executor's own (`executor::preview`), so what the preview says
 //! would move is what the executor would move if nothing changes meanwhile.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::SystemTime;
 
 use executor::ItemRefusal;
@@ -41,7 +41,16 @@ struct Entry {
 /// A preview, plus the plan to keep for the run (if anything would move).
 pub(crate) struct Prepared {
     pub preview: CleanupPreview,
-    pub plan: Option<Plan>,
+    pub plan: Option<Pending>,
+}
+
+/// The plan waiting for the user, with what the History and the result
+/// screen need to name each item.
+pub(crate) struct Pending {
+    /// The single-use plan of the items that would move.
+    pub plan: Plan,
+    /// Title of each item in the plan, by item id.
+    pub titles: HashMap<String, String>,
 }
 
 /// Builds the preview for `choices` against the finished scan `f`.
@@ -159,6 +168,11 @@ fn build_dropping_refused(
 
 /// The preview the app sees, and the plan to keep.
 fn finish(entries: Vec<Entry>, plan: Option<Plan>) -> Prepared {
+    let titles: HashMap<String, String> = entries
+        .iter()
+        .filter(|e| e.wont_move.is_none())
+        .map(|e| (e.item_id.clone(), e.title.clone()))
+        .collect();
     let items: Vec<CleanupPreviewItem> = entries
         .into_iter()
         .map(|e| CleanupPreviewItem {
@@ -183,7 +197,7 @@ fn finish(entries: Vec<Entry>, plan: Option<Plan>) -> Prepared {
             bytes_to_move,
             expires_in_seconds: planner::PLAN_LIFETIME.as_secs(),
         },
-        plan,
+        plan: plan.map(|plan| Pending { plan, titles }),
     }
 }
 
@@ -209,7 +223,7 @@ fn execute_error(err: executor::ExecuteError) -> CoreError {
 }
 
 /// `text` with a capital first letter and a full stop, ready to show.
-fn sentence(text: &str) -> String {
+pub(crate) fn sentence(text: &str) -> String {
     let mut chars = text.chars();
     let mut out: String = match chars.next() {
         Some(first) => first.to_uppercase().chain(chars).collect(),

@@ -239,3 +239,165 @@ fn discard_is_safe_to_repeat() {
     let again = s.core.preview_cleanup(h, chosen(&likely)).unwrap().plan;
     assert!(again.is_some_and(|p| p.id > plan.id));
 }
+
+// ---------------------------------------------------------------------------
+// Running a cleanup, putting it back, History
+// ---------------------------------------------------------------------------
+
+/// Every path under `root`, with the size of each file and the target of
+/// each symlink, leaving out anything under the `skip` folders. Folder times
+/// are left out on purpose: moving an item changes its parent folder's.
+fn contents(root: &Path, skip: &[PathBuf]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if skip.iter().any(|s| path.starts_with(s)) {
+                continue;
+            }
+            let meta = path.symlink_metadata().unwrap();
+            let what = if meta.is_dir() {
+                stack.push(path.clone());
+                "folder".to_string()
+            } else if meta.file_type().is_symlink() {
+                format!("link to {}", fs::read_link(&path).unwrap().display())
+            } else {
+                format!("{} bytes", meta.len())
+            };
+            out.push(format!("{} {what}", path.display()));
+        }
+    }
+    out.sort();
+    out
+}
+
+/// A preview of every likely safe item, and its plan.
+fn likely_plan(s: &Setup, h: ScanHandle) -> (roomy_ffi::CleanupPreview, PlanHandle) {
+    let likely = items(&s.core, h, Tier::LikelySafe);
+    let preview = s.core.preview_cleanup(h, chosen(&likely)).unwrap();
+    let plan = preview.plan.unwrap();
+    (preview, plan)
+}
+
+/// The `~/` display path of every item that would move, as real paths.
+fn moving_paths(s: &Setup, preview: &roomy_ffi::CleanupPreview) -> Vec<PathBuf> {
+    preview
+        .items
+        .iter()
+        .filter(|i| i.check == CleanupCheck::WillMove)
+        .map(|i| {
+            s.root
+                .join(i.path.as_deref().unwrap().trim_start_matches("~/"))
+        })
+        .collect()
+}
+
+#[test]
+fn a_cleanup_moves_what_the_preview_said_and_nothing_else() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (preview, plan) = likely_plan(&s, h);
+    let moving = moving_paths(&s, &preview);
+    let mut skip = moving.clone();
+    skip.push(s.root.join(".Trash"));
+    skip.push(s.root.join(history::FOLDER));
+    let before = contents(&s.root, &skip);
+
+    let result = s.core.run_cleanup(plan).unwrap();
+
+    assert!(result.items.iter().all(|i| i.done), "{result:?}");
+    assert_eq!(result.items.len(), moving.len());
+    assert_eq!(result.bytes_moved, preview.bytes_to_move);
+    assert!(result.cleanup.is_some());
+    assert!(result.saved_to_history);
+    for path in &moving {
+        assert!(
+            path.symlink_metadata().is_err(),
+            "{} is still there",
+            path.display()
+        );
+    }
+    // Everything else is exactly as it was.
+    assert_eq!(contents(&s.root, &skip), before);
+    // The plan is used up.
+    assert!(matches!(
+        s.core.run_cleanup(plan),
+        Err(CoreError::CleanupUnavailable { .. })
+    ));
+}
+
+#[test]
+fn only_the_waiting_plan_can_run() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, old) = likely_plan(&s, h);
+    let (_, new) = likely_plan(&s, h);
+    assert!(matches!(
+        s.core.run_cleanup(old),
+        Err(CoreError::CleanupUnavailable { .. })
+    ));
+    s.core.discard_cleanup(new);
+    assert!(matches!(
+        s.core.run_cleanup(new),
+        Err(CoreError::CleanupUnavailable { .. })
+    ));
+    assert_eq!(fs::read_dir(s.root.join(".Trash")).unwrap().count(), 0);
+}
+
+#[test]
+fn put_back_restores_the_last_cleanup_once() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (preview, plan) = likely_plan(&s, h);
+    let skip = [s.root.join(history::FOLDER)];
+    let before = contents(&s.root, &skip);
+    let result = s.core.run_cleanup(plan).unwrap();
+    let cleanup = result.cleanup.unwrap();
+    assert!(!moving_paths(&s, &preview).is_empty());
+
+    let back = s.core.put_back_cleanup(cleanup).unwrap();
+
+    assert!(back.items.iter().all(|i| i.done), "{back:?}");
+    assert_eq!(back.bytes_put_back, result.bytes_moved);
+    // Every file, folder and link is back where it was, the Trash is empty.
+    assert_eq!(contents(&s.root, &skip), before);
+    // Only once.
+    assert!(matches!(
+        s.core.put_back_cleanup(cleanup),
+        Err(CoreError::NothingToPutBack)
+    ));
+    // History shows it.
+    let history = s.core.cleanup_history(10);
+    assert_eq!(history.len(), 1);
+    assert!(history[0].put_back_at.is_some());
+    assert_eq!(history[0].bytes_in_trash, 0);
+    assert!(history[0]
+        .items
+        .iter()
+        .all(|i| i.state == roomy_ffi::HistoryItemState::PutBack));
+}
+
+#[test]
+fn history_is_empty_before_any_cleanup_and_makes_no_file() {
+    let s = setup(true);
+    assert!(s.core.cleanup_history(10).is_empty());
+    assert!(!s.root.join(history::FOLDER).exists());
+}
+
+#[test]
+fn history_holds_no_paths() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, plan) = likely_plan(&s, h);
+    s.core.run_cleanup(plan).unwrap();
+    let text = format!("{:?}", s.core.cleanup_history(10));
+    assert!(!text.contains(&*s.root.to_string_lossy()), "{text}");
+    assert!(!text.contains("~/"), "{text}");
+    let db = fs::read(history::path_for(&s.root)).unwrap();
+    let root = s.root.to_string_lossy();
+    assert!(
+        !db.windows(root.len()).any(|w| w == root.as_bytes()),
+        "the History file holds a path"
+    );
+}

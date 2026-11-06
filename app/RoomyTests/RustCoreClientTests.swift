@@ -127,4 +127,7 @@ private final class FailingCore: CoreClient {
         throw CoreError.HomeNotFound
     }
     func discardCleanup(plan: PlanHandle) async {}
+    func runCleanup(plan: PlanHandle) async throws -> CleanupResult { throw CoreError.HomeNotFound }
+    func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult { throw CoreError.HomeNotFound }
+    func cleanupHistory(limit: UInt32) async -> [HistoryEntry] { [] }
 }

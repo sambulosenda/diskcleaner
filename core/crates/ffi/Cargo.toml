@@ -28,6 +28,7 @@ classifier = { path = "../classifier" }
 dirs = "6"
 executor = { path = "../executor" }
 fixtures = { path = "../fixtures", optional = true }
+history = { path = "../history" }
 libc = "0.2"
 planner = { path = "../planner" }
 rules = { path = "../rules" }
@@ -39,4 +40,5 @@ uniffi = "0.32"
 
 [dev-dependencies]
 fixtures = { path = "../fixtures" }
+history = { path = "../history" }
 tempfile = "3"

@@ -26,9 +26,14 @@
 //! [`execute`] does, and stops there. It only opens folders and reads
 //! metadata, so it never changes anything.
 //!
+//! [`put_back`] is the undo for a move to the Trash: it moves what this
+//! executor moved back to where it was, only if the Trash still holds the
+//! same thing and nothing new is in its old place.
+//!
 //! Not here yet: the allow-listed tool commands (`docs/safety/allowed-commands.md`),
 //! writing to History, and the UniFFI commands. Each is its own change.
 
+mod put_back;
 mod survey;
 mod sys;
 
@@ -43,6 +48,7 @@ use planner::{Plan, PlanError, PlanItem};
 use safety::protected::{BlockReason, ReviewReason};
 use safety::Refusal;
 
+pub use put_back::{put_back, PutBack, PutBackRefusal, TrashIdentity};
 pub use survey::size_matches;
 
 /// The Trash folder inside home.
@@ -174,6 +180,11 @@ pub struct ItemReport {
     pub bytes: u64,
     /// What happened.
     pub outcome: Outcome,
+    /// For an item moved to the Trash: what its Trash entry looked like
+    /// right after the move, so [`put_back`] can check the Trash still holds
+    /// the same thing. `None` if that could not be read; such an item can't
+    /// be put back.
+    pub moved: Option<TrashIdentity>,
 }
 
 /// The result of one plan.
@@ -309,6 +320,7 @@ impl Context {
     /// Checks and acts on one item. Never panics; every failure is an outcome.
     fn act(&self, item: PlanItem, mode: Mode, plan_id: u64, n: usize) -> ItemReport {
         let path = item.path().to_path_buf();
+        let mut moved = None;
         let (bytes, outcome) = match self.prepare(&item, mode) {
             Err(refusal) => (0, Outcome::Refused(refusal)),
             Ok(ready) => {
@@ -317,6 +329,9 @@ impl Context {
                     Mode::Trash => self.move_to_trash(&ready),
                     Mode::Delete => self.delete(&ready, plan_id, n),
                 };
+                if let Outcome::MovedToTrash { to } = &outcome {
+                    moved = self.trash_identity(to, ready.survey.ino);
+                }
                 let bytes = match outcome {
                     Outcome::MovedToTrash { .. } | Outcome::Deleted => size,
                     _ => 0,
@@ -329,7 +344,19 @@ impl Context {
             path,
             bytes,
             outcome,
+            moved,
         }
+    }
+
+    /// Reads what an entry Roomy just moved into the Trash looks like.
+    /// `None` if it can't be read or isn't the inode that was moved.
+    fn trash_identity(&self, to: &Path, ino: u64) -> Option<TrashIdentity> {
+        let name = to.file_name()?;
+        let stat = sys::stat_at(&self.trash_fd, name).ok()?;
+        if stat.ino != ino || stat.dev != self.dev {
+            return None;
+        }
+        TrashIdentity::of(&stat)
     }
 
     /// Every check that runs immediately before acting.

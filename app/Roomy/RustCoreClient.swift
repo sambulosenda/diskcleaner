@@ -71,4 +71,16 @@ final class RustCoreClient: CoreClient {
     func discardCleanup(plan: PlanHandle) async {
         _ = try? await offMain { $0.discardCleanup(plan: plan) }
     }
+
+    func runCleanup(plan: PlanHandle) async throws -> CleanupResult {
+        try await offMain { try $0.runCleanup(plan: plan) }
+    }
+
+    func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult {
+        try await offMain { try $0.putBackCleanup(cleanup: cleanup) }
+    }
+
+    func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
+        (try? await offMain { $0.cleanupHistory(limit: limit) }) ?? []
+    }
 }

@@ -355,4 +355,132 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(AppModel.cleanupMessage(for: CoreError.UnknownItem).isEmpty)
         XCTAssertFalse(AppModel.cleanupMessage(for: CancellationError()).isEmpty)
     }
+
+    // MARK: - Cleanup (moving to the Trash), put back, History
+
+    /// A model with a finished scan, one likely safe row ticked and the review ready.
+    private func reviewedModel() async throws -> (AppModel, ItemSummary) {
+        let model = await scannedModel()
+        let all = await items(on: .largeFiles, in: model)
+        let first = try XCTUnwrap(all.first { $0.tier == .likelySafe })
+        model.setChecked(true, for: first)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready = model.cleanupState else {
+            XCTFail("\(model.cleanupState)")
+            return (model, first)
+        }
+        return (model, first)
+    }
+
+    func testMoveToTrashShowsWhatMovedAndClearsTicks() async throws {
+        let (model, first) = try await reviewedModel()
+        model.moveToTrash()
+        guard case .moving = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(model.cleanupState.isBusy)
+        await model.waitForCleanupCheck()
+        guard case .done(let result) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(result.items.map(\.itemId), [first.id])
+        XCTAssertEqual(result.bytesMoved, first.sizeBytes)
+        XCTAssertNotNil(model.lastCleanup)
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+        XCTAssertEqual(model.history.count, 1)
+        XCTAssertEqual(CleanupText.movedHeadline(result).hasPrefix("Moved 1 item"), true)
+    }
+
+    func testClosingAfterACleanupScansAgain() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.closeCleanupReview()
+        XCTAssertEqual(model.cleanupState, .closed)
+        XCTAssertTrue(model.isScanning, "the sizes are out of date after a cleanup")
+        await model.waitForScan()
+    }
+
+    func testPutBackUndoesTheLastCleanupOnce() async throws {
+        let (model, first) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.putBack()
+        guard case .puttingBack = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        await model.waitForCleanupCheck()
+        guard case .putBack(let result) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(result.bytesPutBack, first.sizeBytes)
+        XCTAssertNil(model.lastCleanup, "only once")
+        XCTAssertNotNil(model.history.first?.putBackAt)
+    }
+
+    func testAScanAfterTheCleanupLeavesTheResultOpenAndIsNotRepeated() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.startScan()
+        await model.waitForScan()
+        guard case .done = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        model.closeCleanupReview()
+        XCTAssertEqual(model.cleanupState, .closed)
+        XCTAssertFalse(model.isScanning, "the scan already saw the cleanup")
+    }
+
+    func testPutBackFromHistoryRunsOnce() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.closeCleanupReview()
+        await model.waitForScan()
+        model.putBack()
+        XCTAssertTrue(model.isPuttingBack)
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertFalse(model.isPuttingBack)
+        XCTAssertEqual((model.client as? MockCoreClient)?.putBackCalls, 1)
+        XCTAssertNil(model.lastCleanup)
+        XCTAssertNil(model.lastCleanupResult)
+        await model.waitForScan()
+    }
+
+    func testAFailedPutBackFromHistoryCanBeTriedAgain() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.closeCleanupReview()
+        await model.waitForScan()
+        let mock = try XCTUnwrap(model.client as? MockCoreClient)
+        mock.nextPutBackError = .CleanupUnavailable(reason: "Roomy couldn't open your Trash.")
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertNotNil(model.historyMessage, "History says why")
+        XCTAssertNotNil(model.lastCleanup, "nothing moved, so it can be tried again")
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertNil(model.historyMessage)
+        XCTAssertNil(model.lastCleanup)
+        XCTAssertEqual(mock.putBackCalls, 2)
+        await model.waitForScan()
+    }
+
+    func testPutBackStaysAvailableWhenHistoryIsUnavailable() async throws {
+        let (model, first) = try await reviewedModel()
+        (model.client as? MockCoreClient)?.historyUnavailable = true
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        XCTAssertTrue(model.history.isEmpty)
+        XCTAssertNotNil(model.lastCleanup)
+        XCTAssertEqual(model.lastCleanupResult?.bytesMoved, first.sizeBytes)
+    }
+
+    func testCancelLeavesEverythingWhereItIs() async throws {
+        let (model, _) = try await reviewedModel()
+        model.closeCleanupReview()
+        XCTAssertEqual(model.cleanupState, .closed)
+        XCTAssertNil(model.lastCleanup)
+        await model.reloadHistory()
+        XCTAssertTrue(model.history.isEmpty)
+        XCTAssertFalse(model.isScanning)
+    }
+
+    func testConfirmTextSaysTheSpaceComesBackWhenTheTrashIsEmptied() {
+        XCTAssertTrue(CleanupText.confirmMessage.contains("empty the Trash"))
+    }
 }

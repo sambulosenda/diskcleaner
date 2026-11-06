@@ -36,6 +36,12 @@ pub struct Stat {
     pub ino: u64,
     /// Folder, symlink or other.
     pub kind: Kind,
+    /// Size in bytes (`st_size`).
+    pub size: i64,
+    /// Last status change (`st_ctime`, seconds and nanoseconds). Set by the
+    /// system on create, rename and metadata changes; it can't be set by
+    /// hand, so a new entry never carries an old value.
+    pub ctime: (i64, i64),
 }
 
 impl Stat {
@@ -55,6 +61,8 @@ impl Stat {
             dev: st.st_dev as u64,
             ino: st.st_ino as u64,
             kind,
+            size: st.st_size as i64,
+            ctime: (st.st_ctime as i64, st.st_ctime_nsec as i64),
         }
     }
 }

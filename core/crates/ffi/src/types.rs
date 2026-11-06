@@ -367,3 +367,126 @@ impl From<&Lowered> for Caution {
         }
     }
 }
+
+/// Opaque id for one finished cleanup, used to put it back. Only the last
+/// cleanup since the core was made can be put back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Record)]
+pub struct CleanupHandle {
+    /// The cleanup's number.
+    pub id: u64,
+}
+
+/// What happened to one item of a cleanup, or of putting one back.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CleanupResultItem {
+    /// The item's id.
+    pub item_id: String,
+    /// Short display name.
+    pub title: String,
+    /// Allocated bytes that moved (0 if it did not).
+    pub size_bytes: u64,
+    /// Whether it moved.
+    pub done: bool,
+    /// Why it did not, in plain words with no path. `None` when `done`.
+    pub reason: Option<String>,
+}
+
+/// What a cleanup did.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CleanupResult {
+    /// The handle for putting this cleanup back, if anything moved.
+    pub cleanup: Option<CleanupHandle>,
+    /// One per item of the plan, in order.
+    pub items: Vec<CleanupResultItem>,
+    /// Sum of `size_bytes` of the items that moved.
+    pub bytes_moved: u64,
+    /// Whether the cleanup was saved to History. A cleanup still happens if
+    /// History can't be written.
+    pub saved_to_history: bool,
+}
+
+/// What putting a cleanup back did.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct PutBackResult {
+    /// One per item that had moved, in order. `done` means it is back.
+    pub items: Vec<CleanupResultItem>,
+    /// Sum of `size_bytes` of the items put back.
+    pub bytes_put_back: u64,
+}
+
+/// What happened to one item, as History shows it.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum HistoryItemState {
+    /// Moved to the Trash.
+    Moved,
+    /// Not moved.
+    NotMoved {
+        /// Why, in plain words.
+        reason: String,
+    },
+    /// Moved, then put back.
+    PutBack,
+    /// Moved; putting it back was refused, so it is still in the Trash.
+    StayedInTrash {
+        /// Why, in plain words.
+        reason: String,
+    },
+}
+
+/// One item of a past cleanup. No path.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct HistoryItem {
+    /// Short display name.
+    pub title: String,
+    /// Allocated bytes.
+    pub size_bytes: u64,
+    /// What happened.
+    pub state: HistoryItemState,
+}
+
+/// One past cleanup, as the History screen shows it.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct HistoryEntry {
+    /// The entry's id in History.
+    pub id: i64,
+    /// When it ran, in seconds since 1970 (UTC).
+    pub finished_at: i64,
+    /// When it was put back, if it was.
+    pub put_back_at: Option<i64>,
+    /// Bytes that went to the Trash and were not put back.
+    pub bytes_in_trash: u64,
+    /// Its items, in the order they were cleaned.
+    pub items: Vec<HistoryItem>,
+}
+
+impl From<history::ItemState> for HistoryItemState {
+    fn from(s: history::ItemState) -> Self {
+        match s {
+            history::ItemState::Moved => Self::Moved,
+            history::ItemState::NotMoved { reason } => Self::NotMoved { reason },
+            history::ItemState::PutBack => Self::PutBack,
+            history::ItemState::StayedInTrash { reason } => Self::StayedInTrash { reason },
+        }
+    }
+}
+
+impl From<history::Cleanup> for HistoryEntry {
+    fn from(c: history::Cleanup) -> Self {
+        let bytes_in_trash = c.bytes_in_trash();
+        Self {
+            id: c.id,
+            finished_at: c.finished_at,
+            put_back_at: c.put_back_at,
+            bytes_in_trash,
+            items: c
+                .items
+                .into_iter()
+                .map(|i| HistoryItem {
+                    title: i.title,
+                    size_bytes: i.size_bytes,
+                    state: i.state.into(),
+                })
+                .collect(),
+        }
+    }
+}

@@ -756,3 +756,149 @@ fn preview_without_a_trash_is_refused() {
         Err(ExecuteError::TrashUnavailable)
     ));
 }
+
+// ---------------------------------------------------------------------------
+// Putting back (undo)
+// ---------------------------------------------------------------------------
+
+/// The put-back entries for every item of `report` that moved to the Trash.
+fn put_backs(report: &Report) -> Vec<executor::PutBack> {
+    report
+        .items
+        .iter()
+        .filter_map(|i| match &i.outcome {
+            Outcome::MovedToTrash { to } => Some(executor::PutBack {
+                recommendation_id: i.recommendation_id.clone(),
+                original: i.path.clone(),
+                in_trash: to.clone(),
+                identity: i.moved.unwrap(),
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn put_back_restores_what_moved() {
+    let home = Home::plain();
+    home.file("Library/Caches/com.example/sub/b.bin", 3_000);
+    home.file("Library/Caches/big.log", 5_000);
+    let before = sha(&home.path("Library/Caches/com.example/sub/b.bin"));
+    let report = run(
+        home.plan_of(&["Library/Caches/com.example", "Library/Caches/big.log"]),
+        Mode::Trash,
+    );
+    let entries = put_backs(&report);
+    assert_eq!(entries.len(), 2);
+
+    let results = executor::put_back(&home.root, home.dev, &entries).unwrap();
+
+    assert_eq!(results, vec![Ok(()), Ok(())]);
+    assert_eq!(
+        sha(&home.path("Library/Caches/com.example/sub/b.bin")),
+        before
+    );
+    assert!(home.path("Library/Caches/big.log").is_file());
+    assert!(home.trash_names().is_empty());
+}
+
+#[test]
+fn put_back_never_replaces_something_new() {
+    let home = Home::plain();
+    home.file("Library/Caches/big.log", 5_000);
+    let report = run(home.plan_of(&["Library/Caches/big.log"]), Mode::Trash);
+    home.file("Library/Caches/big.log", 10);
+    let results = executor::put_back(&home.root, home.dev, &put_backs(&report)).unwrap();
+    assert_eq!(results, vec![Err(executor::PutBackRefusal::PlaceTaken)]);
+    assert_eq!(
+        fs::read(home.path("Library/Caches/big.log")).unwrap().len(),
+        10
+    );
+    assert_eq!(home.trash_names(), BTreeSet::from(["big.log".to_string()]));
+}
+
+#[test]
+fn put_back_refuses_something_else_in_the_trash() {
+    let home = Home::plain();
+    home.file("Library/Caches/big.log", 5_000);
+    let report = run(home.plan_of(&["Library/Caches/big.log"]), Mode::Trash);
+    // The user emptied the Trash and something else now has the same name.
+    fs::remove_file(home.path(".Trash/big.log")).unwrap();
+    home.file(".Trash/big.log", 7);
+    let results = executor::put_back(&home.root, home.dev, &put_backs(&report)).unwrap();
+    assert_eq!(results, vec![Err(executor::PutBackRefusal::NotInTrash)]);
+    assert!(!home.path("Library/Caches/big.log").exists());
+}
+
+#[test]
+fn put_back_checks_more_than_the_inode_number() {
+    // Some file systems reuse a freed inode number at once, so a new entry
+    // in the Trash can carry the old number. Only a full match counts.
+    let home = Home::plain();
+    home.file("Library/Caches/big.log", 5_000);
+    let report = run(home.plan_of(&["Library/Caches/big.log"]), Mode::Trash);
+    let real = put_backs(&report);
+    let changes: [fn(&mut executor::TrashIdentity); 3] = [
+        |i| i.ctime.1 = (i.ctime.1 + 1) % 1_000_000_000,
+        |i| i.size += 1,
+        |i| i.is_dir = !i.is_dir,
+    ];
+    for change in changes {
+        let mut entries = real.clone();
+        change(&mut entries[0].identity);
+        let results = executor::put_back(&home.root, home.dev, &entries).unwrap();
+        assert_eq!(results, vec![Err(executor::PutBackRefusal::NotInTrash)]);
+        assert!(!home.path("Library/Caches/big.log").exists());
+    }
+    // The real identity still works.
+    let results = executor::put_back(&home.root, home.dev, &real).unwrap();
+    assert_eq!(results, vec![Ok(())]);
+}
+
+#[test]
+fn put_back_never_follows_a_swapped_folder() {
+    let home = Home::plain();
+    home.file("Library/Caches/com.example/data", 1_000);
+    let report = run(home.plan_of(&["Library/Caches/com.example"]), Mode::Trash);
+    // The folder it came from is swapped for a link to Documents.
+    fs::remove_dir(home.path("Library/Caches")).unwrap();
+    symlink(home.path("Documents"), home.path("Library/Caches")).unwrap();
+    let results = executor::put_back(&home.root, home.dev, &put_backs(&report)).unwrap();
+    assert_eq!(results, vec![Err(executor::PutBackRefusal::FolderChanged)]);
+    assert!(!home.path("Documents/com.example").exists());
+    assert!(home.trash_names().contains("com.example"));
+}
+
+#[test]
+fn put_back_refuses_entries_it_did_not_make() {
+    let home = Home::plain();
+    home.file(".Trash/x", 10);
+    let meta = home.path(".Trash/x").symlink_metadata().unwrap();
+    let identity = executor::TrashIdentity {
+        ino: meta.ino(),
+        is_dir: meta.is_dir(),
+        size: meta.size() as i64,
+        ctime: (meta.ctime(), meta.ctime_nsec()),
+    };
+    let bad = [
+        ("/etc/x", ".Trash/x"),
+        ("Library/../../x", ".Trash/x"),
+        ("Library/Caches/x", "Library/x"),
+        ("Library/Caches/x", ".Trash/sub/x"),
+    ];
+    for (original, in_trash) in bad {
+        let entry = executor::PutBack {
+            recommendation_id: "r".into(),
+            original: home.root.join(original),
+            in_trash: home.root.join(in_trash),
+            identity,
+        };
+        let results = executor::put_back(&home.root, home.dev, &[entry]).unwrap();
+        assert_eq!(
+            results,
+            vec![Err(executor::PutBackRefusal::NotOurs)],
+            "{original}"
+        );
+    }
+    assert!(home.path(".Trash/x").exists());
+}
