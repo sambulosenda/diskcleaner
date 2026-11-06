@@ -68,6 +68,11 @@ protocol CoreClient: AnyObject {
     /// anything new appeared. The plan is used up.
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult
 
+    /// What macOS's System Data holds, measured just now: snapshots, caches, logs, updates, temporary
+    /// files, swap and the sleep image. Reads only; never throws. Paths come back in Developer mode only.
+    /// Can take several seconds.
+    func systemData(mode: Mode) async -> SystemData
+
     /// The app uninstaller: every app in /Applications and ~/Applications, except Apple's and Roomy, with
     /// its size. Reads only. Each call gives new app ids.
     func listApps() async -> [AppSummary]

@@ -142,6 +142,11 @@ private final class FailingCore: CoreClient {
     }
     func discardDockerCleanup(plan: DockerPlanHandle) async {}
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult { throw CoreError.HomeNotFound }
+    func systemData(mode: Mode) async -> SystemData {
+        SystemData(snapshots: LocalSnapshots(status: .unavailable(reason: "No core."), count: 0,
+                                             oldestUnixSeconds: nil, newestUnixSeconds: nil),
+                   parts: [], totalBytes: 0)
+    }
     func listApps() async -> [AppSummary] { [] }
     func reviewApp(appId: String, mode: Mode) async throws -> AppReview { throw CoreError.HomeNotFound }
     func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview {

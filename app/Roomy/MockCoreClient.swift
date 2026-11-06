@@ -308,6 +308,18 @@ final class MockCoreClient: CoreClient {
                                    reclaimedBytes: pending.preview.totalBytes, savedToHistory: true)
     }
 
+    // MARK: System Data
+
+    /// Every mode `systemData` was asked for, in order. Tests read it. Nothing here reads the disk.
+    private(set) var systemDataCalls: [Mode] = []
+    /// When true, `systemData` says local snapshots couldn't be listed. Tests set it.
+    var snapshotsUnavailable = false
+
+    func systemData(mode: Mode) async -> SystemData {
+        systemDataCalls.append(mode)
+        return MockData.systemData(mode: mode, snapshotsUnavailable: snapshotsUnavailable)
+    }
+
     // MARK: App uninstaller
 
     /// When true, `previewUninstall` refuses as if the app were open. Tests set it.
@@ -357,6 +369,43 @@ final class MockCoreClient: CoreClient {
 
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.
 enum MockData {
+    /// A made-up System Data breakdown, like the core's: paths in Developer mode only.
+    static func systemData(mode: Mode, snapshotsUnavailable: Bool = false) -> SystemData {
+        func place(_ id: String, _ owner: SystemDataOwner, _ bytes: UInt64, _ path: String,
+                   state: SystemDataPlaceState = .measured) -> SystemDataPlace {
+            SystemDataPlace(id: id, owner: owner, state: state, sizeBytes: state == .measured ? bytes : 0,
+                            fileCount: state == .measured ? 12 : 0, partlyUnreadable: false,
+                            path: mode == .developer ? path : nil)
+        }
+        func part(_ kind: SystemDataKind, _ places: [SystemDataPlace]) -> SystemDataPart {
+            SystemDataPart(kind: kind, sizeBytes: places.reduce(0) { $0 + $1.sizeBytes },
+                           partlyUnreadable: places.contains { $0.state == .unreadable || $0.partlyUnreadable },
+                           places: places)
+        }
+        let parts = [
+            part(.caches, [place("user_caches", .you, 6_200_000_000, "~/Library/Caches"),
+                           place("shared_caches", .system, 900_000_000, "/Library/Caches")]),
+            part(.logs, [place("user_logs", .you, 310_000_000, "~/Library/Logs"),
+                         place("shared_logs", .system, 40_000_000, "/Library/Logs"),
+                         place("system_logs", .system, 120_000_000, "/private/var/log"),
+                         place("unified_logs", .system, 0, "/private/var/db/diagnostics", state: .unreadable)]),
+            part(.softwareUpdates, [place("iphone_updates", .you, 7_100_000_000, "~/Library/iTunes/iPhone Software Updates"),
+                                    place("ipad_updates", .you, 0, "~/Library/iTunes/iPad Software Updates", state: .missing),
+                                    place("mac_updates", .system, 0, "/Library/Updates", state: .missing)]),
+            part(.temporaryFiles, [place("user_temporary", .system, 2_400_000_000, "/private/var/folders/zz/example")]),
+            part(.swap, [place("swap_files", .system, 3_221_225_472, "/private/var/vm")]),
+            part(.sleepImage, [place("sleep_image", .system, 1_073_741_824, "/private/var/vm/sleepimage")]),
+        ]
+        let snapshots = snapshotsUnavailable
+            ? LocalSnapshots(status: .unavailable(reason: "Roomy couldn't ask Time Machine on this Mac."),
+                             count: 0, oldestUnixSeconds: nil, newestUnixSeconds: nil)
+            // 4 Nov 2026 08:00 and 6 Nov 2026 09:30:12, as the core reads snapshot names.
+            : LocalSnapshots(status: .listed, count: 3, oldestUnixSeconds: 1_793_779_200,
+                             newestUnixSeconds: 1_793_957_412)
+        return SystemData(snapshots: snapshots, parts: parts,
+                          totalBytes: parts.reduce(0) { $0 + $1.sizeBytes })
+    }
+
     /// Made-up apps for the uninstaller. One is in ~/Applications, one is open.
     static let apps: [AppSummary] = [
         AppSummary(appId: "app-1-0", name: "Chat", version: "4.41", bundleId: "com.example.chat",
