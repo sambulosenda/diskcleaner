@@ -137,6 +137,7 @@ private final class FailingCore: CoreClient {
     }
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail { throw CoreError.HomeNotFound }
     func libraries(handle: ScanHandle) async throws -> [LibrarySize] { throw CoreError.HomeNotFound }
+    func largeFiles(handle: ScanHandle) async throws -> LargeFiles { throw CoreError.HomeNotFound }
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
         throw CoreError.HomeNotFound
     }
