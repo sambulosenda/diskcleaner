@@ -83,4 +83,9 @@ final class RustCoreClient: CoreClient {
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
         (try? await offMain { $0.cleanupHistory(limit: limit) }) ?? []
     }
+
+    func fullDiskAccess() async -> FullDiskAccess {
+        // With no core there is nothing to scan, so there is nothing to ask the user for either.
+        (try? await offMain { $0.fullDiskAccess() }) ?? .unknown
+    }
 }

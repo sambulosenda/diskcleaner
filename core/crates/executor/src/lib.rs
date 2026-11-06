@@ -81,6 +81,10 @@ pub enum ExecuteError {
     /// `~/.Trash` is missing, a symlink, or on another volume.
     #[error("the Trash could not be found")]
     TrashUnavailable,
+    /// The system refused to open `~/.Trash` (EPERM or EACCES). On macOS
+    /// this is privacy protection: the app needs Full Disk Access.
+    #[error("the system did not let the app open the Trash")]
+    TrashNotAllowed,
 }
 
 /// Why one item was not touched.
@@ -302,8 +306,11 @@ impl Context {
             Ok(st) if st.dev == dev => {}
             _ => return Err(ExecuteError::HomeUnavailable),
         }
-        let trash_fd = sys::open_dir_at(&home_fd, OsStr::new(TRASH_DIR))
-            .map_err(|_| ExecuteError::TrashUnavailable)?;
+        let trash_fd =
+            sys::open_dir_at(&home_fd, OsStr::new(TRASH_DIR)).map_err(|err| match err.kind() {
+                std::io::ErrorKind::PermissionDenied => ExecuteError::TrashNotAllowed,
+                _ => ExecuteError::TrashUnavailable,
+            })?;
         match sys::fstat(&trash_fd) {
             Ok(st) if st.dev == dev => {}
             _ => return Err(ExecuteError::TrashUnavailable),

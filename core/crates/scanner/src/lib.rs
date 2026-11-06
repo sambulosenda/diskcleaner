@@ -23,6 +23,7 @@
 //! the number of folders. Only the largest files are kept by path.
 
 mod largest;
+pub mod privacy;
 mod result;
 mod walk;
 

@@ -438,6 +438,27 @@ fn a_missing_trash_touches_nothing() {
 }
 
 #[test]
+fn a_trash_the_system_refuses_touches_nothing() {
+    use std::os::unix::fs::PermissionsExt;
+    let home = Home::plain();
+    home.file("Library/Caches/com.example/data", 1_000);
+    let plan = home.plan_of(&["Library/Caches/com.example"]);
+    let trash = home.path(TRASH_DIR);
+    // Stands in for macOS privacy protection, which refuses with EPERM.
+    fs::set_permissions(&trash, fs::Permissions::from_mode(0o000)).unwrap();
+    let still_readable = fs::read_dir(&trash).is_ok();
+    let result = execute(plan, Mode::Trash, SystemTime::now());
+    fs::set_permissions(&trash, fs::Permissions::from_mode(0o755)).unwrap();
+    if still_readable {
+        eprintln!("skipped: running as root, so the Trash is still readable");
+        return;
+    }
+    assert!(home.path("Library/Caches/com.example/data").exists());
+    assert!(matches!(result, Err(ExecuteError::TrashNotAllowed)));
+    assert_eq!(fs::read_dir(&trash).unwrap().count(), 0);
+}
+
+#[test]
 fn a_trash_that_is_a_symlink_touches_nothing() {
     let home = Home::plain();
     home.file("Library/Caches/com.example/data", 1_000);

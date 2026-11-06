@@ -95,6 +95,13 @@ Every item of the scan, optionally only one category and/or one tier, in the giv
 Everything the detail panel shows for one item. Throws `unknown_item` if the scan has no item
 with that id, plus the same errors as `list_items`.
 
+### `full_disk_access() -> FullDiskAccess`
+Whether Roomy can read the folders macOS keeps private, right now. Lists these folders inside
+home, never following a symlink, and reads nothing else: `Library/Application Support/com.apple.TCC`,
+`Library/Safari`, `Library/Mail`, `Library/Messages`, `.Trash`. A folder that is missing is
+skipped. Cheap enough to ask once a second while the app waits for the user to turn Full Disk
+Access on. The onboarding screen uses it.
+
 ## Types
 
 ### `ScanHandle` (record)
@@ -165,6 +172,25 @@ After `finished`, `bytes_seen` equals the scan's total.
 | `categories` | `[CategoryTotal]` | One entry per category with any items, largest first (ties in the order `Category` lists them) |
 | `top_items` | `[ItemSummary]` | Up to 8 of the largest `likely_safe` and `review_first` items, largest first. `keep` items are never here |
 | `unreadable_count` | `u64` | Folders the scan could not read (for example because of privacy protection) |
+| `unreadable_areas` | `[UnreadableArea]` | The same folders, counted by `PrivateArea`. Most folders first, ties in the order `PrivateArea` lists them. The counts add up to `unreadable_count` |
+
+### `PrivateArea` (enum)
+A part of home that macOS may keep private: `mail`, `messages`, `safari`, `device_backups`,
+`photos`, `contacts_and_calendars`, `trash`, `app_data` (`~/Library/Containers/*` and
+`~/Library/Group Containers/*`), `other`. The app turns these into words; no path is sent.
+
+### `UnreadableArea` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `area` | `PrivateArea` | |
+| `folder_count` | `u64` | Folders in that area the scan could not read. Always more than 0 |
+
+### `FullDiskAccess` (enum)
+| Value | Meaning |
+|---|---|
+| `granted` | Every private folder checked that exists could be listed |
+| `not_granted` | At least one could not be listed: Full Disk Access is off |
+| `unknown` | None of the folders checked exist (a test home), so the core can't tell |
 
 `scanned_bytes` and `categories` are additions to the task sketch: the disk strip needs a total
 and the item count per category.

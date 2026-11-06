@@ -47,10 +47,39 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    private func makeModel(mode: Mode, state: AppModel.ScanState) -> AppModel {
+    /// The Full Disk Access screen (waiting and switched on) and the Overview's "What Roomy couldn't scan".
+    func testCaptureFullDiskAccessScreens() async throws {
+        guard let path = ProcessInfo.processInfo.environment["ROOMY_SCREENSHOTS_DIR"], !path.isEmpty else {
+            throw XCTSkip("Set ROOMY_SCREENSHOTS_DIR to capture screenshots")
+        }
+        let folder = URL(fileURLWithPath: path, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let scannedAt = Date(timeIntervalSince1970: 1_793_000_000)
+
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let suffix = appearance == .aqua ? "light" : "dark"
+            for (name, access) in [("10-access-waiting", FullDiskAccess.notGranted), ("11-access-on", .granted)] {
+                let model = makeModel(mode: .simple, state: .neverScanned, access: access)
+                await model.refreshFullDiskAccess()
+                try capture(FullDiskAccessOnboarding().environmentObject(model), size: CGSize(width: 520, height: 640),
+                            appearance: appearance, to: folder.appendingPathComponent("\(name)-\(suffix).png"))
+            }
+            let model = makeModel(mode: .simple, state: .loaded(MockData.overview(for: .normal), scannedAt: scannedAt),
+                                  access: .notGranted)
+            await model.refreshFullDiskAccess()
+            try capture(ContentView().environmentObject(model), size: CGSize(width: 1120, height: 1300),
+                        appearance: appearance, to: folder.appendingPathComponent("12-overview-unscanned-\(suffix).png"))
+        }
+    }
+
+    private func makeModel(mode: Mode, state: AppModel.ScanState, access: FullDiskAccess = .granted) -> AppModel {
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
         defaults.removePersistentDomain(forName: suiteName)
-        let model = AppModel(client: MockCoreClient(), defaults: defaults, pollInterval: 0)
+        // The Full Disk Access screen has been seen, so it never opens over a screenshot by itself.
+        defaults.set(true, forKey: AppModel.accessOnboardingKey)
+        let client = MockCoreClient()
+        client.access = access
+        let model = AppModel(client: client, defaults: defaults, pollInterval: 0)
         model.mode = mode
         model.showForPreview(state)
         return model

@@ -16,9 +16,9 @@ use scanner::{ScanError, ScanOptions};
 use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
-    Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult, HistoryEntry,
-    ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PutBackResult, ScanHandle, ScanPhase,
-    ScanProgress, Sort, Tier,
+    Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult, FullDiskAccess,
+    HistoryEntry, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PutBackResult, ScanHandle,
+    ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -215,6 +215,7 @@ impl RoomyCore {
             categories: f.categories(),
             top_items: f.top_items(),
             unreadable_count: f.unreadable_count,
+            unreadable_areas: f.unreadable_areas.clone(),
         })
     }
 
@@ -346,6 +347,14 @@ impl RoomyCore {
             .map(crate::run::entries)
             .unwrap_or_default()
     }
+
+    /// Whether Roomy can read the folders macOS keeps private, right now.
+    /// Lists a few of them inside home and reads nothing else. Cheap enough
+    /// for the app to ask once a second while it waits for the user to
+    /// turn Full Disk Access on.
+    pub fn full_disk_access(&self) -> FullDiskAccess {
+        scanner::privacy::full_disk_access(&self.home).into()
+    }
 }
 
 impl RoomyCore {
@@ -429,7 +438,8 @@ fn scan_and_classify(home: &Path, rules: &[Rule], mode: Mode, slot: &Slot) -> St
         return State::Cancelled;
     }
     let items = classifier::classify(&scan, rules, rule_mode);
-    let unreadable = u64::try_from(scan.unreadable.len()).unwrap_or(u64::MAX);
+    let unreadable =
+        crate::views::unreadable_areas(home, scan.unreadable.iter().map(|u| u.path.as_path()));
     State::Finished(Arc::new(Finished::new(
         mode,
         home.to_path_buf(),

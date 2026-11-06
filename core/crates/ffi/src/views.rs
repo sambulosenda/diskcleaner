@@ -5,11 +5,35 @@ use std::path::{Path, PathBuf};
 
 use classifier::ClassifiedItem;
 
-use crate::types::{Category, CategoryTotal, Caution, ItemDetail, ItemSummary, Mode, Sort, Tier};
+use crate::types::{
+    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, Mode, PrivateArea, Sort, Tier,
+    UnreadableArea,
+};
 use crate::CoreError;
 
 /// How many items `Overview.top_items` holds at most.
 pub const TOP_ITEMS: usize = 8;
+
+/// Counts unreadable folders by the private area each belongs to. Most
+/// folders first, ties in [`PrivateArea`] order. Pure: no filesystem access.
+pub fn unreadable_areas<'a>(
+    home: &Path,
+    unreadable: impl IntoIterator<Item = &'a Path>,
+) -> Vec<UnreadableArea> {
+    let mut counts: BTreeMap<PrivateArea, u64> = BTreeMap::new();
+    for path in unreadable {
+        let area = PrivateArea::from(scanner::privacy::area_of(home, path));
+        let count = counts.entry(area).or_insert(0);
+        *count = count.saturating_add(1);
+    }
+    let mut list: Vec<UnreadableArea> = counts
+        .into_iter()
+        .map(|(area, folder_count)| UnreadableArea { area, folder_count })
+        .collect();
+    // Stable sort keeps `PrivateArea` order for equal counts.
+    list.sort_by_key(|a| std::cmp::Reverse(a.folder_count));
+    list
+}
 
 /// A finished scan, held in memory until the app closes it.
 #[derive(Debug)]
@@ -24,6 +48,8 @@ pub struct Finished {
     pub root_dev: u64,
     /// Folders the scan could not read.
     pub unreadable_count: u64,
+    /// The same folders, counted by private area. See [`unreadable_areas`].
+    pub unreadable_areas: Vec<UnreadableArea>,
     /// Classified items, largest first, then by id (the classifier's order).
     pub items: Vec<ClassifiedItem>,
     /// Item id to index in `items`.
@@ -37,9 +63,12 @@ impl Finished {
         home: PathBuf,
         scanned_bytes: u64,
         root_dev: u64,
-        unreadable_count: u64,
+        unreadable_areas: Vec<UnreadableArea>,
         items: Vec<ClassifiedItem>,
     ) -> Self {
+        let unreadable_count = unreadable_areas
+            .iter()
+            .fold(0u64, |sum, a| sum.saturating_add(a.folder_count));
         let by_id = items
             .iter()
             .enumerate()
@@ -51,6 +80,7 @@ impl Finished {
             scanned_bytes,
             root_dev,
             unreadable_count,
+            unreadable_areas,
             items,
             by_id,
         }
@@ -215,5 +245,37 @@ mod tests {
         );
         assert_eq!(display_path(home, home).as_deref(), Some("~"));
         assert_eq!(display_path(home, Path::new("/etc/passwd")), None);
+    }
+
+    #[test]
+    fn unreadable_folders_are_counted_by_area_most_first() {
+        let home = Path::new("/Users/sam");
+        let paths: Vec<PathBuf> = [
+            "Library/Containers/com.apple.stocks",
+            "Library/Containers/com.apple.news",
+            "Library/Group Containers/group.com.apple.notes",
+            "Library/Mail",
+            "Library/Messages",
+            "Library/Caches/locked",
+        ]
+        .iter()
+        .map(|p| home.join(p))
+        .collect();
+        let areas = unreadable_areas(home, paths.iter().map(PathBuf::as_path));
+        let got: Vec<(PrivateArea, u64)> = areas.iter().map(|a| (a.area, a.folder_count)).collect();
+        assert_eq!(
+            got,
+            vec![
+                (PrivateArea::AppData, 3),
+                (PrivateArea::Mail, 1),
+                (PrivateArea::Messages, 1),
+                (PrivateArea::Other, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn no_unreadable_folders_means_no_areas() {
+        assert!(unreadable_areas(Path::new("/Users/sam"), []).is_empty());
     }
 }

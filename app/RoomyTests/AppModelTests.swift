@@ -272,7 +272,105 @@ final class AppModelTests: XCTestCase {
     func testUnmeasuredFoldersAreCountedInWords() {
         XCTAssertEqual(UnmeasuredNote.text(for: 1), "1 folder not measured")
         XCTAssertEqual(UnmeasuredNote.text(for: 212), "212 folders not measured")
-        XCTAssertNotNil(UnmeasuredNote.fullDiskAccessURL)
+        XCTAssertNotNil(FullDiskAccessSettings.url)
+    }
+
+    // MARK: - Full Disk Access
+
+    private func makeModel(access: FullDiskAccess) -> (AppModel, MockCoreClient) {
+        let client = MockCoreClient(scenario: .normal, totalSteps: 5)
+        client.access = access
+        let date = fixedDate
+        return (AppModel(client: client, defaults: defaults, pollInterval: 0, now: { date }), client)
+    }
+
+    func testFirstLaunchWithoutAccessOpensTheAccessScreen() async {
+        let (model, _) = makeModel(access: .notGranted)
+        XCTAssertNil(model.fullDiskAccess)
+        await model.windowDidAppear()
+        XCTAssertEqual(model.fullDiskAccess, .notGranted)
+        XCTAssertTrue(model.showsAccessOnboarding)
+        XCTAssertFalse(model.isScanning, "nothing starts until the user chooses")
+    }
+
+    func testFirstLaunchWithAccessNeverShowsTheAccessScreen() async {
+        let (model, client) = makeModel(access: .granted)
+        await model.windowDidAppear()
+        XCTAssertFalse(model.showsAccessOnboarding)
+        // Even if access is switched off later, the screen doesn't open by itself again.
+        client.access = .notGranted
+        let again = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        await again.windowDidAppear()
+        XCTAssertFalse(again.showsAccessOnboarding)
+    }
+
+    func testTheAccessScreenWhenTheCoreCantTellIsNotShown() async {
+        let (model, _) = makeModel(access: .unknown)
+        await model.windowDidAppear()
+        XCTAssertFalse(model.showsAccessOnboarding)
+    }
+
+    func testContinuingWithoutAccessDoesNotAskAgainOnNextLaunch() async {
+        let (model, client) = makeModel(access: .notGranted)
+        await model.windowDidAppear()
+        model.finishAccessOnboarding(scan: false)
+        XCTAssertFalse(model.showsAccessOnboarding)
+        XCTAssertFalse(model.isScanning)
+        let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        await next.windowDidAppear()
+        XCTAssertFalse(next.showsAccessOnboarding)
+        XCTAssertEqual(next.fullDiskAccess, .notGranted)
+    }
+
+    func testQuittingBeforeChoosingAsksAgainOnNextLaunch() async {
+        let (model, client) = makeModel(access: .notGranted)
+        await model.windowDidAppear()
+        XCTAssertTrue(model.showsAccessOnboarding)
+        let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        await next.windowDidAppear()
+        XCTAssertTrue(next.showsAccessOnboarding)
+    }
+
+    func testAccessSwitchedOnIsNoticedAndScanStarts() async {
+        let (model, client) = makeModel(access: .notGranted)
+        await model.windowDidAppear()
+        client.access = .granted
+        await model.refreshFullDiskAccess()
+        XCTAssertEqual(model.fullDiskAccess, .granted)
+        model.finishAccessOnboarding(scan: true)
+        XCTAssertFalse(model.showsAccessOnboarding)
+        XCTAssertTrue(model.isScanning)
+        await model.waitForScan()
+        XCTAssertNotNil(model.overview)
+    }
+
+    func testTheOverviewOffersAccessOnlyWhenFoldersWereMissedAndAccessIsOff() async {
+        let (model, client) = makeModel(access: .notGranted)
+        await model.refreshFullDiskAccess()
+        let overview = MockData.overview(for: .normal)
+        XCTAssertTrue(model.shouldOfferAccess(for: overview))
+        client.access = .granted
+        await model.refreshFullDiskAccess()
+        XCTAssertFalse(model.shouldOfferAccess(for: overview))
+        client.access = .notGranted
+        await model.refreshFullDiskAccess()
+        var nothingMissed = overview
+        nothingMissed.unreadableCount = 0
+        nothingMissed.unreadableAreas = []
+        XCTAssertFalse(model.shouldOfferAccess(for: nothingMissed))
+    }
+
+    func testUnscannedAreasStayShortAndAddUp() {
+        let areas = MockData.unreadableAreas
+        XCTAssertEqual(areas.reduce(0) { $0 + $1.folderCount }, MockData.unreadableCount)
+        let rows = UnscannedAreasBox.rows(for: areas)
+        XCTAssertEqual(rows.count, UnscannedAreasBox.shownAreas)
+        XCTAssertEqual(rows.reduce(0) { $0 + $1.folderCount }, MockData.unreadableCount)
+        XCTAssertEqual(rows.last?.area, .other)
+        XCTAssertEqual(rows.filter { $0.area == .other }.count, 1)
+        XCTAssertEqual(UnscannedAreasBox.rows(for: Array(areas.prefix(2))), Array(areas.prefix(2)))
+        XCTAssertTrue(UnscannedAreasBox.summary(for: 212).hasPrefix("Roomy couldn't open 212 folders"))
+        XCTAssertTrue(UnscannedAreasBox.summary(for: 1).hasPrefix("Roomy couldn't open 1 folder,"))
     }
 
     func testRevealStaysInsideHome() {
