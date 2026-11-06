@@ -462,7 +462,7 @@ fn a_trash_the_system_refuses_touches_nothing() {
     // Stands in for macOS privacy protection, which refuses with EPERM.
     fs::set_permissions(&trash, fs::Permissions::from_mode(0o000)).unwrap();
     let still_readable = fs::read_dir(&trash).is_ok();
-    let result = execute(plan, Mode::Trash, SystemTime::now());
+    let result = execute(plan, Mode::Trash, &quiet(), SystemTime::now());
     fs::set_permissions(&trash, fs::Permissions::from_mode(0o755)).unwrap();
     if still_readable {
         eprintln!("skipped: running as root, so the Trash is still readable");
