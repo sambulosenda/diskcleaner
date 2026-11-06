@@ -9,7 +9,9 @@
 //! which is the only code that moves files. The Docker commands do the same
 //! with the executor's allow-listed Docker clean-ups.
 //!
-//! No path goes to the app in simple mode, and the app never sends a path to
+//! No path goes to the app in simple mode (except an installed app's own
+//! bundle location, for "Show in Finder", which is not personal), and the
+//! app never sends a path to
 //! the core except in the T02 `disk_summary` command, the user's own
 //! protected folders (`set_protected_folders`, which can only stop things
 //! being cleaned) and the test-only commands behind the `testing` feature.
@@ -24,6 +26,7 @@ mod run;
 #[cfg(feature = "testing")]
 mod testing;
 mod types;
+mod uninstall;
 mod views;
 
 use std::ffi::CString;
@@ -38,11 +41,11 @@ pub use engine::RoomyCore;
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{
-    Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupHandle,
-    CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup,
-    FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode,
-    Overview, PlanHandle, PrivateArea, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort,
-    Tier, UnreadableArea,
+    Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
+    CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
+    CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
+    HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea,
+    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");
@@ -94,6 +97,10 @@ pub enum CoreError {
     /// data changed. Nothing was removed. `reason` is plain words, no path.
     #[error("{reason}")]
     DockerUnavailable { reason: String },
+    /// The app uninstaller was given an app id that is not from the latest
+    /// `list_apps` (or, for `preview_uninstall`, not the app last reviewed).
+    #[error("Roomy lost track of this app. Please look again.")]
+    UnknownApp,
 }
 
 /// Space on the volume that holds a given path, in bytes.

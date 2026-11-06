@@ -104,6 +104,7 @@ impl Home {
             regenerable: true,
             selected_individually: false,
             owners: &[],
+            belongs_to: None,
         }
     }
 

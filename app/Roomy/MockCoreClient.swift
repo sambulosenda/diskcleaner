@@ -307,10 +307,93 @@ final class MockCoreClient: CoreClient {
         return DockerCleanupResult(kind: pending.preview.kind, success: true,
                                    reclaimedBytes: pending.preview.totalBytes, savedToHistory: true)
     }
+
+    // MARK: App uninstaller
+
+    /// When true, `previewUninstall` refuses as if the app were open. Tests set it.
+    var appIsOpen = false
+    /// The app last reviewed, so `previewUninstall` refuses any other, as the core does.
+    private var reviewedApp: String?
+
+    func listApps() async -> [AppSummary] {
+        reviewedApp = nil
+        return MockData.apps
+    }
+
+    func reviewApp(appId: String, mode: Mode) async throws -> AppReview {
+        guard let app = MockData.apps.first(where: { $0.appId == appId }) else { throw CoreError.UnknownApp }
+        reviewedApp = appId
+        let parts = MockData.appParts(for: app).map { part -> AppPart in
+            var part = part
+            if mode == .simple { part.path = nil }
+            return part
+        }
+        return AppReview(app: app, parts: parts, note: nil)
+    }
+
+    /// Pretends every ticked part would move, and keeps the plan for `runCleanup`. Touches nothing.
+    func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview {
+        guard appId == reviewedApp, let app = MockData.apps.first(where: { $0.appId == appId }) else {
+            throw CoreError.UnknownApp
+        }
+        if appIsOpen {
+            throw CoreError.CleanupUnavailable(reason: "\(app.name) is open. Quit \(app.name), then try again.")
+        }
+        if partIds.isEmpty { throw CoreError.NothingSelected }
+        let parts = MockData.appParts(for: app)
+        var rows: [CleanupPreviewItem] = []
+        for id in partIds {
+            guard let part = parts.first(where: { $0.itemId == id }) else { throw CoreError.UnknownItem }
+            rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
+                                           check: .willMove, path: nil, deviceBackup: nil))
+        }
+        let handle = PlanHandle(id: nextPlan)
+        nextPlan += 1
+        pendingPlan = (handle, rows)
+        return CleanupPreview(plan: handle, items: rows, bytesToMove: rows.reduce(0) { $0 + $1.sizeBytes },
+                              expiresInSeconds: 600)
+    }
 }
 
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.
 enum MockData {
+    /// Made-up apps for the uninstaller. One is in ~/Applications, one is open.
+    static let apps: [AppSummary] = [
+        AppSummary(appId: "app-1-0", name: "Chat", version: "4.41", bundleId: "com.example.chat",
+                   sizeBytes: 480_000_000, location: .applications, bundlePath: "/Applications/Chat.app", isOpen: false),
+        AppSummary(appId: "app-1-1", name: "Notes Pro", version: "2.0", bundleId: "com.example.notespro",
+                   sizeBytes: 95_000_000, location: .homeApplications,
+                   bundlePath: NSHomeDirectory() + "/Applications/Notes Pro.app", isOpen: false),
+        AppSummary(appId: "app-1-2", name: "Video Studio", version: nil, bundleId: "com.example.video",
+                   sizeBytes: 2_100_000_000, location: .applications, bundlePath: "/Applications/Video Studio.app",
+                   isOpen: true),
+    ]
+
+    /// What each made-up app left behind.
+    static func appParts(for app: AppSummary) -> [AppPart] {
+        var parts: [AppPart] = []
+        if app.location == .homeApplications {
+            parts.append(AppPart(itemId: "app", title: "The app itself",
+                                 explain: "\(app.name) itself. You can download it again later.",
+                                 sizeBytes: app.sizeBytes, preselected: true, sure: true,
+                                 path: "~/Applications/\(app.name).app"))
+        }
+        parts += [
+            AppPart(itemId: "part-0", title: "Caches", explain: "Copies the app keeps to work faster. It can download them again.",
+                    sizeBytes: 1_200_000_000, preselected: true, sure: true, path: "~/Library/Caches/\(app.bundleId)"),
+            AppPart(itemId: "part-1", title: "App data",
+                    explain: "Files the app keeps for itself, such as downloads, settings and sign-ins. It can hold things you made in the app.",
+                    sizeBytes: 640_000_000, preselected: false, sure: true,
+                    path: "~/Library/Application Support/\(app.bundleId)"),
+            AppPart(itemId: "part-2", title: "Logs",
+                    explain: "Records the app kept of what it did. Roomy matched it by a similar name, so check it belongs to this app.",
+                    sizeBytes: 12_000_000, preselected: false, sure: false, path: "~/Library/Logs/\(app.name)"),
+            AppPart(itemId: "part-3", title: "Settings", explain: "The app's settings and preferences.",
+                    sizeBytes: 40_960, preselected: true, sure: true, path: "~/Library/Preferences/\(app.bundleId).plist"),
+        ]
+        return parts
+    }
+
     static let diskTotal: UInt64 = 256_000_000_000
     static let diskFree: UInt64 = 41_000_000_000
     static let scannedBytes: UInt64 = 180_000_000_000
