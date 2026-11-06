@@ -69,6 +69,23 @@ mode leaves out developer rules, so what they describe counts as unknown) and wh
 Licence gates for Developer mode are not part of T09. They belong to the licensing task and will
 be enforced here in the core, not only in the UI.
 
+### `start_rescan(mode: Mode) -> ScanHandle`
+Like `start_scan`, but may read again only the folders that changed since the last finished
+scan in the same mode (F12), and reuse that scan's figures for the rest. The core keeps the last
+scan's folder tree in memory, with the macOS file event (FSEvents) id from just before it
+started, and asks the event log what changed since. It scans everything instead, exactly like
+`start_scan`, whenever it can't be sure: no event log (any system but macOS), no kept tree, a
+different mode, a tree over an hour old, dropped events, wrapped event ids, a mount or unmount,
+the home folder moved, a change outside home, a hard-linked file in a folder it would read
+again, or a folder missing that nothing said changed. Folders the last scan could not read are
+always read again. `Overview.quick_rescan` says which it did. The app uses this for every scan.
+
+### `scan_changes(handle: ScanHandle) -> ScanChanges?` throws
+What grew or shrank since the previous finished scan in the same mode (F11), or `nil` if there
+was none or History could not be used. Each finished scan leaves a short record in History
+(item ids, titles, categories and sizes; no paths); the last 5 per mode are kept. Same errors as
+`list_items`.
+
 ### `scan_progress(handle: ScanHandle) -> ScanProgress` throws
 How far the scan has got. Throws `unknown_scan` for a handle the core does not know (never
 issued, or closed).
@@ -94,6 +111,14 @@ Every item of the scan, optionally only one category and/or one tier, in the giv
 ### `item_detail(handle: ScanHandle, item_id: ItemId) -> ItemDetail` throws
 Everything the detail panel shows for one item. Throws `unknown_item` if the scan has no item
 with that id, plus the same errors as `list_items`.
+
+### `libraries(handle: ScanHandle) -> [LibrarySize]` throws
+How much the Mac's own libraries take, measured from the same scan (PRD E6, E7, C1): Photos,
+Music, TV, Mail, Messages attachments and Final Cut Pro, one row per kind, always in that order.
+Pure: works on the scan's folder tree and reads nothing more. **Shown only**: Roomy never cleans
+inside a library (they are hard-blocked or review-only in `docs/safety/protected-paths.md`), and
+no row holds a path. The app names each library and opens the app that manages it. Same errors
+as `list_items`.
 
 ### `full_disk_access() -> FullDiskAccess`
 Whether Roomy can read the folders macOS keeps private, right now. Lists these folders inside
@@ -173,6 +198,20 @@ After `finished`, `bytes_seen` equals the scan's total.
 | `top_items` | `[ItemSummary]` | Up to 8 of the largest `likely_safe` and `review_first` items, largest first. `keep` items are never here |
 | `unreadable_count` | `u64` | Folders the scan could not read (for example because of privacy protection) |
 | `unreadable_areas` | `[UnreadableArea]` | The same folders, counted by `PrivateArea`. Most folders first, ties in the order `PrivateArea` lists them. The counts add up to `unreadable_count` |
+| `quick_rescan` | `bool` | The scan read again only the folders that changed since the previous scan (see `start_rescan`) |
+
+### `ScanChanges` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `previous_scan_at` | `i64` | When the previous scan finished, seconds since 1970 (UTC) |
+| `scanned_bytes_before` | `u64` | Allocated bytes in the whole home folder then |
+| `scanned_bytes_now` | `u64` | The same, now |
+| `categories` | `[CategoryChange]` | Categories whose total changed by at least 10 MB, biggest change first |
+| `items` | `[ItemChange]` | Items that changed by at least 10 MB, biggest change first, at most 20 |
+
+`CategoryChange` holds `category`, `bytes_before` and `bytes_now`. `ItemChange` holds `item_id`
+(this scan's id, `nil` when the item is gone), `title`, `category`, `kind` (`ChangeKind`:
+`new`, `grew`, `shrank`, `gone`), `bytes_before` (0 if new) and `bytes_now` (0 if gone).
 
 ### `PrivateArea` (enum)
 A part of home that macOS may keep private: `mail`, `messages`, `safari`, `device_backups`,
@@ -258,6 +297,23 @@ Why the core made an item's tier more careful. Carries no path.
 | `low_confidence` | The rule is not sure, which is never `likely_safe` |
 | `unreadable` | Part of it could not be read during the scan |
 | `unusual_name` | A name inside it could not be checked |
+
+### `LibraryKind` (enum)
+`photos` (every `*.photoslibrary` in home), `music` (every `*.musiclibrary`, plus
+`~/Music/Music/Media`, `~/Music/Music/Media.localized` and `~/Music/iTunes`), `tv` (every
+`*.tvlibrary`, plus `~/Movies/TV/Media` and `Media.localized`), `mail` (`~/Library/Mail` and
+`~/Library/Containers/com.apple.mail`), `messages_attachments` (`~/Library/Messages/Attachments`
+only, never the chat database), `final_cut` (every `*.fcpbundle`). A library inside another is
+counted once.
+
+### `LibrarySize` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | `LibraryKind` | Which library. |
+| `bytes` | `u64` | Allocated bytes, counted once. |
+| `library_count` | `u32` | How many separate library bundles were found. 0 for `mail` and `messages_attachments`. |
+| `found` | `bool` | Whether anything of this kind was found. |
+| `needs_access` | `bool` | Part of it couldn't be read (usually Full Disk Access is off), so it may be larger, or exist even though `found` is false. |
 
 ### `CoreError` (error)
 | Value | When |
@@ -522,6 +578,43 @@ part "<app>: <part>". Throws `unknown_app`, `unknown_item`, `nothing_selected` o
 ### `AppPart` (record)
 `item_id`, `title`, `explain`, `size_bytes: u64`, `preselected: Bool`, `sure: Bool`,
 `path: String?` (Developer mode only).
+
+## JavaScript screen
+
+The Developer mode JavaScript screen (PRD D2). Read only: rows come from the finished scan (the
+`js.*` rules); for each `node_modules` the core reads only the modified times of the project's
+`package.json`, lock files (`package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`,
+`yarn.lock`, `bun.lock`, `bun.lockb`) and the nearest git repository's `.git/index` and
+`.git/logs/HEAD` (never above or at the home folder). It never opens a file and never follows a
+symlink, and it reads a project only after `safety::validate` passes for its `node_modules`.
+Cleaning uses `preview_cleanup` with the rows' item ids, so plans, extra checks, the Trash, put
+back and History are the same as everywhere else.
+
+### `javascript_projects(handle: ScanHandle) -> JavaScriptOverview` throws
+
+Same errors as `list_items`. In simple mode the list is empty (the rules are Developer only), and
+no row would carry a folder anyway.
+
+### `JavaScriptOverview` (record)
+
+`projects: [JsProject]` (largest first, then id), `caches: [ItemSummary]` (the other `js.*` items,
+same order), `total_bytes: u64` (every row added up).
+
+### `JsProject` (record)
+
+`item: ItemSummary` (the `node_modules` item; its id goes to `preview_cleanup`), `name: String`
+(the project folder's name in Developer mode, the item title in simple mode), `folder: String?`
+(Developer mode only, starts `~`), `last_activity_unix_seconds: i64?` (newest of the files above),
+`activity_source: ActivitySource?`, `package_manager: PackageManager?` (from the newest lock file),
+`install_command: String?` (for example `pnpm install`), `has_manifest: bool`.
+
+### `ActivitySource` (enum)
+
+`git`, `lock_file`, `manifest`.
+
+### `PackageManager` (enum)
+
+`npm`, `pnpm`, `yarn`, `bun`.
 
 ## Testing
 

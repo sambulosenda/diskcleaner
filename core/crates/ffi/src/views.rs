@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use classifier::ClassifiedItem;
 
 use crate::types::{
-    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, Mode, PrivateArea, Sort, Tier,
-    UnreadableArea,
+    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, LibrarySize, Mode, PrivateArea,
+    Sort, Tier, UnreadableArea,
 };
 use crate::CoreError;
 
@@ -54,6 +54,14 @@ pub struct Finished {
     pub items: Vec<ClassifiedItem>,
     /// Item id to index in `items`.
     pub by_id: HashMap<String, usize>,
+    /// The scan reused the previous scan's tree for folders that did not
+    /// change.
+    pub quick_rescan: bool,
+    /// What changed since the previous scan in this mode, if there was one.
+    pub changes: Option<crate::types::ScanChanges>,
+    /// How much the Mac's own libraries take (Photos, Mail and so on).
+    /// Shown only; never cleaned.
+    pub libraries: Vec<LibrarySize>,
 }
 
 impl Finished {
@@ -83,7 +91,16 @@ impl Finished {
             unreadable_areas,
             items,
             by_id,
+            quick_rescan: false,
+            changes: None,
+            libraries: Vec::new(),
         }
+    }
+
+    /// Adds the library sizes measured from the same scan.
+    pub fn with_libraries(mut self, libraries: Vec<LibrarySize>) -> Self {
+        self.libraries = libraries;
+        self
     }
 
     /// Exact sum of the sizes of every `likely_safe` item (F2).
@@ -188,7 +205,7 @@ impl Finished {
 }
 
 /// The list row for an item. Never holds a path.
-fn summary(item: &ClassifiedItem) -> ItemSummary {
+pub(crate) fn summary(item: &ClassifiedItem) -> ItemSummary {
     ItemSummary {
         id: item.id.as_str().to_string(),
         title: item.title.clone(),

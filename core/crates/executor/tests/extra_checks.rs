@@ -17,6 +17,7 @@ const XCODE: OwnerApp = OwnerApp {
     name: "Xcode",
     programs: &["Xcode"],
     bundles: &["Xcode.app"],
+    prefixes: &[],
 };
 
 /// Two hours ago: old enough for the recent-change check.

@@ -22,8 +22,10 @@
 //! The result keeps one record per folder, not per file, so memory grows with
 //! the number of folders. Only the largest files are kept by path.
 
+pub mod fsevents;
 mod largest;
 pub mod privacy;
+mod rescan;
 mod result;
 mod walk;
 
@@ -32,6 +34,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub use rescan::{rescan, Changes, RescanError};
 pub use result::{Dir, DirId, FileEntry, LargeFile, ScanResult, Unreadable, UnreadableReason};
 
 /// How many of the largest files E2 asks for.

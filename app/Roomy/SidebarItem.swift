@@ -4,6 +4,7 @@ import Foundation
 enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     case overview
     case backups
+    case libraries
     case downloads
     case largeFiles
     case appsAndCaches
@@ -20,7 +21,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
 
     /// The first group: Overview and the everyday categories.
-    static let mainItems: [SidebarItem] = [.overview, .backups, .downloads, .largeFiles, .appsAndCaches, .systemData]
+    static let mainItems: [SidebarItem] = [.overview, .backups, .libraries, .downloads, .largeFiles, .appsAndCaches, .systemData]
     /// Shown only in Developer mode.
     static let developerItems: [SidebarItem] = [.projects, .xcode, .android, .javascript, .docker]
     /// The last group: acting on things and looking back.
@@ -30,6 +31,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .overview: return "Overview"
         case .backups: return "Backups"
+        case .libraries: return "Photos, Mail and Music"
         case .downloads: return "Downloads and installers"
         case .largeFiles: return "Large files"
         case .appsAndCaches: return "Apps and caches"
@@ -50,6 +52,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .overview: return "internaldrive"
         case .backups: return "externaldrive"
+        case .libraries: return "photo.on.rectangle"
         case .downloads: return "arrow.down.circle"
         case .largeFiles: return "doc"
         case .appsAndCaches: return "square.grid.2x2"
@@ -78,9 +81,10 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     /// What this screen lists, or `nil` for screens that are not item lists (yet).
     ///
     /// The core sorts items into the rule categories of `docs/safety/rule-schema.md`; the sidebar groups
-    /// them the way the wireframe names them. Android and JavaScript need the core to group items by
-    /// tool, which it does not do yet, so they stay placeholders. Every `developer_tools` rule today is an
-    /// Xcode one, so Xcode lists that category.
+    /// them the way the wireframe names them. JavaScript has its own screen (`JavaScriptScreen`), which
+    /// groups `node_modules` by project. Android needs the core to group items by tool, which it does not
+    /// do yet, so it stays a placeholder. Every `developer_tools` rule today is an Xcode one, so Xcode
+    /// lists that category.
     var itemFilter: ItemFilter? {
         switch self {
         case .backups: return .categories([.backups])
@@ -92,7 +96,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .projects: return .categories([.build])
         case .xcode: return .categories([.developerTools])
         case .docker: return .categories([.docker])
-        case .overview, .android, .javascript, .apps, .cleanup, .history: return nil
+        case .overview, .libraries, .android, .javascript, .apps, .cleanup, .history: return nil
         }
     }
 

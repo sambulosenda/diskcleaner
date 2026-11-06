@@ -174,6 +174,69 @@ pub struct Overview {
     /// folders first, ties in `PrivateArea` order. Adds up to
     /// `unreadable_count`.
     pub unreadable_areas: Vec<UnreadableArea>,
+    /// The scan read again only the folders that changed since the
+    /// previous scan in this mode, and reused the rest (F12).
+    #[uniffi(default = false)]
+    pub quick_rescan: bool,
+}
+
+/// What grew or shrank since the previous scan in the same mode (F11).
+/// Holds no paths.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ScanChanges {
+    /// When the previous scan finished, in seconds since 1970 (UTC).
+    pub previous_scan_at: i64,
+    /// Allocated bytes in the whole home folder then.
+    pub scanned_bytes_before: u64,
+    /// Allocated bytes in the whole home folder now.
+    pub scanned_bytes_now: u64,
+    /// Categories that changed by at least 10 MB, biggest change first.
+    pub categories: Vec<CategoryChange>,
+    /// Items that changed by at least 10 MB, biggest change first, at most
+    /// 20.
+    pub items: Vec<ItemChange>,
+}
+
+/// One category's size then and now.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CategoryChange {
+    /// The category.
+    pub category: Category,
+    /// Allocated bytes at the previous scan.
+    pub bytes_before: u64,
+    /// Allocated bytes now.
+    pub bytes_now: u64,
+}
+
+/// How an item changed since the previous scan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum ChangeKind {
+    /// Not there at the previous scan.
+    New,
+    /// Bigger than at the previous scan.
+    Grew,
+    /// Smaller than at the previous scan.
+    Shrank,
+    /// There at the previous scan, not now (for example, cleaned up).
+    Gone,
+}
+
+/// One item's size then and now.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ItemChange {
+    /// The item's id in this scan, to open its detail. `None` for an item
+    /// that is gone.
+    pub item_id: Option<String>,
+    /// Its title.
+    pub title: String,
+    /// Its category.
+    pub category: Category,
+    /// How it changed.
+    pub kind: ChangeKind,
+    /// Allocated bytes at the previous scan (0 if new).
+    pub bytes_before: u64,
+    /// Allocated bytes now (0 if gone).
+    pub bytes_now: u64,
 }
 
 /// A part of the home folder that macOS may keep private. The app turns it
@@ -653,4 +716,67 @@ pub struct AppReview {
     /// Plain words to show above the list, if there is something to say,
     /// for example that another copy of the app is installed.
     pub note: Option<String>,
+}
+
+/// Which of the Mac's own libraries a [`LibrarySize`] row is about. The
+/// app names each one and points to the app that manages it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum LibraryKind {
+    /// Photos libraries.
+    Photos,
+    /// The Music library and its media folder, and the older iTunes folder.
+    Music,
+    /// The TV library and its media folder.
+    Tv,
+    /// Mail's mailboxes and downloaded attachments.
+    Mail,
+    /// Photos, videos and files from Messages conversations.
+    MessagesAttachments,
+    /// Final Cut Pro libraries.
+    FinalCut,
+}
+
+impl From<analysers::libraries::LibraryKind> for LibraryKind {
+    fn from(k: analysers::libraries::LibraryKind) -> Self {
+        use analysers::libraries::LibraryKind as A;
+        match k {
+            A::Photos => Self::Photos,
+            A::Music => Self::Music,
+            A::Tv => Self::Tv,
+            A::Mail => Self::Mail,
+            A::MessagesAttachments => Self::MessagesAttachments,
+            A::FinalCut => Self::FinalCut,
+        }
+    }
+}
+
+/// How much space one kind of library takes, from the last scan. Shown
+/// only: Roomy never cleans inside these libraries, and the row holds no
+/// path.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct LibrarySize {
+    /// Which library.
+    pub kind: LibraryKind,
+    /// Allocated bytes, counted once.
+    pub bytes: u64,
+    /// How many separate libraries were found (Photos, Music, TV, Final
+    /// Cut). 0 for Mail and Messages attachments.
+    pub library_count: u32,
+    /// Whether anything of this kind was found.
+    pub found: bool,
+    /// Whether part of it couldn't be read (usually Full Disk Access is
+    /// off), so it may really be larger, or exist when `found` is false.
+    pub needs_access: bool,
+}
+
+impl From<&analysers::libraries::LibrarySize> for LibrarySize {
+    fn from(s: &analysers::libraries::LibrarySize) -> Self {
+        Self {
+            kind: s.kind.into(),
+            bytes: s.bytes,
+            library_count: s.bundle_count,
+            found: s.found,
+            needs_access: s.needs_access,
+        }
+    }
 }
