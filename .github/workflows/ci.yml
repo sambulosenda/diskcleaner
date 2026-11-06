@@ -1,0 +1,111 @@
+# CI for Roomy (task T12). Runs on every pull request and on pushes to main.
+#
+# Jobs:
+#   safety  - safety grep (no deleting, moving or running commands outside the
+#             executor; no shell command lines anywhere) and its own tests
+#   rust    - cargo fmt, clippy and test (includes the rule validation tests)
+#   xcode   - builds the Rust bridge and runs the app's Xcode tests
+#
+# The protected files check lives in protected-files.yml, because it must run
+# from the base branch, not from the PR.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  safety:
+    name: Safety grep
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test the CI checks
+        run: python3 -m unittest discover -s ci -p 'test_*.py' -v
+      - name: Safety grep
+        run: python3 ci/safety_grep.py
+
+  rust:
+    name: Rust fmt, clippy and tests
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            core/target
+          key: ${{ runner.os }}-cargo-rust-${{ hashFiles('rust-toolchain.toml', 'core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-rust-
+      - name: cargo fmt --check
+        working-directory: core
+        run: cargo fmt --all --check
+      - name: cargo clippy
+        working-directory: core
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: cargo test
+        working-directory: core
+        run: cargo test --workspace
+
+  xcode:
+    name: Xcode tests
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            core/target
+          key: ${{ runner.os }}-cargo-ffi-${{ hashFiles('rust-toolchain.toml', 'core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-ffi-
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('app/**', 'core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
+      - name: Build the Rust bridge
+        run: ./scripts/build-ffi.sh
+      - name: xcodebuild test
+        run: |
+          xcodebuild -version
+          xcodebuild test \
+            -project app/Roomy.xcodeproj \
+            -scheme Roomy \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData
