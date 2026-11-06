@@ -5,6 +5,7 @@ import Foundation
 /// It follows the same rules as the real core (see `docs/command-contract.md`): `likelySafeBytes` is the
 /// exact sum of likely safe items, `topItems` never holds `keep` items, and no path appears anywhere.
 /// Each call to `scanProgress` moves the pretend scan one step on. Nothing here reads the disk.
+/// The app uses it only when launched with `-RoomyMockScenario <name>`; otherwise it uses `RustCoreClient`.
 @MainActor
 final class MockCoreClient: CoreClient {
     /// What the pretend scan should do.
@@ -22,22 +23,26 @@ final class MockCoreClient: CoreClient {
     private var nextHandle: UInt64 = 1
     private var steps: [ScanHandle: Int] = [:]
     private var cancelled: Set<ScanHandle> = []
+    private var modes: [ScanHandle: Mode] = [:]
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
         self.totalSteps = max(totalSteps, 2)
     }
 
-    /// Picks the scenario from the `-RoomyMockScenario <name>` launch argument, defaulting to `.normal`.
-    static func fromLaunchArguments(_ defaults: UserDefaults = .standard) -> MockCoreClient {
-        let name = defaults.string(forKey: "RoomyMockScenario") ?? ""
-        return MockCoreClient(scenario: Scenario(rawValue: name) ?? .normal)
+    /// The scenario named by the `-RoomyMockScenario <name>` launch argument, or `nil` if there is none.
+    static func fromLaunchArguments(_ defaults: UserDefaults = .standard) -> MockCoreClient? {
+        guard let name = defaults.string(forKey: "RoomyMockScenario"), let scenario = Scenario(rawValue: name) else {
+            return nil
+        }
+        return MockCoreClient(scenario: scenario)
     }
 
     func startScan(mode: Mode) async -> ScanHandle {
         let handle = ScanHandle(id: nextHandle)
         nextHandle += 1
         steps[handle] = 0
+        modes[handle] = mode
         return handle
     }
 
@@ -69,6 +74,7 @@ final class MockCoreClient: CoreClient {
 
     func closeScan(handle: ScanHandle) async {
         steps[handle] = nil
+        modes[handle] = nil
         cancelled.remove(handle)
     }
 
@@ -78,6 +84,22 @@ final class MockCoreClient: CoreClient {
         if scenario == .failure { throw CoreError.ScanFailed(reason: "Roomy could not read your home folder.") }
         guard step >= totalSteps else { throw CoreError.ScanNotFinished }
         return MockData.overview(for: scenario)
+    }
+
+    func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary] {
+        _ = try await overview(handle: handle)
+        return MockData.found(for: scenario)
+            .filter { category == nil || $0.category == category }
+            .filter { tier == nil || $0.tier == tier }
+            .sorted(by: AppModel.order(for: sort))
+    }
+
+    func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail {
+        _ = try await overview(handle: handle)
+        guard let item = MockData.found(for: scenario).first(where: { $0.id == itemId }) else {
+            throw CoreError.UnknownItem
+        }
+        return MockData.detail(for: item, mode: modes[handle] ?? .simple)
     }
 }
 
@@ -134,9 +156,39 @@ enum MockData {
              22_000_000_000, .keep, .userData),
     ]
 
+    /// Every item a scenario's scan finds.
+    static func found(for scenario: MockCoreClient.Scenario) -> [ItemSummary] {
+        scenario == .nothingFound ? [] : items
+    }
+
+    /// The detail panel for a mock item. `path` is filled in only in Developer mode, as in the core.
+    static func detail(for item: ItemSummary, mode: Mode) -> ItemDetail {
+        let regenerable = item.tier == .likelySafe
+        return ItemDetail(
+            id: item.id,
+            title: item.title,
+            explain: item.explain,
+            risk: item.tier == .keep
+                ? "These are your own files, so Roomy does not offer to remove them."
+                : "You may need to download or rebuild it again later.",
+            restore: regenerable ? "It comes back by itself when it is needed." : nil,
+            ruleId: "mock.\(item.id)",
+            ruleVersion: 1,
+            confidence: .high,
+            tier: item.tier,
+            category: item.category,
+            sizeBytes: item.sizeBytes,
+            regenerable: regenerable,
+            action: item.tier == .keep ? .showOnly : .trash,
+            command: nil,
+            cautions: item.tier == .reviewFirst ? [.reviewOnly] : [],
+            path: mode == .developer ? "~/Library/Mock/\(item.id)" : nil
+        )
+    }
+
     /// The Overview a finished scan returns, built the way the contract defines each field.
     static func overview(for scenario: MockCoreClient.Scenario) -> Overview {
-        let found = scenario == .nothingFound ? [] : items
+        let found = Self.found(for: scenario)
         return Overview(
             likelySafeBytes: sum(found.filter { $0.tier == .likelySafe }),
             scannedBytes: scannedBytes,

@@ -36,6 +36,11 @@ final class ScreenshotTests: XCTestCase {
                 try capture(ContentView().environmentObject(model), size: CGSize(width: 1120, height: 1080),
                             appearance: appearance, to: folder.appendingPathComponent("\(name)-\(suffix).png"))
             }
+            for (name, mode) in [("8-list-simple", Mode.simple), ("9-list-developer", .developer)] {
+                let model = makeListModel(mode: mode, overview: normal, scannedAt: scannedAt)
+                try capture(ContentView().environmentObject(model), size: CGSize(width: 1120, height: 740),
+                            appearance: appearance, to: folder.appendingPathComponent("\(name)-\(suffix).png"))
+            }
             let model = makeModel(mode: .developer, state: .neverScanned)
             try capture(SettingsView().environmentObject(model), size: CGSize(width: 440, height: 200),
                         appearance: appearance, to: folder.appendingPathComponent("7-settings-\(suffix).png"))
@@ -48,6 +53,19 @@ final class ScreenshotTests: XCTestCase {
         let model = AppModel(client: MockCoreClient(), defaults: defaults, pollInterval: 0)
         model.mode = mode
         model.showForPreview(state)
+        return model
+    }
+
+    /// Apps and caches, with the biggest item's detail open.
+    private func makeListModel(mode: Mode, overview: Overview, scannedAt: Date) -> AppModel {
+        let model = makeModel(mode: mode, state: .neverScanned)
+        model.selection = .appsAndCaches
+        let items = MockData.items
+            .filter { [.cache, .appData].contains($0.category) }
+            .sorted(by: AppModel.order(for: .largestFirst))
+        let selected = items[0]
+        model.showForPreview(.loaded(overview, scannedAt: scannedAt), list: .loaded(items),
+                             detail: .loaded(MockData.detail(for: selected, mode: mode)), selectedItemID: selected.id)
         return model
     }
 

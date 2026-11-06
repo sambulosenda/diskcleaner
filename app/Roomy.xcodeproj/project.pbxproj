@@ -17,6 +17,9 @@
 		A10000000000000000000022 /* MockCoreClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* MockCoreClient.swift */; };
 		A10000000000000000000023 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* AppModel.swift */; };
 		A10000000000000000000024 /* SidebarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* SidebarItem.swift */; };
+		A10000000000000000000050 /* RustCoreClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000050 /* RustCoreClient.swift */; };
+		A10000000000000000000051 /* ItemListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000051 /* ItemListView.swift */; };
+		A10000000000000000000052 /* ItemDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000052 /* ItemDetailPanel.swift */; };
 		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
 		A10000000000000000000026 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* OverviewView.swift */; };
 		A10000000000000000000027 /* CategoryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* CategoryStrip.swift */; };
@@ -24,6 +27,7 @@
 		A10000000000000000000029 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* SettingsView.swift */; };
 		A10000000000000000000030 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* AppModelTests.swift */; };
 		A10000000000000000000031 /* MockCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MockCoreClientTests.swift */; };
+		A10000000000000000000053 /* RustCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000053 /* RustCoreClientTests.swift */; };
 		A10000000000000000000032 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* ScreenshotTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -50,6 +54,9 @@
 		A20000000000000000000022 /* MockCoreClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCoreClient.swift; sourceTree = "<group>"; };
 		A20000000000000000000023 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000024 /* SidebarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarItem.swift; sourceTree = "<group>"; };
+		A20000000000000000000050 /* RustCoreClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustCoreClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000051 /* ItemListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemListView.swift; sourceTree = "<group>"; };
+		A20000000000000000000052 /* ItemDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailPanel.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* CategoryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStrip.swift; sourceTree = "<group>"; };
@@ -57,6 +64,7 @@
 		A20000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000030 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000031 /* MockCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCoreClientTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000053 /* RustCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustCoreClientTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000032 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,6 +106,9 @@
 				A20000000000000000000022 /* MockCoreClient.swift */,
 				A20000000000000000000023 /* AppModel.swift */,
 				A20000000000000000000024 /* SidebarItem.swift */,
+				A20000000000000000000050 /* RustCoreClient.swift */,
+				A20000000000000000000051 /* ItemListView.swift */,
+				A20000000000000000000052 /* ItemDetailPanel.swift */,
 				A20000000000000000000025 /* Formatting.swift */,
 				A20000000000000000000026 /* OverviewView.swift */,
 				A20000000000000000000027 /* CategoryStrip.swift */,
@@ -114,6 +125,7 @@
 				A20000000000000000000040 /* CommandContractTests.swift */,
 				A20000000000000000000030 /* AppModelTests.swift */,
 				A20000000000000000000031 /* MockCoreClientTests.swift */,
+				A20000000000000000000053 /* RustCoreClientTests.swift */,
 				A20000000000000000000032 /* ScreenshotTests.swift */,
 			);
 			path = RoomyTests;
@@ -241,6 +253,9 @@
 				A10000000000000000000022 /* MockCoreClient.swift in Sources */,
 				A10000000000000000000023 /* AppModel.swift in Sources */,
 				A10000000000000000000024 /* SidebarItem.swift in Sources */,
+				A10000000000000000000050 /* RustCoreClient.swift in Sources */,
+				A10000000000000000000051 /* ItemListView.swift in Sources */,
+				A10000000000000000000052 /* ItemDetailPanel.swift in Sources */,
 				A10000000000000000000025 /* Formatting.swift in Sources */,
 				A10000000000000000000026 /* OverviewView.swift in Sources */,
 				A10000000000000000000027 /* CategoryStrip.swift in Sources */,
@@ -258,6 +273,7 @@
 				A10000000000000000000040 /* CommandContractTests.swift in Sources */,
 				A10000000000000000000030 /* AppModelTests.swift in Sources */,
 				A10000000000000000000031 /* MockCoreClientTests.swift in Sources */,
+				A10000000000000000000053 /* RustCoreClientTests.swift in Sources */,
 				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

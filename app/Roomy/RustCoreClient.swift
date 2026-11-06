@@ -1,0 +1,66 @@
+import Foundation
+
+/// The real core: wraps the UniFFI `RoomyCore` object described in `docs/command-contract.md`.
+///
+/// Every core call runs on a background task, never on the main thread, so the window stays
+/// responsive however long a call takes. The scan itself already runs on the core's own thread;
+/// `AppModel` polls `scanProgress` at most ten times a second.
+///
+/// The client never sends a path to the core. It sends scan handles, item ids and enum values only.
+@MainActor
+final class RustCoreClient: CoreClient {
+    /// The core, or the error that stopped it being made (for example no home folder).
+    private let core: Result<RoomyCore, Error>
+
+    /// Makes the core for the real home folder. If that fails, every scan fails with plain words.
+    init() {
+        do {
+            core = .success(try RoomyCore())
+        } catch {
+            core = .failure(error)
+        }
+    }
+
+    /// Wraps a core that already exists. Tests use this with `RoomyCore.withHomeForTesting`.
+    init(core: RoomyCore) {
+        self.core = .success(core)
+    }
+
+    /// Runs `work` on a background task and hands back its result.
+    private func offMain<T: Sendable>(_ work: @escaping @Sendable (RoomyCore) throws -> T) async throws -> T {
+        let core = try self.core.get()
+        return try await Task.detached(priority: .userInitiated) {
+            try work(core)
+        }.value
+    }
+
+    func startScan(mode: Mode) async -> ScanHandle {
+        // With no core, hand back a handle the core would never issue; `scanProgress` then reports
+        // why the core could not start.
+        (try? await offMain { $0.startScan(mode: mode) }) ?? ScanHandle(id: 0)
+    }
+
+    func scanProgress(handle: ScanHandle) async throws -> ScanProgress {
+        try await offMain { try $0.scanProgress(handle: handle) }
+    }
+
+    func cancelScan(handle: ScanHandle) async {
+        _ = try? await offMain { $0.cancelScan(handle: handle) }
+    }
+
+    func closeScan(handle: ScanHandle) async {
+        _ = try? await offMain { $0.closeScan(handle: handle) }
+    }
+
+    func overview(handle: ScanHandle) async throws -> Overview {
+        try await offMain { try $0.overview(handle: handle) }
+    }
+
+    func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary] {
+        try await offMain { try $0.listItems(handle: handle, category: category, tier: tier, sort: sort) }
+    }
+
+    func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail {
+        try await offMain { try $0.itemDetail(handle: handle, itemId: itemId) }
+    }
+}

@@ -200,33 +200,72 @@ struct ReviewAndCleanButton: View {
     }
 }
 
-/// Last scan time, what couldn't be measured, and a link to grant Full Disk Access.
+/// Last scan time, and how many folders couldn't be measured.
 struct OverviewFooter: View {
     let scannedAt: Date
     let unreadableCount: UInt64
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Last scan: \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
+            UnmeasuredNote(unreadableCount: unreadableCount)
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
+}
+
+/// "212 folders not measured", with a link that explains Full Disk Access and opens System Settings.
+struct UnmeasuredNote: View {
+    let unreadableCount: UInt64
+    @State private var showingExplanation = false
 
     /// Opens System Settings at Privacy & Security > Full Disk Access.
     static let fullDiskAccessURL = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
     )
 
+    /// "1 folder not measured" or "212 folders not measured".
+    static func text(for count: UInt64) -> String {
+        count == 1 ? "1 folder not measured" : "\(Format.count(count)) folders not measured"
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Last scan: \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
-            if unreadableCount == 0 {
-                Text("Every folder was measured.")
-            } else {
-                HStack(spacing: 6) {
-                    Text("\(Format.items(unreadableCount)) couldn't be measured because Roomy doesn't have access.")
-                    if let url = Self.fullDiskAccessURL {
-                        Link("Grant Full Disk Access", destination: url)
-                            .foregroundColor(.accentColor)
-                            .accessibilityHint("Opens System Settings.")
+        if unreadableCount == 0 {
+            Text("Every folder was measured.")
+        } else {
+            HStack(spacing: 6) {
+                Text(Self.text(for: unreadableCount))
+                Button("Why?") { showingExplanation = true }
+                    .buttonStyle(.link)
+                    .accessibilityLabel("Why some folders weren't measured")
+                    .popover(isPresented: $showingExplanation, arrowEdge: .bottom) {
+                        FullDiskAccessExplanation()
                     }
-                }
             }
         }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
+    }
+}
+
+/// What Full Disk Access is and how to turn it on.
+struct FullDiskAccessExplanation: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Some folders weren't measured")
+                .font(.headline)
+            Text("macOS keeps some folders private, such as Mail, Messages and Safari data. Roomy can't measure them unless you give it Full Disk Access.")
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Full Disk Access lets Roomy measure those folders too. Roomy only reads sizes, and nothing leaves this Mac. Saying no is fine: the rest of the results are still right.")
+                .fixedSize(horizontal: false, vertical: true)
+            Text("To turn it on, open System Settings, go to Privacy & Security, then Full Disk Access, and switch on Roomy (or add it with the + button). Then scan again.")
+                .fixedSize(horizontal: false, vertical: true)
+            if let url = UnmeasuredNote.fullDiskAccessURL {
+                Link("Open Full Disk Access settings", destination: url)
+                    .accessibilityHint("Opens System Settings.")
+            }
+        }
+        .font(.callout)
+        .padding(16)
+        .frame(width: 360)
     }
 }

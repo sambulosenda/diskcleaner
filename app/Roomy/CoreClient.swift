@@ -3,8 +3,9 @@ import Foundation
 /// Everything the app asks of the Rust core, shaped like the `RoomyCore` commands in
 /// `docs/command-contract.md` (T09) and using the same UniFFI-generated types.
 ///
-/// T10 uses `MockCoreClient`; T11 adds a client that wraps `RoomyCore`. The protocol is main-actor
-/// bound so `AppModel` can call it directly; a real client moves the core calls off the main thread.
+/// `RustCoreClient` wraps the real core; `MockCoreClient` stands in for previews and tests. The
+/// protocol is main-actor bound so `AppModel` can call it directly; `RustCoreClient` moves every core
+/// call off the main thread.
 @MainActor
 protocol CoreClient: AnyObject {
     /// Starts a read-only scan of the home folder and returns its handle straight away.
@@ -21,4 +22,10 @@ protocol CoreClient: AnyObject {
 
     /// The Overview for a finished scan. Throws `CoreError.ScanNotFinished` while it runs.
     func overview(handle: ScanHandle) async throws -> Overview
+
+    /// Every item of a finished scan, optionally one category and/or one tier (`nil` means any).
+    func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary]
+
+    /// Everything the detail panel shows for one item. Throws `CoreError.UnknownItem` for an unknown id.
+    func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail
 }

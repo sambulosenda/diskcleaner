@@ -59,6 +59,8 @@ struct DetailView: View {
         Group {
             if item == .overview {
                 OverviewScreen()
+            } else if item.itemFilter != nil {
+                ItemListScreen(item: item)
             } else {
                 PlaceholderView(item: item)
             }
