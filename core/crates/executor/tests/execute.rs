@@ -605,3 +605,44 @@ fn the_fixture_traps_are_refused() {
     ));
     assert!(home.path(fixtures::paths::TRAP_KEYSTORE).exists());
 }
+
+// ---------------------------------------------------------------------------
+// Read-only folders (for example Go's module cache)
+// ---------------------------------------------------------------------------
+
+/// Sets a folder's permission bits.
+fn chmod(path: &Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+}
+
+#[test]
+fn delete_refuses_an_item_with_a_read_only_folder_but_trash_takes_it() {
+    for locked in ["Library/Caches/gomod/pkg@v1", "Library/Caches/gomod"] {
+        let home = Home::plain();
+        home.file("Library/Caches/gomod/pkg@v1/go.mod", 1_000);
+        chmod(&home.path(locked), 0o555);
+
+        let report = run(home.plan_of(&["Library/Caches/gomod"]), Mode::Delete);
+        assert_eq!(
+            refusal(&report, 0),
+            &ItemRefusal::NeedsTrash {
+                at: home.path(locked)
+            },
+            "{locked}"
+        );
+        assert!(home.path("Library/Caches/gomod/pkg@v1/go.mod").exists());
+        assert!(home.trash_names().is_empty());
+
+        let report = run(home.plan_of(&["Library/Caches/gomod"]), Mode::Trash);
+        assert!(
+            matches!(report.items[0].outcome, Outcome::MovedToTrash { .. }),
+            "{locked}: {report:?}"
+        );
+        // Let the temp folder be cleaned up.
+        let moved = home
+            .path(".Trash")
+            .join(locked.trim_start_matches("Library/Caches/"));
+        chmod(&moved, 0o755);
+    }
+}

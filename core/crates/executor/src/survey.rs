@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 use std::fs::{self, Metadata};
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use safety::protected;
@@ -21,7 +21,7 @@ use safety::protected;
 use crate::ItemRefusal;
 
 /// What the walk learned about an item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Survey {
     /// Allocated bytes, measured like the scanner's `total_bytes`.
     pub size_bytes: u64,
@@ -33,6 +33,11 @@ pub struct Survey {
     pub modified: SystemTime,
     /// Whether the item is a folder.
     pub is_dir: bool,
+    /// The first folder in the item (the item itself included) whose contents
+    /// this user cannot remove: owned by someone else, or without the owner's
+    /// write permission (Go makes its module cache like this). Such an item
+    /// can go to the Trash, but a permanent delete would stop partway.
+    pub locked_dir: Option<PathBuf>,
 }
 
 /// Measures `root` and checks every path inside it.
@@ -62,13 +67,16 @@ pub fn survey(
     })?;
     let mut seen_links = HashSet::new();
     let mut size = allocated(&meta, &mut seen_links);
+    let mut locked_dir = None;
     if meta.is_dir() {
+        note_locked(root, &meta, &mut locked_dir);
         size += walk(
             root,
             root_rel,
             scan_dev,
             selected_individually,
             &mut seen_links,
+            &mut locked_dir,
         )?;
     }
     Ok(Survey {
@@ -77,7 +85,17 @@ pub fn survey(
         ino: meta.ino(),
         modified,
         is_dir: meta.is_dir(),
+        locked_dir,
     })
+}
+
+/// Records `dir` in `locked_dir` (if nothing is there yet) when this user
+/// cannot remove what is inside it.
+fn note_locked(dir: &Path, meta: &Metadata, locked_dir: &mut Option<PathBuf>) {
+    let owner_can_write = meta.mode() & 0o200 != 0;
+    if locked_dir.is_none() && (meta.uid() != crate::sys::effective_uid() || !owner_can_write) {
+        *locked_dir = Some(dir.to_path_buf());
+    }
 }
 
 /// Walks everything inside the folder `root` (not `root` itself) and returns
@@ -88,6 +106,7 @@ fn walk(
     scan_dev: u64,
     selected_individually: bool,
     seen_links: &mut HashSet<(u64, u64)>,
+    locked_dir: &mut Option<PathBuf>,
 ) -> Result<u64, ItemRefusal> {
     let mut size = 0u64;
     let mut stack = vec![(root.to_path_buf(), root_rel)];
@@ -113,6 +132,7 @@ fn walk(
             }
             size = size.saturating_add(allocated(&meta, seen_links));
             if meta.is_dir() {
+                note_locked(&path, &meta, locked_dir);
                 stack.push((path, child_rel));
             }
         }

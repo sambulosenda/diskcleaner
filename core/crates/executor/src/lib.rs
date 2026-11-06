@@ -119,6 +119,14 @@ pub enum ItemRefusal {
         /// The path that could not be read.
         at: PathBuf,
     },
+    /// Permanent delete was asked for, but a folder in the item cannot be
+    /// emptied by this user, so the delete would stop partway. The item can
+    /// still go to the Trash.
+    #[error("this can't be removed for good, but it can go to the Trash")]
+    NeedsTrash {
+        /// The first folder whose contents cannot be removed.
+        at: PathBuf,
+    },
     /// A name inside the item is not valid text, so it could not be checked.
     #[error("part of it has a name the app cannot check")]
     UnusualName {
@@ -259,7 +267,7 @@ impl Context {
     /// Checks and acts on one item. Never panics; every failure is an outcome.
     fn act(&self, item: PlanItem, mode: Mode, plan_id: u64, n: usize) -> ItemReport {
         let path = item.path().to_path_buf();
-        let (bytes, outcome) = match self.prepare(&item) {
+        let (bytes, outcome) = match self.prepare(&item, mode) {
             Err(refusal) => (0, Outcome::Refused(refusal)),
             Ok(ready) => {
                 let size = ready.survey.size_bytes;
@@ -283,7 +291,7 @@ impl Context {
     }
 
     /// Every check that runs immediately before acting.
-    fn prepare(&self, item: &PlanItem) -> Result<Ready, ItemRefusal> {
+    fn prepare(&self, item: &PlanItem, mode: Mode) -> Result<Ready, ItemRefusal> {
         let path = item.path();
         safety::validate(&self.home, self.dev, path, item.selected_individually())?;
         let (parent_fd, name) = self.open_parent(path)?;
@@ -293,6 +301,11 @@ impl Context {
             return Err(ItemRefusal::ChangedSinceReview);
         }
         let survey = survey::survey(&self.home, path, self.dev, item.selected_individually())?;
+        if mode == Mode::Delete {
+            if let Some(at) = survey.locked_dir.clone() {
+                return Err(ItemRefusal::NeedsTrash { at });
+            }
+        }
         let expected = item.expected();
         if !size_matches(expected.size_bytes, survey.size_bytes)
             || survey.modified != expected.modified
@@ -388,7 +401,7 @@ impl Context {
             };
         }
         let staging_path = self.trash_path.join(&staging_name);
-        match remove_staged(&staging_fd, &staging_path, &ready.name, ready.survey) {
+        match remove_staged(&staging_fd, &staging_path, &ready.name, &ready.survey) {
             Ok(()) => Outcome::Deleted,
             Err(err) => Outcome::Failed {
                 error: err.to_string(),
@@ -466,7 +479,7 @@ fn remove_staged(
     staging_fd: &OwnedFd,
     staging_path: &Path,
     name: &OsStr,
-    survey: survey::Survey,
+    survey: &survey::Survey,
 ) -> std::io::Result<()> {
     let changed = || std::io::Error::other("the item changed while it was being removed");
     let staging = sys::fstat(staging_fd)?;

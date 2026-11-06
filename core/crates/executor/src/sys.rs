@@ -123,6 +123,12 @@ pub fn stat_at(dir: &OwnedFd, name: &OsStr) -> io::Result<Stat> {
     Ok(Stat::from_raw(&st))
 }
 
+/// The effective user id of this process.
+pub fn effective_uid() -> u32 {
+    // SAFETY: `geteuid` takes no arguments, cannot fail and touches no memory.
+    unsafe { libc::geteuid() }
+}
+
 /// Makes the folder `name` inside `dir`. Fails if anything has that name.
 pub fn mkdir_at(dir: &OwnedFd, name: &OsStr) -> io::Result<()> {
     let c = name_cstr(name)?;
