@@ -654,3 +654,95 @@ pub struct AppReview {
     /// for example that another copy of the app is installed.
     pub note: Option<String>,
 }
+
+/// What kind of Android part something is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum AndroidKind {
+    /// An emulator system image, for one Android version.
+    SystemImage,
+    /// One Android emulator (AVD), with what is inside it.
+    Emulator,
+    /// An SDK platform, what projects build against.
+    Platform,
+    /// One version of the build tools.
+    BuildTools,
+    /// One version of the NDK.
+    Ndk,
+    /// One Gradle version the Gradle wrapper downloaded.
+    GradleVersion,
+    /// Gradle's download and build cache.
+    GradleCache,
+}
+
+/// Whether any Android project (or, for a system image, any emulator) that
+/// Roomy found uses a part.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum AndroidUsage {
+    /// Named by these projects, or run by these emulators.
+    Used { by: Vec<String> },
+    /// No project names it, but these leave the choice to Android Studio and
+    /// this is the newest one installed, so they probably use it.
+    ProbablyUsed { by: Vec<String> },
+    /// Roomy couldn't read a setting of these projects or emulators.
+    NotSure { by: Vec<String> },
+    /// Nothing Roomy found uses it.
+    NotUsed,
+    /// Not something projects name: an emulator, or the Gradle cache.
+    NotApplicable,
+}
+
+/// One thing the Android screen can move to the Trash.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AndroidPart {
+    /// Id to send to `preview_android_cleanup`. Valid until the next
+    /// `android_overview`.
+    pub item_id: String,
+    /// What it is.
+    pub kind: AndroidKind,
+    /// Short name, for example "Android 14 (API 34) emulator image".
+    pub title: String,
+    /// A line under the title, for example "Google Play, for Apple silicon Macs".
+    pub detail: Option<String>,
+    /// What it is and what happens if it goes, in plain words.
+    pub explain: String,
+    /// Allocated bytes, measured just now.
+    pub size_bytes: u64,
+    /// Whether anything uses it.
+    pub usage: AndroidUsage,
+    /// `usage` in plain words, for example "Used by Shop". Empty for an emulator.
+    pub usage_text: String,
+    /// For an emulator: when it last ran (roughly), in seconds since 1970.
+    pub last_used_unix_seconds: Option<i64>,
+    /// Developer mode only: the place as a display string starting `~`.
+    /// Display only; never sent back.
+    pub path: Option<String>,
+}
+
+/// One Android project Roomy found.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AndroidProject {
+    /// Its name (for a React Native or Flutter app, the app's folder name).
+    pub name: String,
+    /// Developer mode only: where it is, starting `~`. Display only.
+    pub path: Option<String>,
+    /// When its build files or top folder last changed, in seconds since 1970.
+    pub last_activity_unix_seconds: Option<i64>,
+}
+
+/// Everything the Android screen shows.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AndroidOverview {
+    /// Whether `~/Library/Android/sdk` exists.
+    pub sdk_found: bool,
+    /// Every part, emulator and Gradle download, by kind then newest first.
+    /// Nothing is ever ticked for the user.
+    pub parts: Vec<AndroidPart>,
+    /// The Android projects found in the home folder, by name.
+    pub projects: Vec<AndroidProject>,
+    /// Allocated bytes of every part.
+    pub total_bytes: u64,
+    /// Allocated bytes of the parts nothing uses (`AndroidUsage::NotUsed`).
+    pub unused_bytes: u64,
+    /// Plain words to show above the list, if there is something to say.
+    pub note: Option<String>,
+}

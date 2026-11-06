@@ -17,6 +17,7 @@
 //! protected folders (`set_protected_folders`, which can only stop things
 //! being cleaned) and the test-only commands behind the `testing` feature.
 
+mod android;
 mod backup;
 mod cleanup;
 mod docker;
@@ -46,11 +47,12 @@ pub use low_space::{
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{
-    Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution,
-    CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
-    CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
-    HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea,
-    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    Action, AndroidKind, AndroidOverview, AndroidPart, AndroidProject, AndroidUsage, AppLocation,
+    AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice,
+    CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem,
+    Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState,
+    ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea, PutBackResult, ScanHandle,
+    ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

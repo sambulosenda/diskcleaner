@@ -253,7 +253,7 @@ fn is_roomy(id: &str) -> bool {
 }
 
 /// The device id of the home folder. Leftovers on another volume are left out.
-fn home_dev(home: &Path) -> Result<u64, CoreError> {
+pub(crate) fn home_dev(home: &Path) -> Result<u64, CoreError> {
     std::fs::symlink_metadata(home)
         .map(|m| m.dev())
         .map_err(|_| CoreError::HomeNotFound)
@@ -416,7 +416,7 @@ fn words(kind: LeftoverKind) -> (&'static str, &'static str) {
 }
 
 /// The path to show, in Developer mode only.
-fn shown(home: &Path, path: &Path, mode: Mode) -> Option<String> {
+pub(crate) fn shown(home: &Path, path: &Path, mode: Mode) -> Option<String> {
     match mode {
         Mode::Developer => display_path(home, path),
         Mode::Simple => None,
@@ -427,7 +427,7 @@ fn shown(home: &Path, path: &Path, mode: Mode) -> Option<String> {
 /// bytes of it and everything inside, each hard-linked file once, and its
 /// own modification time. `None` for a symlink, something unreadable, or
 /// (with `dev`) anything on another volume.
-fn measure(path: &Path, dev: Option<u64>) -> Option<Expected> {
+pub(crate) fn measure(path: &Path, dev: Option<u64>) -> Option<Expected> {
     let meta = std::fs::symlink_metadata(path).ok()?;
     if meta.file_type().is_symlink() || dev.is_some_and(|d| d != meta.dev()) {
         return None;
