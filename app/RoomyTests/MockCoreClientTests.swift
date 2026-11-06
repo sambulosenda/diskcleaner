@@ -193,6 +193,6 @@ final class DockerModelTests: XCTestCase {
         XCTAssertEqual(overview.status, .notRunning)
         model.startReview(.unusedImages)
         await waitUntil { if case .failed = model.review { return true } else { return false } }
-        XCTAssertEqual(model.review, .failed("Docker isn't running. Open Docker and try again."))
+        XCTAssertEqual(model.review, .failed("Docker isn't running. Open Docker Desktop or OrbStack and try again."))
     }
 }

@@ -25,13 +25,15 @@ pub const DISK_IMAGE: &str = "Library/Containers/com.docker.docker/Data/vms/0/da
 /// The folders searched for the `docker` program, in order.
 ///
 /// A Mac app starts with a short `PATH` that holds none of the places Docker
-/// installs its command-line tool, so Roomy names them itself. `~/.docker/bin`
+/// installs its command-line tool, so Roomy names them itself (OrbStack
+/// puts its copy in `~/.orbstack/bin`). `~/.docker/bin`
 /// is where Docker Desktop puts it when it is set up without admin rights.
 pub fn search_path(home: &Path) -> OsString {
-    let folders: [PathBuf; 6] = [
+    let folders: [PathBuf; 7] = [
         PathBuf::from("/usr/local/bin"),
         PathBuf::from("/opt/homebrew/bin"),
         home.join(".docker/bin"),
+        home.join(".orbstack/bin"),
         PathBuf::from("/Applications/Docker.app/Contents/Resources/bin"),
         PathBuf::from("/usr/bin"),
         PathBuf::from("/bin"),
@@ -710,6 +712,10 @@ mod tests {
         ));
         assert!(is_not_running(
             "dial unix /Users/me/.docker/run/docker.sock: connect: connection refused"
+        ));
+        // OrbStack's socket, exactly as Sam's Mac printed it with OrbStack closed.
+        assert!(is_not_running(
+            "failed to connect to the docker API at unix:///Users/sam/.orbstack/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/sam/.orbstack/run/docker.sock: connect: no such file or directory"
         ));
         assert!(!is_not_running("permission denied"));
     }

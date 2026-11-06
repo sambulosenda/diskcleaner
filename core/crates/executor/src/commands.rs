@@ -208,7 +208,7 @@ pub enum DockerError {
     #[error("Docker isn't installed.")]
     NotInstalled,
     /// Docker is not running.
-    #[error("Docker isn't running. Open Docker and try again.")]
+    #[error("Docker isn't running. Open Docker Desktop or OrbStack and try again.")]
     NotRunning,
     /// The plan is older than the plan lifetime, or from the future.
     #[error("This review has expired, so please review again.")]
