@@ -111,4 +111,28 @@ final class MockCoreClientTests: XCTestCase {
             XCTAssertFalse(item.explain.contains("/"), item.id)
         }
     }
+
+    func testCleanupPreviewFollowsTheContract() async throws {
+        let mock = MockCoreClient(totalSteps: 2)
+        let handle = await mock.startScan(mode: .simple)
+        while try await mock.scanProgress(handle: handle).phase != .finished {}
+        let choices = [
+            CleanupChoice(itemId: "app-caches", chosenAlone: true),
+            CleanupChoice(itemId: "iphone-backup", chosenAlone: false),
+            CleanupChoice(itemId: "photos-library", chosenAlone: true),
+            CleanupChoice(itemId: "app-caches", chosenAlone: true),
+        ]
+        let preview = try await mock.previewCleanup(handle: handle, choices: choices)
+        XCTAssertEqual(preview.items.map(\.itemId), ["app-caches", "iphone-backup", "photos-library"])
+        XCTAssertEqual(preview.items[0].check, .willMove)
+        XCTAssertNotEqual(preview.items[1].check, .willMove, "Review first needs choosing alone")
+        XCTAssertNotEqual(preview.items[2].check, .willMove, "keep never moves")
+        XCTAssertEqual(preview.bytesToMove, preview.items[0].sizeBytes)
+        XCTAssertTrue(preview.items.allSatisfy { $0.path == nil }, "no path in simple mode")
+        XCTAssertNotNil(preview.plan)
+        do {
+            _ = try await mock.previewCleanup(handle: handle, choices: [])
+            XCTFail("an empty preview must throw")
+        } catch CoreError.NothingSelected {}
+    }
 }

@@ -22,6 +22,10 @@
 //! Every item gets its own outcome in the [`Report`]; a refused item never
 //! stops the others. The report is what History will record.
 //!
+//! [`preview`] is the dry run: it runs steps 1 to 4 for every item, exactly as
+//! [`execute`] does, and stops there. It only opens folders and reads
+//! metadata, so it never changes anything.
+//!
 //! Not here yet: the allow-listed tool commands (`docs/safety/allowed-commands.md`),
 //! writing to History, and the UniFFI commands. Each is its own change.
 
@@ -188,6 +192,42 @@ impl Report {
     pub fn total_bytes(&self) -> u64 {
         self.items.iter().map(|i| i.bytes).sum()
     }
+}
+
+/// What the dry run found for one item.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ItemCheck {
+    /// The item's recommendation.
+    pub recommendation_id: String,
+    /// The item's path when the plan was built.
+    pub path: PathBuf,
+    /// The allocated bytes that would move, measured just now, or why the
+    /// item would be refused.
+    pub result: Result<u64, ItemRefusal>,
+}
+
+/// The dry run: runs every check [`execute`] runs before acting (steps 1 to
+/// 4), for every item, and touches nothing. The plan is borrowed, not used
+/// up, so the same plan can then be passed to [`execute`].
+///
+/// An item that passes here can still be refused by [`execute`] if it
+/// changes in between; `execute` runs every check again.
+pub fn preview(plan: &Plan, mode: Mode, now: SystemTime) -> Result<Vec<ItemCheck>, ExecuteError> {
+    plan.check_fresh(now)?;
+    if mode == Mode::Delete && !plan.all_regenerable() {
+        return Err(ExecuteError::DeleteNeedsRegenerable);
+    }
+    let ctx = Context::open(plan.home(), plan.scan_root_dev())?;
+    let checks = plan
+        .items()
+        .iter()
+        .map(|item| ItemCheck {
+            recommendation_id: item.recommendation_id().to_string(),
+            path: item.path().to_path_buf(),
+            result: ctx.prepare(item, mode).map(|ready| ready.survey.size_bytes),
+        })
+        .collect();
+    Ok(checks)
 }
 
 /// Carries out `plan`. The plan is used up whatever happens.

@@ -124,4 +124,56 @@ final class CommandContractTests: XCTestCase {
         core.closeScan(handle: handle)
         XCTAssertThrowsError(try core.scanProgress(handle: handle))
     }
+
+    // MARK: - Cleanup preview (dry run)
+
+    /// Every path under `root` with its size and modification time. Never follows a symlink.
+    private func snapshot(_ root: URL) throws -> [String] {
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey]
+        let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys, options: [])
+        var out: [String] = []
+        while let url = walker?.nextObject() as? URL {
+            let values = try url.resourceValues(forKeys: Set(keys))
+            out.append("\(url.path) \(values.fileSize ?? -1) \(values.contentModificationDate?.timeIntervalSince1970 ?? 0)")
+        }
+        return out.sorted()
+    }
+
+    func testPreviewCleanupSaysWhatWouldMoveAndMovesNothing() throws {
+        let home = URL(fileURLWithPath: try makeFixtureHome(dir: fixtureDir.path + "-cleanup"))
+        let trash = home.appendingPathComponent(".Trash")
+        try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: false)
+        core = try RoomyCore.withHomeForTesting(home: home.path)
+        let handle = try finishedScan(.simple)
+        let likely = try core.listItems(handle: handle, category: nil, tier: .likelySafe, sort: .largestFirst)
+        XCTAssertFalse(likely.isEmpty)
+        let before = try snapshot(home)
+
+        let preview = try core.previewCleanup(handle: handle, choices: likely.map {
+            CleanupChoice(itemId: $0.id, chosenAlone: true)
+        })
+
+        XCTAssertEqual(try snapshot(home), before, "the preview changed something")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: trash.path), [])
+        XCTAssertEqual(preview.items.count, likely.count)
+        XCTAssertTrue(preview.items.contains { $0.check == .willMove })
+        XCTAssertTrue(preview.items.allSatisfy { $0.path == nil }, "no path in simple mode")
+        XCTAssertEqual(preview.expiresInSeconds, 600)
+        let plan = try XCTUnwrap(preview.plan)
+        core.discardCleanup(plan: plan)
+        core.discardCleanup(plan: plan)
+    }
+
+    func testPreviewCleanupWithoutATrashSaysSoInPlainWords() throws {
+        let handle = try finishedScan(.simple)
+        let likely = try core.listItems(handle: handle, category: nil, tier: .likelySafe, sort: .largestFirst)
+        XCTAssertThrowsError(try core.previewCleanup(handle: handle, choices: likely.map {
+            CleanupChoice(itemId: $0.id, chosenAlone: true)
+        })) { error in
+            guard case CoreError.CleanupUnavailable(let reason) = error else {
+                return XCTFail("Expected CleanupUnavailable, got \(error)")
+            }
+            XCTAssertFalse(reason.contains("/"), reason)
+        }
+    }
 }

@@ -296,6 +296,7 @@ fn folder_item(ctx: &Ctx<'_, '_>, frame: &Frame, c: &Compiled<'_>) -> Option<Fou
             &frame.names,
             ItemKind::Folder,
             dir.total_bytes,
+            dir.modified,
             path,
             caution,
         ),
@@ -331,6 +332,7 @@ fn file_item(
             &names,
             ItemKind::File,
             file.allocated_bytes,
+            file.modified,
             path,
             caution,
         ),
@@ -343,6 +345,7 @@ fn build(
     names: &[String],
     kind: ItemKind,
     size_bytes: u64,
+    modified: Option<std::time::SystemTime>,
     path: std::path::PathBuf,
     mut caution: Caution,
 ) -> ClassifiedItem {
@@ -372,6 +375,7 @@ fn build(
         command: if keep { None } else { rule.command.clone() },
         kind,
         size_bytes,
+        modified,
         path,
         lowered: caution.lowered,
     }

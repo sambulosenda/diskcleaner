@@ -232,6 +232,68 @@ pub struct ItemDetail {
     pub path: Option<String>,
 }
 
+/// Opaque id for one cleanup plan. Single use; expires ten minutes after
+/// the preview that made it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Record)]
+pub struct PlanHandle {
+    /// The plan's number.
+    pub id: u64,
+}
+
+/// One item the user ticked, as the app sends it. An id, never a path.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CleanupChoice {
+    /// The item's id from `list_items` or `overview`.
+    pub item_id: String,
+    /// Whether the user ticked this item on its own, rather than as part of
+    /// a group (such as a future "choose all"). Some items, and items holding
+    /// things like an `.env` file, may only move when chosen on their own.
+    pub chosen_alone: bool,
+}
+
+/// Whether one item would move.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum CleanupCheck {
+    /// It passed every check and would move to the Trash.
+    WillMove,
+    /// It would not move. `reason` is plain words with no path.
+    WontMove {
+        /// Why, ready to show.
+        reason: String,
+    },
+}
+
+/// One row of the cleanup preview.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CleanupPreviewItem {
+    /// The item's id.
+    pub item_id: String,
+    /// Short display name.
+    pub title: String,
+    /// Allocated bytes. For an item that would move, measured just now;
+    /// otherwise the size from the scan.
+    pub size_bytes: u64,
+    /// Whether it would move, and if not, why.
+    pub check: CleanupCheck,
+    /// Developer mode only: the place as a display string starting `~`.
+    /// Always `None` in simple mode. Display only; never sent back.
+    pub path: Option<String>,
+}
+
+/// The dry run: exactly what would move to the Trash. Nothing has moved.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CleanupPreview {
+    /// The plan holding only the items that would move, or `None` if
+    /// nothing would.
+    pub plan: Option<PlanHandle>,
+    /// One row per distinct ticked item, in the order sent.
+    pub items: Vec<CleanupPreviewItem>,
+    /// Sum of `size_bytes` of the items that would move.
+    pub bytes_to_move: u64,
+    /// How long the plan stays usable, in seconds.
+    pub expires_in_seconds: u64,
+}
+
 impl From<Mode> for rules::Mode {
     fn from(m: Mode) -> Self {
         match m {

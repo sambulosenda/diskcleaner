@@ -26,9 +26,12 @@ testing = ["dep:fixtures"]
 [dependencies]
 classifier = { path = "../classifier" }
 dirs = "6"
+executor = { path = "../executor" }
 fixtures = { path = "../fixtures", optional = true }
 libc = "0.2"
+planner = { path = "../planner" }
 rules = { path = "../rules" }
+safety = { path = "../safety" }
 scanner = { path = "../scanner" }
 thiserror = "2"
 tracing = "0.1"

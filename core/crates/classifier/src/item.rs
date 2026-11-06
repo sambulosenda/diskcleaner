@@ -118,6 +118,10 @@ pub struct ClassifiedItem {
     pub kind: ItemKind,
     /// Allocated bytes on disk.
     pub size_bytes: u64,
+    /// The item's own modification time from the scan (`lstat`), if the
+    /// system reported one. The planner needs it: the executor refuses an
+    /// item whose modification time changed since the scan.
+    pub modified: Option<std::time::SystemTime>,
     /// Absolute path. **Core-internal only**: never send it to the UI. The
     /// planner and executor must validate it again before acting.
     pub path: PathBuf,

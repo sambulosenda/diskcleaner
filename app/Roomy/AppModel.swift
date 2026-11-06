@@ -40,6 +40,18 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
+    /// What the cleanup review sheet shows. The review is a dry run: nothing moves.
+    enum CleanupState: Equatable {
+        /// No review is open.
+        case closed
+        /// The core is checking the ticked items.
+        case checking
+        /// What would move to the Trash, and what wouldn't and why.
+        case ready(CleanupPreview)
+        /// The core could not check the items. The text is ready to show.
+        case failed(String)
+    }
+
     static let modeKey = "roomy.mode"
 
     @Published private(set) var scanState: ScanState = .neverScanned
@@ -66,9 +78,11 @@ final class AppModel: ObservableObject {
         didSet { if selectedItemID != oldValue { reloadDetail() } }
     }
     @Published private(set) var detailState: DetailState = .none
-    /// Ticked rows. Nothing acts on them yet: cleanup arrives in a later task. Nothing is ticked for
-    /// the user, and `keep` items can never be ticked.
+    /// Ticked rows, which the cleanup review checks. Nothing is ticked for the user, and `keep` items
+    /// can never be ticked.
     @Published private(set) var checkedItemIDs: Set<String> = []
+    /// The cleanup review sheet.
+    @Published private(set) var cleanupState: CleanupState = .closed
 
     let client: CoreClient
     private let defaults: UserDefaults
@@ -77,6 +91,9 @@ final class AppModel: ObservableObject {
     private var scanTask: Task<Void, Never>?
     private var listTask: Task<Void, Never>?
     private var detailTask: Task<Void, Never>?
+    private var cleanupTask: Task<Void, Never>?
+    /// The size of each ticked row, for the total under the list.
+    private var checkedSizes: [String: UInt64] = [:]
     private var activeHandle: ScanHandle?
     /// The scan whose results are showing. Category screens list its items; closed on rescan.
     private var loadedHandle: ScanHandle?
@@ -128,14 +145,69 @@ final class AppModel: ObservableObject {
         checkedItemIDs.contains(item.id)
     }
 
-    /// Ticks or unticks a row. `keep` items can never be ticked. Ticking does nothing else yet.
+    /// Ticks or unticks a row. `keep` items can never be ticked. Ticking changes nothing on disk.
     func setChecked(_ checked: Bool, for item: ItemSummary) {
         guard item.tier != .keep else { return }
         if checked {
             checkedItemIDs.insert(item.id)
+            checkedSizes[item.id] = item.sizeBytes
         } else {
             checkedItemIDs.remove(item.id)
+            checkedSizes[item.id] = nil
         }
+    }
+
+    /// The scan's size of every ticked row, added up.
+    var checkedBytes: UInt64 {
+        checkedSizes.values.reduce(0, +)
+    }
+
+    // MARK: - Cleanup review (dry run)
+
+    /// Opens the cleanup review: asks the core to check every ticked row the way a cleanup would.
+    /// Nothing moves. Each row was ticked on its own, so each is sent as chosen alone.
+    func reviewCleanup() {
+        guard let handle = loadedHandle, !checkedItemIDs.isEmpty, cleanupState == .closed else { return }
+        let sizes = checkedSizes
+        let ids = checkedItemIDs.sorted {
+            let a = sizes[$0] ?? 0, b = sizes[$1] ?? 0
+            return a != b ? a > b : $0 < $1
+        }
+        let choices = ids.map { CleanupChoice(itemId: $0, chosenAlone: true) }
+        let client = self.client
+        cleanupState = .checking
+        cleanupTask = Task { [weak self] in
+            do {
+                let preview = try await client.previewCleanup(handle: handle, choices: choices)
+                guard !Task.isCancelled, let self else {
+                    // The review was closed while checking: let the core forget the plan.
+                    if let plan = preview.plan { await client.discardCleanup(plan: plan) }
+                    return
+                }
+                self.cleanupState = .ready(preview)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.cleanupState = .failed(Self.cleanupMessage(for: error))
+            }
+        }
+    }
+
+    /// Closes the cleanup review without cleaning up, and lets the core forget its plan.
+    func closeCleanupReview() {
+        cleanupTask?.cancel()
+        cleanupTask = nil
+        if case .ready(let preview) = cleanupState, let plan = preview.plan {
+            let client = self.client
+            Task { await client.discardCleanup(plan: plan) }
+        }
+        if cleanupState != .closed {
+            cleanupState = .closed
+        }
+    }
+
+    /// Waits for the cleanup review's check to finish. Used by tests.
+    func waitForCleanupCheck() async {
+        await cleanupTask?.value
     }
 
     /// Starts a scan, unless one is already running.
@@ -243,7 +315,9 @@ final class AppModel: ObservableObject {
 
     /// A new scan's results: forget the old selection and ticks, then list the current screen.
     private func resetItems() {
+        closeCleanupReview()
         checkedItemIDs = []
+        checkedSizes = [:]
         selectedItemID = nil
         reloadItems()
     }
@@ -372,6 +446,21 @@ final class AppModel: ObservableObject {
             return "Roomy couldn't find your home folder."
         case .InvalidPath, .Io, .RulesInvalid:
             return "Something went wrong while scanning."
+        case .NothingSelected:
+            return "Nothing was chosen."
+        case .CleanupUnavailable(let reason):
+            return reason
+        }
+    }
+
+    /// Plain words for an error from the cleanup review.
+    static func cleanupMessage(for error: Error) -> String {
+        guard let coreError = error as? CoreError else { return "Roomy couldn't check these items." }
+        switch coreError {
+        case .UnknownItem:
+            return "Some of these items are no longer in the scan. Please scan again."
+        default:
+            return message(for: coreError)
         }
     }
 }

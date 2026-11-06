@@ -20,6 +20,8 @@ pub struct Finished {
     pub home: PathBuf,
     /// Allocated bytes of the whole home folder.
     pub scanned_bytes: u64,
+    /// The device id of the home folder's volume, from the scan.
+    pub root_dev: u64,
     /// Folders the scan could not read.
     pub unreadable_count: u64,
     /// Classified items, largest first, then by id (the classifier's order).
@@ -34,6 +36,7 @@ impl Finished {
         mode: Mode,
         home: PathBuf,
         scanned_bytes: u64,
+        root_dev: u64,
         unreadable_count: u64,
         items: Vec<ClassifiedItem>,
     ) -> Self {
@@ -46,6 +49,7 @@ impl Finished {
             mode,
             home,
             scanned_bytes,
+            root_dev,
             unreadable_count,
             items,
             by_id,
@@ -111,6 +115,11 @@ impl Finished {
             .collect();
         sort_items(&mut list, sort);
         list.into_iter().map(summary).collect()
+    }
+
+    /// The classified item with this id, if the scan has one.
+    pub fn item(&self, item_id: &str) -> Option<&ClassifiedItem> {
+        self.by_id.get(item_id).and_then(|&i| self.items.get(i))
     }
 
     /// Full detail for one item. `path` is filled in only in Developer mode.
@@ -182,7 +191,7 @@ fn sort_items(items: &mut [&ClassifiedItem], sort: Sort) {
 /// `path` as a display string starting `~`, for Developer mode only. A
 /// path outside `home` (which the classifier never produces) gives `None`,
 /// so nothing outside the home folder is ever shown.
-fn display_path(home: &Path, path: &Path) -> Option<String> {
+pub(crate) fn display_path(home: &Path, path: &Path) -> Option<String> {
     let rel = path.strip_prefix(home).ok()?;
     if rel.as_os_str().is_empty() {
         return Some("~".to_string());
