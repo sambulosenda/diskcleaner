@@ -617,7 +617,7 @@ fn chmod(path: &Path, mode: u32) {
 }
 
 #[test]
-fn delete_refuses_an_item_with_a_read_only_folder_but_trash_takes_it() {
+fn delete_refuses_an_item_with_a_read_only_folder_before_moving_it() {
     for locked in ["Library/Caches/gomod/pkg@v1", "Library/Caches/gomod"] {
         let home = Home::plain();
         home.file("Library/Caches/gomod/pkg@v1/go.mod", 1_000);
@@ -635,14 +635,24 @@ fn delete_refuses_an_item_with_a_read_only_folder_but_trash_takes_it() {
         assert!(home.trash_names().is_empty());
 
         let report = run(home.plan_of(&["Library/Caches/gomod"]), Mode::Trash);
-        assert!(
-            matches!(report.items[0].outcome, Outcome::MovedToTrash { .. }),
-            "{locked}: {report:?}"
-        );
-        // Let the temp folder be cleaned up.
-        let moved = home
-            .path(".Trash")
-            .join(locked.trim_start_matches("Library/Caches/"));
-        chmod(&moved, 0o755);
+        match &report.items[0].outcome {
+            Outcome::MovedToTrash { to } => {
+                let moved = to.join(
+                    locked
+                        .trim_start_matches("Library/Caches/gomod")
+                        .trim_start_matches('/'),
+                );
+                // Let the temp folder be cleaned up.
+                chmod(&moved, 0o755);
+            }
+            // Moving a read-only folder to another parent needs write
+            // permission on the folder itself on Linux (to update its `..`),
+            // so for a locked item folder the move fails. Nothing has moved.
+            Outcome::Failed { left_in: None, .. } if locked == "Library/Caches/gomod" => {
+                assert!(home.path("Library/Caches/gomod/pkg@v1/go.mod").exists());
+                chmod(&home.path(locked), 0o755);
+            }
+            other => panic!("{locked}: {other:?}"),
+        }
     }
 }

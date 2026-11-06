@@ -120,8 +120,10 @@ pub enum ItemRefusal {
         at: PathBuf,
     },
     /// Permanent delete was asked for, but a folder in the item cannot be
-    /// emptied by this user, so the delete would stop partway. The item can
-    /// still go to the Trash.
+    /// emptied by this user, so the delete would stop partway. A read-only
+    /// folder inside the item can still go to the Trash with it. If the item's
+    /// own folder is read-only, the move to the Trash can fail too (Linux
+    /// needs write permission to move a folder), and then nothing moves.
     #[error("this can't be removed for good, but it can go to the Trash")]
     NeedsTrash {
         /// The first folder whose contents cannot be removed.
