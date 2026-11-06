@@ -127,7 +127,7 @@ extension Category {
 extension ItemSummary: Identifiable {}
 
 extension CategoryTotal: Identifiable {
-    var id: Category { category }
+    public var id: Category { category }
 }
 
 extension ScanPhase {
