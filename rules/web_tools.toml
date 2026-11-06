@@ -1,0 +1,132 @@
+# Caches of JavaScript and web tools beyond package managers: Deno,
+# pnpm's metadata, node-gyp, TypeScript, Electron, Playwright and
+# Puppeteer. Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# Package manager rules and node_modules stay in js.toml.
+#
+# Playwright and Puppeteer browsers are review_first: tests that use them
+# will not run until they are installed again. `[!.]` leaves out hidden
+# bookkeeping folders such as Playwright's .links.
+
+[[rule]]
+id = "deno.cache"
+version = 1
+match.path = "Library/Caches/deno"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Deno cache"
+explain = "Modules and packages Deno has downloaded and prepared, kept so scripts start faster."
+risk = "The next run of each Deno project downloads its modules again, which needs a network connection."
+restore = "Deno downloads them again when a script needs them."
+action = "trash"
+
+[[rule]]
+id = "pnpm.metadata_cache"
+version = 1
+match.path = "Library/Caches/pnpm"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "pnpm package list cache"
+explain = "Package details pnpm has looked up, kept so installs are faster. Packages themselves are in the pnpm store."
+risk = "pnpm looks the details up again next time, which takes a little longer."
+restore = "pnpm fills it again as you install packages."
+action = "trash"
+
+[[rule]]
+id = "node_gyp.headers"
+version = 1
+match.path = "Library/Caches/node-gyp"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "node-gyp Node.js headers"
+explain = "Node.js files node-gyp downloads to build packages that include native code."
+risk = "The next install of such a package downloads them again, which needs a network connection."
+restore = "node-gyp downloads them again when needed."
+action = "trash"
+
+[[rule]]
+id = "typescript.types_cache"
+version = 1
+match.path = "Library/Caches/typescript"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "TypeScript type downloads"
+explain = "Type descriptions your code editor downloaded so it can suggest code for JavaScript libraries."
+risk = "The editor downloads them again, so suggestions may be missing for a moment."
+restore = "Your editor downloads them again as you work."
+action = "trash"
+
+[[rule]]
+id = "electron.cache"
+version = 1
+match.path = "Library/Caches/electron"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Electron downloads"
+explain = "Copies of Electron that installs downloaded for desktop app projects."
+risk = "The next install of an Electron project downloads it again, which needs a network connection."
+restore = "Downloads again on the next install that needs it."
+action = "trash"
+
+[[rule]]
+id = "electron_builder.cache"
+version = 1
+match.path = "Library/Caches/electron-builder"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "electron-builder downloads"
+explain = "Tools electron-builder downloaded to package desktop apps."
+risk = "The next app build downloads them again, which needs a network connection."
+restore = "Downloads again on the next build that needs it."
+action = "trash"
+
+[[rule]]
+id = "playwright.browser"
+version = 1
+match.path = "Library/Caches/ms-playwright/[!.]*"
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Playwright test browser"
+explain = "One browser version Playwright downloaded to run tests. Older versions often stay behind after upgrades."
+risk = "Tests that use this browser will not run until it is installed again."
+restore = "Run npx playwright install in the project folder."
+action = "trash"
+
+[[rule]]
+id = "puppeteer.browser"
+version = 1
+match.path = ".cache/puppeteer/[!.]*"
+category = "developer_tools"
+tier = "review_first"
+confidence = "high"
+regenerable = true
+mode = "developer"
+per_item = true
+title = "Puppeteer browser"
+explain = "Browsers Puppeteer downloaded to run scripts and tests."
+risk = "Scripts and tests that use Puppeteer will not run until the browser is installed again."
+restore = "Reinstall the project's packages, or run npx puppeteer browsers install."
+action = "trash"

@@ -1,0 +1,41 @@
+# Go rules. Every rule's wording and tier needs Sam's sign-off.
+# Bump `version` on any change to a rule.
+#
+# ~/go/bin holds installed tools and ~/go/src may hold your own code (the
+# old GOPATH layout), so only ~/go/pkg/mod is matched there.
+#
+# The module cache is review_first and marked not regenerable even though
+# Go downloads it again: Go makes its files read-only, so a permanent
+# delete could stop halfway and leave a broken cache. Not regenerable means
+# only Trash is offered, which moves the whole folder in one step.
+
+[[rule]]
+id = "go.build_cache"
+version = 1
+match.path = "Library/Caches/go-build"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Go build cache"
+explain = "Results of earlier Go builds and tests, kept so the next build is faster."
+risk = "The next build and test run of each Go project takes longer."
+restore = "Go fills it again on the next build."
+action = "trash"
+
+[[rule]]
+id = "go.module_cache"
+version = 1
+match.path = "go/pkg/mod"
+match.requires = ["cache/download"]
+category = "cache"
+tier = "review_first"
+confidence = "high"
+regenerable = false
+mode = "developer"
+title = "Go module downloads"
+explain = "Copies of the Go modules your projects use, downloaded by the go command."
+risk = "The next build of each Go project downloads its modules again, which needs a network connection."
+restore = "Go downloads them again on the next build."
+action = "trash"
