@@ -163,6 +163,14 @@ extension Caution {
 
 extension ItemSummary: Identifiable {}
 
+extension AppSummary: Identifiable {
+    public var id: String { appId }
+}
+
+extension AppPart: Identifiable {
+    public var id: String { itemId }
+}
+
 extension CategoryTotal: Identifiable {
     public var id: Category { category }
 }

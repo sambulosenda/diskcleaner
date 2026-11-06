@@ -13,6 +13,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     case android
     case javascript
     case docker
+    case apps
     case cleanup
     case history
 
@@ -23,7 +24,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     /// Shown only in Developer mode.
     static let developerItems: [SidebarItem] = [.projects, .xcode, .android, .javascript, .docker]
     /// The last group: acting on things and looking back.
-    static let actionItems: [SidebarItem] = [.cleanup, .history]
+    static let actionItems: [SidebarItem] = [.apps, .cleanup, .history]
 
     var title: String {
         switch self {
@@ -38,6 +39,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .android: return "Android"
         case .javascript: return "JavaScript"
         case .docker: return "Docker"
+        case .apps: return "Remove apps"
         case .cleanup: return "Cleanup"
         case .history: return "History"
         }
@@ -57,6 +59,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .android: return "candybarphone"
         case .javascript: return "curlybraces"
         case .docker: return "shippingbox"
+        case .apps: return "xmark.bin"
         case .cleanup: return "sparkles"
         case .history: return "clock.arrow.circlepath"
         }
@@ -89,7 +92,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .projects: return .categories([.build])
         case .xcode: return .categories([.developerTools])
         case .docker: return .categories([.docker])
-        case .overview, .android, .javascript, .cleanup, .history: return nil
+        case .overview, .android, .javascript, .apps, .cleanup, .history: return nil
         }
     }
 

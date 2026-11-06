@@ -16,6 +16,7 @@ struct ContentView: View {
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search items")
         .toolbar { MainToolbar(model: model) }
         .frame(minWidth: 960, minHeight: 640)
+        .overlay { CommandPaletteOverlay().environmentObject(model.palette) }
         .sheet(isPresented: $model.showsAccessOnboarding) {
             FullDiskAccessOnboarding()
                 .environmentObject(model)
@@ -68,6 +69,8 @@ struct DetailView: View {
                 HistoryScreen()
             } else if item == .docker {
                 DockerScreen()
+            } else if item == .apps {
+                AppsScreen()
             } else if item.itemFilter != nil {
                 ItemListScreen(item: item)
             } else {

@@ -40,6 +40,7 @@ tracing = "0.1"
 uniffi = "0.32"
 
 [dev-dependencies]
+plist = "1"
 fixtures = { path = "../fixtures" }
 history = { path = "../history" }
 sha2 = "0.10"

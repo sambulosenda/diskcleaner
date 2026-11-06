@@ -70,7 +70,7 @@ pub fn read_backup_info(backup_dir: &Path) -> Result<BackupInfo, BackupInfoError
 
 /// Opens `path` without following a symlink and reads it whole, refusing
 /// anything that is not a regular file or is too large.
-fn read_capped(path: &Path) -> Result<Vec<u8>, BackupInfoError> {
+pub(crate) fn read_capped(path: &Path) -> Result<Vec<u8>, BackupInfoError> {
     let file = open_no_follow(path)?;
     let meta = file.metadata()?;
     if !meta.is_file() {

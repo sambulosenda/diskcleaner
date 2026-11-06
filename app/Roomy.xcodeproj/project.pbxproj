@@ -24,6 +24,7 @@
 		A10000000000000000000071 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000071 /* HistoryView.swift */; };
 		A100000000000000D0C4E501 /* DockerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000D0C4E501 /* DockerView.swift */; };
 		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
+		A10000000000000000000081 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* AppsView.swift */; };
 		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
 		A10000000000000000000026 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* OverviewView.swift */; };
 		A10000000000000000000027 /* CategoryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* CategoryStrip.swift */; };
@@ -39,6 +40,9 @@
 		A100000000000000000000E0 /* LowSpaceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E0 /* LowSpaceMonitor.swift */; };
 		A100000000000000000000E1 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E1 /* MenuBarView.swift */; };
 		A100000000000000000000E2 /* LowSpaceMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E2 /* LowSpaceMonitorTests.swift */; };
+		A100000000000000000000C1 /* CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C1 /* CommandPalette.swift */; };
+		A100000000000000000000C2 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C2 /* CommandPaletteView.swift */; };
+		A100000000000000000000C3 /* CommandPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C3 /* CommandPaletteTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +75,7 @@
 		A20000000000000000000071 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A200000000000000D0C4E501 /* DockerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
+		A20000000000000000000081 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* CategoryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStrip.swift; sourceTree = "<group>"; };
@@ -87,6 +92,9 @@
 		A200000000000000000000E0 /* LowSpaceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitor.swift; sourceTree = "<group>"; };
 		A200000000000000000000E1 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		A200000000000000000000E2 /* LowSpaceMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitorTests.swift; sourceTree = "<group>"; };
+		A200000000000000000000C1 /* CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPalette.swift; sourceTree = "<group>"; };
+		A200000000000000000000C2 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
+		A200000000000000000000C3 /* CommandPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +143,7 @@
 				A20000000000000000000071 /* HistoryView.swift */,
 				A200000000000000D0C4E501 /* DockerView.swift */,
 				A20000000000000000000072 /* FullDiskAccessView.swift */,
+				A20000000000000000000081 /* AppsView.swift */,
 				A20000000000000000000025 /* Formatting.swift */,
 				A20000000000000000000026 /* OverviewView.swift */,
 				A20000000000000000000027 /* CategoryStrip.swift */,
@@ -143,6 +152,8 @@
 				A20000000000000000000061 /* UpdaterController.swift */,
 				A200000000000000000000E0 /* LowSpaceMonitor.swift */,
 				A200000000000000000000E1 /* MenuBarView.swift */,
+				A200000000000000000000C2 /* CommandPaletteView.swift */,
+				A200000000000000000000C1 /* CommandPalette.swift */,
 				A20000000000000000000063 /* Info.plist */,
 				A20000000000000000000062 /* Roomy.entitlements */,
 			);
@@ -160,6 +171,7 @@
 				A20000000000000000000032 /* ScreenshotTests.swift */,
 				A20000000000000000000064 /* UpdaterControllerTests.swift */,
 				A200000000000000000000E2 /* LowSpaceMonitorTests.swift */,
+				A200000000000000000000C3 /* CommandPaletteTests.swift */,
 			);
 			path = RoomyTests;
 			sourceTree = "<group>";
@@ -299,6 +311,7 @@
 				A10000000000000000000071 /* HistoryView.swift in Sources */,
 				A100000000000000D0C4E501 /* DockerView.swift in Sources */,
 				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
+				A10000000000000000000081 /* AppsView.swift in Sources */,
 				A10000000000000000000025 /* Formatting.swift in Sources */,
 				A10000000000000000000026 /* OverviewView.swift in Sources */,
 				A10000000000000000000027 /* CategoryStrip.swift in Sources */,
@@ -307,6 +320,8 @@
 				A10000000000000000000061 /* UpdaterController.swift in Sources */,
 				A100000000000000000000E0 /* LowSpaceMonitor.swift in Sources */,
 				A100000000000000000000E1 /* MenuBarView.swift in Sources */,
+				A100000000000000000000C2 /* CommandPaletteView.swift in Sources */,
+				A100000000000000000000C1 /* CommandPalette.swift in Sources */,
 				A10000000000000000000004 /* roomy_core.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -323,6 +338,7 @@
 				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,
 				A10000000000000000000064 /* UpdaterControllerTests.swift in Sources */,
 				A100000000000000000000E2 /* LowSpaceMonitorTests.swift in Sources */,
+				A100000000000000000000C3 /* CommandPaletteTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

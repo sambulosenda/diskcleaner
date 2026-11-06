@@ -7,11 +7,14 @@ import XCTest
 final class CommandContractTests: XCTestCase {
     private var fixtureDir: URL!
     private var core: RoomyCore!
+    /// The fixture home's canonical path.
+    private var homePath: String!
 
     override func setUpWithError() throws {
         fixtureDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("roomy-t09-\(UUID().uuidString)")
         let home = try makeFixtureHome(dir: fixtureDir.path)
+        homePath = home
         core = try RoomyCore.withHomeForTesting(home: home)
     }
 
@@ -211,5 +214,55 @@ final class CommandContractTests: XCTestCase {
         let history = core.cleanupHistory(limit: 10)
         XCTAssertEqual(history.count, 1)
         XCTAssertNotNil(history.first?.putBackAt)
+    }
+
+    // MARK: - App uninstaller
+
+    /// Writes a small app bundle into `folder`, the way an installer would. Writes only.
+    private func makeApp(in folder: URL, name: String, bundleId: String) throws {
+        let contents = folder.appendingPathComponent("\(name).app/Contents/MacOS", isDirectory: true)
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let info: [String: Any] = ["CFBundleIdentifier": bundleId, "CFBundleName": name]
+        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try data.write(to: folder.appendingPathComponent("\(name).app/Contents/Info.plist"))
+        try Data(repeating: 7, count: 20_000).write(to: contents.appendingPathComponent(name))
+    }
+
+    func testUninstallMovesAnAppAndItsCachesAndCanPutThemBack() throws {
+        core.useHomeApplicationsOnlyForTesting()
+        core.relaxInUseChecksForTesting()
+        let home = URL(fileURLWithPath: homePath)
+        try makeApp(in: home.appendingPathComponent("Applications"), name: "Tiny", bundleId: "com.example.tiny")
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".Trash"),
+                                                withIntermediateDirectories: false)
+        let cache = home.appendingPathComponent("Library/Caches/com.example.tiny", isDirectory: true)
+        try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        try Data(repeating: 1, count: 5_000).write(to: cache.appendingPathComponent("c"))
+
+        let apps = core.listApps()
+        let tiny = try XCTUnwrap(apps.first { $0.name == "Tiny" })
+        XCTAssertEqual(tiny.location, .homeApplications)
+        XCTAssertFalse(apps.contains { $0.bundleId.hasPrefix("com.apple.") })
+        let review = try core.reviewApp(appId: tiny.appId, mode: .simple)
+        XCTAssertTrue(review.parts.contains { $0.itemId == "app" })
+        XCTAssertTrue(review.parts.allSatisfy { $0.path == nil })
+        let preview = try core.previewUninstall(appId: tiny.appId, partIds: review.parts.map(\.itemId))
+        XCTAssertTrue(preview.items.allSatisfy { $0.check == .willMove }, "\(preview.items)")
+        let result = try core.runCleanup(plan: try XCTUnwrap(preview.plan))
+        XCTAssertTrue(result.items.allSatisfy(\.done), "\(result.items)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cache.path))
+        _ = try core.putBackCleanup(cleanup: try XCTUnwrap(result.cleanup))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: cache.appendingPathComponent("c").path))
+    }
+
+    func testUninstallRefusesIdsFromAnOlderList() throws {
+        core.useHomeApplicationsOnlyForTesting()
+        let home = URL(fileURLWithPath: homePath)
+        try makeApp(in: home.appendingPathComponent("Applications"), name: "Tiny", bundleId: "com.example.tiny")
+        let old = try XCTUnwrap(core.listApps().first)
+        _ = core.listApps()
+        XCTAssertThrowsError(try core.reviewApp(appId: old.appId, mode: .simple)) { error in
+            guard case CoreError.UnknownApp = error else { return XCTFail("Expected UnknownApp, got \(error)") }
+        }
     }
 }

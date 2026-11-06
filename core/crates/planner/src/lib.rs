@@ -19,7 +19,7 @@ mod select;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-pub use owners::{owner_apps, OwnerApp};
+pub use owners::{owner_apps, AppBundle, OwnerApp};
 pub use select::{request_for, NotOffered};
 
 use safety::{Refusal, ValidatedPath};
@@ -56,6 +56,11 @@ pub struct ItemRequest {
     /// Apps that may be using the item (from [`owner_apps`]). The executor
     /// skips the item while one of them is running.
     pub owners: &'static [OwnerApp],
+    /// The installed app this item belongs to, for the app uninstaller.
+    /// The executor skips the item while any program inside that app's
+    /// bundle, or inside the item itself, is running. `None` for cleanup
+    /// items, which use `owners` instead.
+    pub belongs_to: Option<AppBundle>,
 }
 
 /// One item of a built plan. Only [`Plan::build`] makes these.
@@ -67,6 +72,7 @@ pub struct PlanItem {
     regenerable: bool,
     selected_individually: bool,
     owners: &'static [OwnerApp],
+    belongs_to: Option<AppBundle>,
 }
 
 impl PlanItem {
@@ -98,6 +104,11 @@ impl PlanItem {
     /// Apps that may be using the item.
     pub fn owners(&self) -> &'static [OwnerApp] {
         self.owners
+    }
+
+    /// The installed app this item belongs to, for the app uninstaller.
+    pub fn belongs_to(&self) -> Option<&AppBundle> {
+        self.belongs_to.as_ref()
     }
 }
 
@@ -176,6 +187,7 @@ impl Plan {
                 regenerable: req.regenerable,
                 selected_individually: req.selected_individually,
                 owners: req.owners,
+                belongs_to: req.belongs_to,
             });
         }
         Ok(Plan {
@@ -275,6 +287,7 @@ mod tests {
             regenerable: true,
             selected_individually: false,
             owners: &[],
+            belongs_to: None,
         }
     }
 

@@ -81,6 +81,7 @@ impl Home {
             regenerable: true,
             selected_individually: true,
             owners,
+            belongs_to: None,
         }
     }
 

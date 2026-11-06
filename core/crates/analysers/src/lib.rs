@@ -1,5 +1,6 @@
 //! Per-tool analysis (xcode, android, js, docker, everyday). Read only; may run read-only CLI queries.
 
+pub mod apps;
 pub mod docker;
 pub mod ios_backup;
 
