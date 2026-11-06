@@ -4,7 +4,7 @@ Nov 6, 2026 · @sam
 
 ## Overview
 
-A native macOS app that shows any Mac user what is filling their disk, explains every item in plain words, and reclaims space safely. It serves everyday users through a simple mode and developers through a Developer mode with deep toolchain analysers. Working name is TBD; this draft is v0.4.
+A native macOS app that shows any Mac user what is filling their disk, explains every item in plain words, and reclaims space safely. It serves everyday users through a simple mode and developers through a Developer mode with deep toolchain analysers. Working name is TBD; this draft is v0.5.
 
 | Field | Value |  |
 | --- | --- | --- |
@@ -15,6 +15,7 @@ A native macOS app that shows any Mac user what is filling their disk, explains 
 
 | Version | Change |
 | --- | --- |
+| 0.5 | Added what to learn from Levo: AI model downloads raised to P1 of its own (D12), coding-agent leftovers (D13), quick select by tier (F13), website demo; Levo added to the competitive landscape |
 | 0.4 | Decided: free scan plus 5 GB cleanup, short allow-list of runnable tool commands, storage cleaner ships before the screenshot app |
 | 0.3 | Decided: SwiftUI on a Rust core, Android analyser in P0, closed source for now |
 | 0.2 | Broadened from mobile developers to all Mac users, with Developer mode |
@@ -124,6 +125,7 @@ P0 is required for launch, P1 is high value soon after, P2 is nice to have, P3 i
 | F10 | Menu bar item with free space and low-space alert | P1 |
 | F11 | Scan diff: what grew or shrank since the last scan | P1 |
 | F12 | Incremental rescans using FSEvents | P1 |
+| F13 | Quick select: one control ticks every Likely safe item in view, never Review first items; the confirm sheet still lists each one | P2 |
 
 **Everyday analysers**
 
@@ -156,11 +158,13 @@ P0 is required for launch, P1 is high value soon after, P2 is nice to have, P3 i
 | D4 | Android: system images by API level, AVDs, build-tools and NDKs, cross-checked against projects; Gradle caches and versions | P0 |
 | D5 | React Native and Expo: Pods, native build folders, CocoaPods, Metro, Watchman and Expo caches | P1 |
 | D6 | Python, Rust, Go, Java/Maven: venvs, `target`, module and package caches, toolchains | P1 |
-| D7 | Editors and AI tools: VS Code, Cursor, JetBrains, Claude Code, Codex; Ollama and LM Studio models | P1 |
+| D7 | Editors and AI tools: VS Code, Cursor, JetBrains, Claude Code, Codex | P1 |
 | D8 | Homebrew cache and old versions; Flutter | P2 |
 | D9 | v1 runs a fixed allow-list of previewed tool commands: `xcrun simctl delete unavailable`, `docker image prune`, `docker builder prune`, `brew cleanup` and `sdkmanager --uninstall <package>`, each listing what it affects before the user confirms. Any other tool command is shown for the user to copy and run | P0 |
 | D10 | Read-only MCP server so coding agents can ask where space went | P3 |
 | D11 | Optional AI assistant over scan data, user's own API key, read-only | P3 |
+| D12 | Local AI models: Ollama, LM Studio and the Hugging Face cache, listed per model with size and last used; always Review first, since a model can take hours to download again | P1 |
+| D13 | Coding-agent leftovers: Codex and Cursor sessions, old agent worktrees and agent temp folders; worktrees with uncommitted or unmerged work are never offered; session history stays Review first | P1 |
 
 ## Safety model and non-functional requirements
 
@@ -225,7 +229,7 @@ Sell direct as a notarised download with a free scanner and a one-time paid lice
 | Pro licence | £39 one-time, adds Developer mode; update renewal £15 a year |
 | Family / team | £59 for 5 Macs (family) or £119 for 5 seats with Pro (teams) |
 | Later channel | Setapp listing once the product is stable |
-| Launch, everyone | Product Hunt, Mac-focused YouTubers and blogs, Reddit r/mac and r/macapps, a short "free 40 GB in 2 minutes" demo video |
+| Launch, everyone | Product Hunt, Mac-focused YouTubers and blogs, Reddit r/mac and r/macapps, a short "free 40 GB in 2 minutes" demo video, and a demo on the product site that runs on example files and never touches the visitor's Mac |
 | Launch, developers | Show HN, React Native, Expo and iOS dev communities, LinkedIn, X/Twitter |
 
 The split lets the everyday product stay cheap and simple while developers pay more for the deeper analysers. The code stays closed source for now; open-sourcing the engine can be revisited if trust becomes the main barrier.
@@ -240,7 +244,10 @@ The split lets the everyday product stay cheap and simple while developers pay m
 | Disk visualisers | DaisyDisk, GrandPerspective, OmniDiskSweeper | Clear visual map of what is big | Show size, not meaning or safety; no recommendations |
 | Free utilities | macOS Storage settings, OnyX, AppCleaner, Pearcleaner | Free and trusted for narrow jobs | Users must combine several; vague "System Data" |
 | New indie "honest" cleaners | [CleanDisk](https://cacheclear-site.pages.dev/blog/cleandisk-vs-daisydisk-vs-cleanmymac/), [other CleanMyMac alternatives](https://diskcleaner-site.pages.dev/blog/cleanmymac-alternative) | Same pitch as ours: safety labels per item, 60-second scans, one-time purchase, criticism of CleanMyMac's background deletion | Consumer-only; no toolchain depth; same message, so harder to stand out on honesty alone |
+| AI-agent cleaners | [Levo](https://omggg.wtf/levo/) (Cntxt Labs) | Shipping now; always-on disk index, low-space prompts, ⌘K palette, app uninstaller, checks for files in use, recent changes and unsaved git work | Needs the user's own AI agent CLI and sends file names to that provider; deletes for good by default (Trash is opt-in); Auto mode cannot be undone; in-app analytics; price not shown and "goes up as more people buy" |
 | Developer tools | [DiskPilot](https://github.com/Devanshgoel-123/diskpilot), DevCleaner for Xcode, npkill | Deep in their ecosystem; DiskPilot has a strong safety model | Developer-only or single-ecosystem; DiskPilot is an unnotarised v0.4 |
+
+**What we took from Levo (Nov 2026).** Already built: skipping items in use, recently changed or holding unsaved git work, folders the user keeps, low-space alerts, a ⌘K palette and the uninstaller. Added to this PRD: D12, D13, F13 and the site demo. Deliberately not copied, because they break our safety model or non-goals: an AI agent deciding what is safe, Auto mode and routines (no automatic deletion in v1), permanent delete as the default, memory, CPU and GPU "free" gauges (no RAM optimisation), and rising-price scarcity marketing. Levo details come from its own site and are not independently checked.
 
 Many "best Mac cleaner" roundups are published by vendors (MacPaw, Cindori, MacKeeper) or carry affiliate links, so rankings there are not neutral. Pricing and feature details should be checked on each product's own site before launch messaging. Sources as of November 2026: [Cindori review](https://cindori.com/reviews/best-mac-cleaner-apps-2026), [Macworld roundup](https://www.macworld.com/article/673271/best-mac-cleaner-tested-compared.html), [Toolradar free cleaners](https://toolradar.com/blog/best-free-mac-cleaners).
 

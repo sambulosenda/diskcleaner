@@ -88,6 +88,18 @@ final class RustCoreClientTests: XCTestCase {
         XCTAssertNotNil(Reveal.url(forDisplayPath: path))
     }
 
+    func testTheFixturePhotosLibraryAndAttachmentsAreMeasured() async throws {
+        let (model, _) = try await scanned(.simple)
+        let handle = try XCTUnwrap(model.finishedScan)
+        let rows = try await model.client.libraries(handle: handle)
+        XCTAssertEqual(rows.map(\.kind), [.photos, .music, .tv, .mail, .messagesAttachments, .finalCut])
+        let shown = LibrariesModel.shown(rows).map(\.kind)
+        XCTAssertTrue(shown.contains(.photos))
+        XCTAssertTrue(shown.contains(.messagesAttachments))
+        XCTAssertTrue(shown.contains(.finalCut))
+        XCTAssertTrue(rows.allSatisfy { !$0.found || $0.bytes > 0 })
+    }
+
     func testTheMainThreadKeepsRunningDuringAScan() async throws {
         let model = try makeModel(mode: .developer)
         model.startScan()
@@ -123,6 +135,7 @@ private final class FailingCore: CoreClient {
         throw CoreError.HomeNotFound
     }
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail { throw CoreError.HomeNotFound }
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize] { throw CoreError.HomeNotFound }
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
         throw CoreError.HomeNotFound
     }

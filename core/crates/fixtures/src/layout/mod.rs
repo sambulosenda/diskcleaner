@@ -3,6 +3,7 @@
 //! Sizes are small (a few KB) so a whole fixture stays well under 20 MB.
 
 pub mod android;
+pub mod creative;
 pub mod devtools;
 pub mod everyday;
 pub mod js;

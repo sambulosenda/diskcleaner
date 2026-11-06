@@ -17,6 +17,7 @@ fn gives_the_same_rules_as_load_dir() {
     let names = [
         "ai_tools.toml",
         "android.toml",
+        "creative.toml",
         "editors.toml",
         "everyday.toml",
         "go.toml",

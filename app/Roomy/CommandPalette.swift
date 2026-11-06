@@ -171,6 +171,7 @@ extension SidebarItem {
         switch self {
         case .overview: return ["home", "summary", "disk"]
         case .backups: return ["iphone", "ipad"]
+        case .libraries: return ["photos", "mail", "music", "messages", "attachments", "final cut", "tv"]
         case .downloads: return ["installers", "dmg"]
         case .largeFiles: return ["everything", "all items", "big"]
         case .appsAndCaches: return ["cache", "app data"]

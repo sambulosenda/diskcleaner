@@ -85,7 +85,7 @@ final class AppModelTests: XCTestCase {
     func testSidebarListsEveryWireframeEntryInOrder() {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
-            "Overview", "Backups", "Downloads and installers", "Large files", "Apps and caches",
+            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Apps and caches",
             "System Data", "Remove apps", "Cleanup", "History",
         ])
         model.mode = .developer
@@ -821,5 +821,43 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(
             JavaScriptText.summary(overview, now: now),
             "4 projects, \(Format.bytes(3_602_000_000)). 2 not worked on for 3 months or more, \(Format.bytes(1_552_000_000)).")
+    }
+
+    // MARK: - Photos, Mail and Music
+
+    func testLibrariesScreenAsksForAScanFirst() async {
+        let model = makeModel()
+        let libraries = LibrariesModel(client: model.client)
+        await libraries.load(handle: model.finishedScan)
+        XCTAssertEqual(libraries.phase, .noScan)
+    }
+
+    func testLibrariesShowOnlyWhatWasFoundLargestFirst() async {
+        let model = await scannedModel()
+        let libraries = LibrariesModel(client: model.client)
+        await libraries.load(handle: model.finishedScan)
+        guard case .loaded(let rows) = libraries.phase else { return XCTFail("\(libraries.phase)") }
+        XCTAssertEqual(rows.count, 6)
+        let shown = LibrariesModel.shown(rows)
+        XCTAssertEqual(shown.map(\.kind), [.photos, .messagesAttachments, .music, .mail])
+        XCTAssertTrue(shown.first { $0.kind == .mail }?.needsAccess ?? false)
+    }
+
+    func testLibrariesScreenIsInTheSidebarAndIsNotAList() {
+        XCTAssertEqual(SidebarItem.mainItems.prefix(3), [.overview, .backups, .libraries])
+        XCTAssertNil(SidebarItem.libraries.itemFilter)
+        XCTAssertFalse(SidebarItem.libraries.isDeveloperOnly)
+    }
+
+    func testEveryLibraryHasWordsAndAnApp() {
+        let kinds: [LibraryKind] = [.photos, .music, .tv, .mail, .messagesAttachments, .finalCut]
+        for kind in kinds {
+            XCTAssertFalse(LibraryText.title(kind).isEmpty)
+            XCTAssertFalse(LibraryText.explain(kind).isEmpty)
+            XCTAssertFalse(LibraryText.howToFree(kind).isEmpty)
+            XCTAssertTrue(LibraryText.appBundleID(kind).hasPrefix("com.apple."))
+            XCTAssertFalse(LibraryText.howToFree(kind).lowercased().contains("junk"))
+        }
+        XCTAssertTrue(LibraryActions.messagesAttachmentsFolder.path.hasSuffix("/Library/Messages/Attachments"))
     }
 }

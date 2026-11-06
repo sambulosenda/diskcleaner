@@ -57,6 +57,10 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.overview(handle: handle) }
     }
 
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize] {
+        try await offMain { try $0.libraries(handle: handle) }
+    }
+
     func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary] {
         try await offMain { try $0.listItems(handle: handle, category: category, tier: tier, sort: sort) }
     }

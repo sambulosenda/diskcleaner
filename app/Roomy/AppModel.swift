@@ -253,6 +253,10 @@ final class AppModel: ObservableObject {
         return nil
     }
 
+    /// The finished scan whose results are showing, for screens that ask the core about it themselves
+    /// (Photos, Mail and Music). `nil` before a scan has finished.
+    var finishedScan: ScanHandle? { overview != nil ? loadedHandle : nil }
+
     /// The sidebar groups for the current mode.
     var sidebarSections: [[SidebarItem]] { SidebarItem.sections(for: mode) }
 
