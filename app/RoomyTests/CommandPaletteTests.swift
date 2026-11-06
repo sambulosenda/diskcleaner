@@ -14,11 +14,12 @@ final class CommandPaletteTests: XCTestCase {
         return store
     }()
 
-    private func makeModel(_ client: MockCoreClient = MockCoreClient(scenario: .normal, totalSteps: 3)) -> AppModel {
-        AppModel(client: client, defaults: defaults, pollInterval: 0)
+    // Default arguments are not main-actor isolated, so the mock is made inside the body instead.
+    private func makeModel(_ client: MockCoreClient? = nil) -> AppModel {
+        AppModel(client: client ?? MockCoreClient(scenario: .normal, totalSteps: 3), defaults: defaults, pollInterval: 0)
     }
 
-    private func scannedModel(_ client: MockCoreClient = MockCoreClient(scenario: .normal, totalSteps: 3)) async -> AppModel {
+    private func scannedModel(_ client: MockCoreClient? = nil) async -> AppModel {
         let model = makeModel(client)
         model.startScan()
         await model.waitForScan()
