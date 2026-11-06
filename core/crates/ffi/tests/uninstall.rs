@@ -138,7 +138,7 @@ fn all_ids(review: &AppReview) -> Vec<String> {
     review.parts.iter().map(|p| p.item_id.clone()).collect()
 }
 
-/// Every path under `root` (Trash and History left out), with sizes.
+/// Every path under `root` (Trash and History left out), with file sizes.
 fn contents(root: &Path) -> Vec<String> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
@@ -152,9 +152,13 @@ fn contents(root: &Path) -> Vec<String> {
                 continue;
             }
             let meta = entry.metadata().unwrap();
-            out.push(format!("{} {}", path.display(), meta.len()));
             if meta.is_dir() {
+                // A folder's own size changes with its entries on APFS (History adds
+                // `Application Support/Roomy`), so only files carry a size.
+                out.push(format!("{}/", path.display()));
                 stack.push(path);
+            } else {
+                out.push(format!("{} {}", path.display(), meta.len()));
             }
         }
     }
