@@ -6,3 +6,8 @@ license.workspace = true
 publish = false
 
 [dependencies]
+thiserror = "2"
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"
