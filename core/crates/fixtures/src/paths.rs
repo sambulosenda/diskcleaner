@@ -1,0 +1,122 @@
+//! Well-known paths inside a fixture home, relative to its root.
+//!
+//! Tests should use these names instead of repeating strings, so a layout
+//! change shows up as a compile error rather than a silently passing test.
+
+/// iPhone backups: one folder per device id.
+pub const MOBILESYNC_BACKUP: &str = "Library/Application Support/MobileSync/Backup";
+/// The two fake device ids, each with an `Info.plist`.
+pub const BACKUP_DEVICE_IDS: [&str; 2] = ["00008110-001A2B3C4D5E6F70", "00008030-000B1C2D3E4F5A60"];
+/// Downloads folder.
+pub const DOWNLOADS: &str = "Downloads";
+/// Disk image installer in Downloads.
+pub const DOWNLOAD_DMG: &str = "Downloads/Installer-2.4.dmg";
+/// Package installer in Downloads.
+pub const DOWNLOAD_PKG: &str = "Downloads/PrinterDriver.pkg";
+/// Zip archive in Downloads.
+pub const DOWNLOAD_ZIP: &str = "Downloads/Photos-from-trip.zip";
+/// Ordinary document in Downloads.
+pub const DOWNLOAD_NORMAL: &str = "Downloads/Meeting notes.txt";
+/// App caches root.
+pub const CACHES: &str = "Library/Caches";
+/// The three app cache folders (bundle ids).
+pub const CACHE_APP_IDS: [&str; 3] = [
+    "com.google.Chrome",
+    "com.spotify.client",
+    "com.tinyspeck.slackmacgap",
+];
+/// Photos library bundle (hard-blocked, everything inside it too).
+pub const PHOTOS_LIBRARY: &str = "Pictures/Test.photoslibrary";
+/// Messages attachments (review-only, never removed in v1).
+pub const MESSAGES_ATTACHMENTS: &str = "Library/Messages/Attachments";
+
+/// Xcode DerivedData root.
+pub const DERIVED_DATA: &str = "Library/Developer/Xcode/DerivedData";
+/// DerivedData folder whose `WorkspacePath` exists in the fixture.
+pub const DERIVED_DATA_LIVE_A: &str =
+    "Library/Developer/Xcode/DerivedData/Weather-abcdefghijklmnopqrstuvwxyzab";
+/// Second DerivedData folder whose `WorkspacePath` exists in the fixture.
+pub const DERIVED_DATA_LIVE_B: &str =
+    "Library/Developer/Xcode/DerivedData/Notes-bcdefghijklmnopqrstuvwxyzabc";
+/// DerivedData folder whose `WorkspacePath` does not exist (orphaned).
+pub const DERIVED_DATA_ORPHAN: &str =
+    "Library/Developer/Xcode/DerivedData/OldGame-cdefghijklmnopqrstuvwxyzabcd";
+/// The Xcode projects the live DerivedData folders point at.
+pub const XCODE_PROJECTS: [&str; 2] = [
+    "Developer/Weather/Weather.xcodeproj",
+    "Developer/Notes/Notes.xcworkspace",
+];
+/// The workspace path the orphaned DerivedData points at (never created).
+pub const XCODE_MISSING_PROJECT: &str = "Developer/OldGame/OldGame.xcodeproj";
+/// iOS DeviceSupport root.
+pub const IOS_DEVICE_SUPPORT: &str = "Library/Developer/Xcode/iOS DeviceSupport";
+/// The three DeviceSupport versions.
+pub const IOS_DEVICE_SUPPORT_VERSIONS: [&str; 3] =
+    ["16.7.10 (20H350)", "17.6.1 (21G101)", "18.1 (22B83)"];
+/// CoreSimulator devices root.
+pub const SIM_DEVICES: &str = "Library/Developer/CoreSimulator/Devices";
+/// The three simulator device UDIDs.
+pub const SIM_DEVICE_IDS: [&str; 3] = [
+    "1A2B3C4D-0000-4000-8000-000000000001",
+    "1A2B3C4D-0000-4000-8000-000000000002",
+    "1A2B3C4D-0000-4000-8000-000000000003",
+];
+/// The simulator device marked unavailable in its `device.plist`.
+pub const SIM_DEVICE_UNAVAILABLE: &str = "1A2B3C4D-0000-4000-8000-000000000003";
+/// The one Xcode archive (review-only).
+pub const XCODE_ARCHIVE: &str =
+    "Library/Developer/Xcode/Archives/2026-03-14/Weather 14-03-2026, 10.42.xcarchive";
+
+/// Android SDK root.
+pub const ANDROID_SDK: &str = "Library/Android/sdk";
+/// System image API levels present.
+pub const ANDROID_SYSTEM_IMAGE_APIS: [u32; 3] = [33, 34, 35];
+/// Build tools versions present.
+pub const ANDROID_BUILD_TOOLS: [&str; 2] = ["34.0.0", "35.0.0"];
+/// NDK version present.
+pub const ANDROID_NDK: &str = "26.3.11579264";
+/// AVD folder (review-only).
+pub const ANDROID_AVD: &str = ".android/avd";
+/// The two AVD names; each has `<name>.avd/` and `<name>.ini`.
+pub const ANDROID_AVD_NAMES: [&str; 2] = ["Pixel_7_API_34", "Pixel_Tablet_API_33"];
+/// The two Android projects; both `build.gradle` files target API 34 only.
+pub const ANDROID_PROJECTS: [&str; 2] = [
+    "AndroidStudioProjects/Shopper",
+    "AndroidStudioProjects/Tracker",
+];
+/// Gradle wrapper distributions root.
+pub const GRADLE_DISTS: &str = ".gradle/wrapper/dists";
+/// Gradle wrapper versions present.
+pub const GRADLE_VERSIONS: [&str; 3] = ["gradle-8.5-bin", "gradle-8.7-bin", "gradle-8.9-all"];
+
+/// The three JavaScript projects.
+pub const JS_PROJECTS: [&str; 3] = ["projects/a", "projects/b", "projects/c"];
+/// The stale project's `package.json`, dated 120 days before build time.
+pub const JS_STALE_PACKAGE_JSON: &str = "projects/c/package.json";
+/// How old the stale project's `package.json` is, in days.
+pub const JS_STALE_AGE_DAYS: u64 = 120;
+/// npm cache.
+pub const NPM_CACHE: &str = ".npm";
+/// pnpm store.
+pub const PNPM_STORE: &str = "Library/pnpm";
+/// Yarn cache.
+pub const YARN_CACHE: &str = "Library/Caches/Yarn";
+
+/// Trap: symlink to `/etc` from inside a cache folder.
+pub const TRAP_SYMLINK_ETC: &str = "Library/Caches/com.google.Chrome/system-config";
+/// Trap: symlink from a cache folder into `Documents/`.
+pub const TRAP_SYMLINK_DOCUMENTS: &str = "Library/Caches/com.spotify.client/offline-docs";
+/// Trap: first path of the hard link pair (a personal file).
+pub const TRAP_HARD_LINK_A: &str = "Documents/Family video.mov";
+/// Trap: second path of the hard link pair, same inode as the first.
+pub const TRAP_HARD_LINK_B: &str = "Movies/Family video.mov";
+/// Trap: git repository with `node_modules` beside `.git`.
+pub const TRAP_GIT_DIR: &str = "projects/a/.git";
+/// Trap: `node_modules` inside a git repository (the allowed child).
+pub const TRAP_GIT_NODE_MODULES: &str = "projects/a/node_modules";
+/// Trap: environment file with fake secrets (review-only).
+pub const TRAP_ENV_FILE: &str = "projects/a/.env";
+/// Trap: Android signing key (hard-blocked).
+pub const TRAP_KEYSTORE: &str = "AndroidStudioProjects/Shopper/app/release.keystore";
+/// Personal documents the Documents symlink trap points at.
+pub const DOCUMENTS: &str = "Documents";
