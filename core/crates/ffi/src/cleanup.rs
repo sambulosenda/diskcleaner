@@ -19,6 +19,8 @@ use crate::views::{display_path, Finished};
 use crate::CoreError;
 
 /// Shown when the Trash cannot be opened, so nothing could move.
+/// Shown when macOS refuses to let Roomy open the Trash (privacy protection).
+const TRASH_NOT_ALLOWED: &str = "macOS didn't let Roomy open your Trash, so nothing can be moved. Turn on Full Disk Access for Roomy in System Settings, then try again.";
 const TRASH_UNAVAILABLE: &str = "Roomy couldn't open your Trash, so nothing can be moved.";
 /// Shown when the home folder cannot be opened, so nothing could move.
 const HOME_UNAVAILABLE: &str = "Roomy couldn't open your home folder, so nothing can be moved.";
@@ -218,6 +220,7 @@ fn execute_error(err: executor::ExecuteError) -> CoreError {
     tracing::warn!(%err, "cleanup preview refused");
     let reason = match err {
         executor::ExecuteError::TrashUnavailable => TRASH_UNAVAILABLE,
+        executor::ExecuteError::TrashNotAllowed => TRASH_NOT_ALLOWED,
         executor::ExecuteError::HomeUnavailable => HOME_UNAVAILABLE,
         executor::ExecuteError::Plan(_) | executor::ExecuteError::DeleteNeedsRegenerable => {
             PREVIEW_FAILED

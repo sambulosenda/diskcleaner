@@ -59,6 +59,12 @@ final class CommandContractTests: XCTestCase {
         XCTAssertLessThanOrEqual(overview.diskFree, overview.diskTotal)
         XCTAssertLessThanOrEqual(overview.topItems.count, 8)
         XCTAssertFalse(overview.topItems.contains { $0.tier == .keep })
+        XCTAssertEqual(overview.unreadableAreas.reduce(0) { $0 + $1.folderCount }, overview.unreadableCount)
+    }
+
+    func testFullDiskAccessIsOnForAFixtureHomeAnyAppCanRead() {
+        // The fixture home has a Library/Messages folder made by the test, which macOS doesn't protect.
+        XCTAssertEqual(core.fullDiskAccess(), .granted)
     }
 
     func testListItemsFiltersAndSorts() throws {

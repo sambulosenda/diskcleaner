@@ -78,6 +78,8 @@ final class AppModel: ObservableObject {
     }
 
     static let modeKey = "roomy.mode"
+    /// Set once the Full Disk Access screen has been shown and closed, or once access was found on.
+    static let accessOnboardingKey = "roomy.onboarding.fullDiskAccessDone"
 
     @Published private(set) var scanState: ScanState = .neverScanned
     @Published var selection: SidebarItem? = .overview {
@@ -119,6 +121,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var historyMessage: String?
     /// Past cleanups for the History screen, newest first.
     @Published private(set) var history: [HistoryEntry] = []
+    /// Whether Roomy can read the folders macOS keeps private. `nil` until the core has been asked.
+    @Published private(set) var fullDiskAccess: FullDiskAccess?
+    /// The Full Disk Access screen. It opens by itself on first launch when access is off, and from
+    /// the Overview, Settings or a refused cleanup after that.
+    @Published var showsAccessOnboarding = false
     /// Set once something has moved after the current scan started, so its sizes are out of date.
     /// Cleared when a new scan starts. A scan that was already running when files moved is followed by
     /// another one.
@@ -204,6 +211,46 @@ final class AppModel: ObservableObject {
     /// The scan's size of every ticked row, added up.
     var checkedBytes: UInt64 {
         checkedSizes.values.reduce(0, +)
+    }
+
+    // MARK: - Full Disk Access
+
+    /// Called once when the window first appears. Asks the core about Full Disk Access and, on first
+    /// launch only, opens the Full Disk Access screen if access is off. If it is already on, or the core
+    /// can't tell, the screen is never shown by itself.
+    func windowDidAppear() async {
+        await refreshFullDiskAccess()
+        guard !defaults.bool(forKey: Self.accessOnboardingKey) else { return }
+        if fullDiskAccess == .notGranted {
+            showsAccessOnboarding = true
+        } else {
+            defaults.set(true, forKey: Self.accessOnboardingKey)
+        }
+    }
+
+    /// Asks the core again whether Full Disk Access is on. Reads a few folder listings only.
+    func refreshFullDiskAccess() async {
+        let access = await client.fullDiskAccess()
+        if access != fullDiskAccess { fullDiskAccess = access }
+    }
+
+    /// Opens the Full Disk Access screen.
+    func showAccessOnboarding() {
+        showsAccessOnboarding = true
+    }
+
+    /// Closes the Full Disk Access screen for good: it won't open by itself again. With `scan`, starts a
+    /// scan, so newly readable folders are measured.
+    func finishAccessOnboarding(scan: Bool) {
+        defaults.set(true, forKey: Self.accessOnboardingKey)
+        showsAccessOnboarding = false
+        if scan { startScan() }
+    }
+
+    /// Whether the Overview should say what wasn't scanned and offer Full Disk Access: some folders
+    /// couldn't be read and access is not known to be on.
+    func shouldOfferAccess(for overview: Overview) -> Bool {
+        overview.unreadableCount > 0 && fullDiskAccess != .granted
     }
 
     // MARK: - Cleanup review (dry run)

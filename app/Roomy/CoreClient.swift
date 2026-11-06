@@ -44,4 +44,7 @@ protocol CoreClient: AnyObject {
 
     /// Past cleanups, newest first. Holds no paths.
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry]
+
+    /// Whether Roomy can read the folders macOS keeps private, right now. Reads a few folder listings only.
+    func fullDiskAccess() async -> FullDiskAccess
 }

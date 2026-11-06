@@ -32,8 +32,9 @@ pub use testing::make_fixture_home;
 pub use types::{
     Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupHandle,
     CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup,
-    HistoryEntry, HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode, Overview,
-    PlanHandle, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode,
+    Overview, PlanHandle, PrivateArea, PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort,
+    Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

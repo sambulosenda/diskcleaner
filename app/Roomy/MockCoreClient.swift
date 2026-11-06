@@ -43,6 +43,10 @@ final class MockCoreClient: CoreClient {
     var nextPutBackError: CoreError?
     /// How many times `putBackCleanup` was called. Tests read it.
     private(set) var putBackCalls = 0
+    /// What `fullDiskAccess` answers. Tests and the `-RoomyMockAccess <value>` launch argument set it.
+    var access: FullDiskAccess = .granted
+    /// How many times `fullDiskAccess` was called. Tests read it.
+    private(set) var accessChecks = 0
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -53,7 +57,9 @@ final class MockCoreClient: CoreClient {
     /// A name that isn't a scenario still gives the mock (`.normal`), so a typo never starts a real scan.
     static func fromLaunchArguments(_ defaults: UserDefaults = .standard) -> MockCoreClient? {
         guard let name = defaults.string(forKey: "RoomyMockScenario") else { return nil }
-        return MockCoreClient(scenario: Scenario(rawValue: name) ?? .normal)
+        let mock = MockCoreClient(scenario: Scenario(rawValue: name) ?? .normal)
+        if defaults.string(forKey: "RoomyMockAccess") == "notGranted" { mock.access = .notGranted }
+        return mock
     }
 
     func startScan(mode: Mode) async -> ScanHandle {
@@ -214,6 +220,11 @@ final class MockCoreClient: CoreClient {
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
         Array(historyEntries.reversed().prefix(Int(limit)))
     }
+
+    func fullDiskAccess() async -> FullDiskAccess {
+        accessChecks += 1
+        return access
+    }
 }
 
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.
@@ -222,6 +233,16 @@ enum MockData {
     static let diskFree: UInt64 = 41_000_000_000
     static let scannedBytes: UInt64 = 180_000_000_000
     static let unreadableCount: UInt64 = 212
+    /// The 212 unreadable folders by area, most first, as the core orders them.
+    static let unreadableAreas: [UnreadableArea] = [
+        UnreadableArea(area: .appData, folderCount: 171),
+        UnreadableArea(area: .mail, folderCount: 18),
+        UnreadableArea(area: .messages, folderCount: 9),
+        UnreadableArea(area: .safari, folderCount: 7),
+        UnreadableArea(area: .deviceBackups, folderCount: 4),
+        UnreadableArea(area: .trash, folderCount: 1),
+        UnreadableArea(area: .other, folderCount: 2),
+    ]
 
     /// Every item the pretend scan finds. Likely safe items add up to the wireframe's 34 GB.
     static let items: [ItemSummary] = [
@@ -317,7 +338,8 @@ enum MockData {
             diskFree: diskFree,
             categories: categoryTotals(found),
             topItems: Array(found.filter { $0.tier != .keep }.sorted { $0.sizeBytes > $1.sizeBytes }.prefix(8)),
-            unreadableCount: unreadableCount
+            unreadableCount: unreadableCount,
+            unreadableAreas: unreadableAreas
         )
     }
 

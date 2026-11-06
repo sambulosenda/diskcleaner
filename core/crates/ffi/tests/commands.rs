@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use roomy_ffi::{
-    Category, CoreError, ItemDetail, ItemSummary, Mode, RoomyCore, ScanHandle, ScanPhase, Sort,
-    Tier,
+    Category, CoreError, FullDiskAccess, ItemDetail, ItemSummary, Mode, PrivateArea, RoomyCore,
+    ScanHandle, ScanPhase, Sort, Tier,
 };
 
 /// A fixture home and a core that scans it.
@@ -112,6 +112,54 @@ fn overview_totals_add_up() {
     let progress = s.core.scan_progress(h).unwrap();
     assert_eq!(progress.bytes_seen, o.scanned_bytes);
     assert!(progress.items_seen > 0);
+}
+
+#[test]
+fn unreadable_areas_add_up_to_the_unreadable_count() {
+    let s = setup();
+    let h = finished_scan(&s.core, Mode::Simple);
+    let o = s.core.overview(h).unwrap();
+    let sum: u64 = o.unreadable_areas.iter().map(|a| a.folder_count).sum();
+    assert_eq!(sum, o.unreadable_count);
+    assert!(o
+        .unreadable_areas
+        .windows(2)
+        .all(|w| w[0].folder_count >= w[1].folder_count));
+    assert!(o.unreadable_areas.iter().all(|a| a.folder_count > 0));
+}
+
+#[test]
+fn full_disk_access_is_unknown_without_any_private_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(dir.path()).unwrap();
+    let core = RoomyCore::with_home(root.clone()).unwrap();
+    assert_eq!(core.full_disk_access(), FullDiskAccess::Unknown);
+    std::fs::create_dir_all(root.join(".Trash")).unwrap();
+    assert_eq!(core.full_disk_access(), FullDiskAccess::Granted);
+}
+
+#[test]
+fn a_private_folder_that_cannot_be_read_is_named_and_means_no_access() {
+    use std::os::unix::fs::PermissionsExt;
+    let s = setup();
+    let mail = s.root.join("Library/Mail");
+    std::fs::create_dir_all(mail.join("V10")).unwrap();
+    std::fs::set_permissions(&mail, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let still_readable = std::fs::read_dir(&mail).is_ok();
+    let access = s.core.full_disk_access();
+    let h = finished_scan(&s.core, Mode::Simple);
+    let o = s.core.overview(h).unwrap();
+    std::fs::set_permissions(&mail, std::fs::Permissions::from_mode(0o755)).unwrap();
+    if still_readable {
+        eprintln!("skipped: running as root, so the folder is still readable");
+        return;
+    }
+    assert_eq!(access, FullDiskAccess::NotGranted);
+    let mail_area = o
+        .unreadable_areas
+        .iter()
+        .find(|a| a.area == PrivateArea::Mail);
+    assert_eq!(mail_area.map(|a| a.folder_count), Some(1));
 }
 
 #[test]

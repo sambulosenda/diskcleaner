@@ -16,6 +16,11 @@ struct ContentView: View {
         .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search items")
         .toolbar { MainToolbar(model: model) }
         .frame(minWidth: 960, minHeight: 640)
+        .sheet(isPresented: $model.showsAccessOnboarding) {
+            FullDiskAccessOnboarding()
+                .environmentObject(model)
+        }
+        .task { await model.windowDidAppear() }
     }
 }
 

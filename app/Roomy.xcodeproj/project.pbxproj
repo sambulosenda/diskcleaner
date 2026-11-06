@@ -22,6 +22,7 @@
 		A10000000000000000000052 /* ItemDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000052 /* ItemDetailPanel.swift */; };
 		A10000000000000000000070 /* CleanupReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000070 /* CleanupReview.swift */; };
 		A10000000000000000000071 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000071 /* HistoryView.swift */; };
+		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
 		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
 		A10000000000000000000026 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* OverviewView.swift */; };
 		A10000000000000000000027 /* CategoryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* CategoryStrip.swift */; };
@@ -64,6 +65,7 @@
 		A20000000000000000000052 /* ItemDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailPanel.swift; sourceTree = "<group>"; };
 		A20000000000000000000070 /* CleanupReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupReview.swift; sourceTree = "<group>"; };
 		A20000000000000000000071 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* CategoryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStrip.swift; sourceTree = "<group>"; };
@@ -123,6 +125,7 @@
 				A20000000000000000000052 /* ItemDetailPanel.swift */,
 				A20000000000000000000070 /* CleanupReview.swift */,
 				A20000000000000000000071 /* HistoryView.swift */,
+				A20000000000000000000072 /* FullDiskAccessView.swift */,
 				A20000000000000000000025 /* Formatting.swift */,
 				A20000000000000000000026 /* OverviewView.swift */,
 				A20000000000000000000027 /* CategoryStrip.swift */,
@@ -282,6 +285,7 @@
 				A10000000000000000000052 /* ItemDetailPanel.swift in Sources */,
 				A10000000000000000000070 /* CleanupReview.swift in Sources */,
 				A10000000000000000000071 /* HistoryView.swift in Sources */,
+				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
 				A10000000000000000000025 /* Formatting.swift in Sources */,
 				A10000000000000000000026 /* OverviewView.swift in Sources */,
 				A10000000000000000000027 /* CategoryStrip.swift in Sources */,

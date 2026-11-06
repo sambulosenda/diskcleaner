@@ -176,3 +176,42 @@ extension ScanPhase {
         }
     }
 }
+
+extension PrivateArea {
+    /// Plain name for the area, used in "What wasn't scanned".
+    var label: String {
+        switch self {
+        case .mail: return "Mail"
+        case .messages: return "Messages"
+        case .safari: return "Safari"
+        case .deviceBackups: return "iPhone and iPad backups"
+        case .photos: return "Photos library"
+        case .contactsAndCalendars: return "Contacts, Calendars and Reminders"
+        case .trash: return "Trash"
+        case .appData: return "Other apps' private data"
+        case .other: return "Other folders"
+        }
+    }
+
+    /// SF Symbol shown next to the area's name.
+    var symbol: String {
+        switch self {
+        case .mail: return "envelope"
+        case .messages: return "message"
+        case .safari: return "safari"
+        case .deviceBackups: return "iphone"
+        case .photos: return "photo.on.rectangle"
+        case .contactsAndCalendars: return "calendar"
+        case .trash: return "trash"
+        case .appData: return "square.stack.3d.up"
+        case .other: return "folder"
+        }
+    }
+}
+
+extension UnreadableArea {
+    /// "12 folders" or "1 folder".
+    var countText: String {
+        folderCount == 1 ? "1 folder" : "\(Format.count(folderCount)) folders"
+    }
+}

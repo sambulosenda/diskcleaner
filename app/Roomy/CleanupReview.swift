@@ -72,8 +72,13 @@ struct CleanupReviewSheet: View {
             Working(text: "Putting things back\u{2026}")
         case .failed(let message):
             CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't finish this", message: message) {
-                EmptyView()
+                // macOS may refuse to let Roomy open the Trash without Full Disk Access.
+                if model.fullDiskAccess == .notGranted {
+                    Button("Open Full Disk Access Settings") { FullDiskAccessSettings.open() }
+                        .accessibilityHint("Opens System Settings. Turn on Roomy, then try again.")
+                }
             }
+            .task { await model.refreshFullDiskAccess() }
         case .ready(let preview):
             CleanupPreviewList(preview: preview)
         case .done(let result):

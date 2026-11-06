@@ -34,6 +34,9 @@ struct OverviewContent: View {
                 }
                 WorthReviewingList(items: model.worthReviewing(in: overview), searchText: model.searchText)
                 ReviewAndCleanButton()
+                if model.shouldOfferAccess(for: overview) {
+                    UnscannedAreasBox(overview: overview)
+                }
                 Divider()
                 OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount)
             }
@@ -220,11 +223,6 @@ struct UnmeasuredNote: View {
     let unreadableCount: UInt64
     @State private var showingExplanation = false
 
-    /// Opens System Settings at Privacy & Security > Full Disk Access.
-    static let fullDiskAccessURL = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
-    )
-
     /// "1 folder not measured" or "212 folders not measured".
     static func text(for count: UInt64) -> String {
         count == 1 ? "1 folder not measured" : "\(Format.count(count)) folders not measured"
@@ -259,7 +257,7 @@ struct FullDiskAccessExplanation: View {
                 .fixedSize(horizontal: false, vertical: true)
             Text("To turn it on, open System Settings, go to Privacy & Security, then Full Disk Access, and switch on Roomy (or add it with the + button). Then scan again.")
                 .fixedSize(horizontal: false, vertical: true)
-            if let url = UnmeasuredNote.fullDiskAccessURL {
+            if let url = FullDiskAccessSettings.url {
                 Link("Open Full Disk Access settings", destination: url)
                     .accessibilityHint("Opens System Settings.")
             }

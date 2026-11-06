@@ -170,6 +170,82 @@ pub struct Overview {
     pub top_items: Vec<ItemSummary>,
     /// Folders the scan could not read.
     pub unreadable_count: u64,
+    /// The same folders, counted by the private area they belong to. Most
+    /// folders first, ties in `PrivateArea` order. Adds up to
+    /// `unreadable_count`.
+    pub unreadable_areas: Vec<UnreadableArea>,
+}
+
+/// A part of the home folder that macOS may keep private. The app turns it
+/// into words; the core sends no paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, uniffi::Enum)]
+pub enum PrivateArea {
+    /// Mail's messages and attachments.
+    Mail,
+    /// Messages' chats and attachments.
+    Messages,
+    /// Safari's data.
+    Safari,
+    /// iPhone and iPad backups.
+    DeviceBackups,
+    /// Photos libraries.
+    Photos,
+    /// Contacts, Calendars and Reminders.
+    ContactsAndCalendars,
+    /// The Trash.
+    Trash,
+    /// Other apps' private data.
+    AppData,
+    /// Any other folder.
+    Other,
+}
+
+impl From<scanner::privacy::Area> for PrivateArea {
+    fn from(area: scanner::privacy::Area) -> Self {
+        use scanner::privacy::Area;
+        match area {
+            Area::Mail => Self::Mail,
+            Area::Messages => Self::Messages,
+            Area::Safari => Self::Safari,
+            Area::DeviceBackups => Self::DeviceBackups,
+            Area::Photos => Self::Photos,
+            Area::ContactsAndCalendars => Self::ContactsAndCalendars,
+            Area::Trash => Self::Trash,
+            Area::AppData => Self::AppData,
+            Area::Other => Self::Other,
+        }
+    }
+}
+
+/// How many folders in one private area the scan could not read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct UnreadableArea {
+    /// The area.
+    pub area: PrivateArea,
+    /// Folders in it that could not be read.
+    pub folder_count: u64,
+}
+
+/// Whether Roomy can read the folders macOS keeps private.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum FullDiskAccess {
+    /// Full Disk Access is on.
+    Granted,
+    /// Full Disk Access is off: some private folders could not be listed.
+    NotGranted,
+    /// None of the folders checked exist, so the core can't tell.
+    Unknown,
+}
+
+impl From<scanner::privacy::Access> for FullDiskAccess {
+    fn from(access: scanner::privacy::Access) -> Self {
+        use scanner::privacy::Access;
+        match access {
+            Access::Granted => Self::Granted,
+            Access::NotGranted => Self::NotGranted,
+            Access::Unknown => Self::Unknown,
+        }
+    }
 }
 
 /// Why the core made an item's tier more careful than its rule's.
