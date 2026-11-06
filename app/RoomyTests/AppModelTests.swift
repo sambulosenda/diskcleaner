@@ -411,6 +411,65 @@ final class AppModelTests: XCTestCase {
         XCTAssertNotNil(model.history.first?.putBackAt)
     }
 
+    func testAScanAfterTheCleanupLeavesTheResultOpenAndIsNotRepeated() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.startScan()
+        await model.waitForScan()
+        guard case .done = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        model.closeCleanupReview()
+        XCTAssertEqual(model.cleanupState, .closed)
+        XCTAssertFalse(model.isScanning, "the scan already saw the cleanup")
+    }
+
+    func testPutBackFromHistoryRunsOnce() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.closeCleanupReview()
+        await model.waitForScan()
+        model.putBack()
+        XCTAssertTrue(model.isPuttingBack)
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertFalse(model.isPuttingBack)
+        XCTAssertEqual((model.client as? MockCoreClient)?.putBackCalls, 1)
+        XCTAssertNil(model.lastCleanup)
+        XCTAssertNil(model.lastCleanupResult)
+        await model.waitForScan()
+    }
+
+    func testAFailedPutBackFromHistoryCanBeTriedAgain() async throws {
+        let (model, _) = try await reviewedModel()
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        model.closeCleanupReview()
+        await model.waitForScan()
+        let mock = try XCTUnwrap(model.client as? MockCoreClient)
+        mock.nextPutBackError = .CleanupUnavailable(reason: "Roomy couldn't open your Trash.")
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertNotNil(model.historyMessage, "History says why")
+        XCTAssertNotNil(model.lastCleanup, "nothing moved, so it can be tried again")
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertNil(model.historyMessage)
+        XCTAssertNil(model.lastCleanup)
+        XCTAssertEqual(mock.putBackCalls, 2)
+        await model.waitForScan()
+    }
+
+    func testPutBackStaysAvailableWhenHistoryIsUnavailable() async throws {
+        let (model, first) = try await reviewedModel()
+        (model.client as? MockCoreClient)?.historyUnavailable = true
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        XCTAssertTrue(model.history.isEmpty)
+        XCTAssertNotNil(model.lastCleanup)
+        XCTAssertEqual(model.lastCleanupResult?.bytesMoved, first.sizeBytes)
+    }
+
     func testCancelLeavesEverythingWhereItIs() async throws {
         let (model, _) = try await reviewedModel()
         model.closeCleanupReview()

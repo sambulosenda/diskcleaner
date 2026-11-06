@@ -314,7 +314,19 @@ impl RoomyCore {
                 }
             }
         };
-        let (result, rows) = crate::run::put_back(&last)?;
+        // Taken out while it runs, so a second request cannot put back
+        // twice. An error here comes before anything moved, so the record
+        // goes back and the user can try again.
+        let (result, rows) = match crate::run::put_back(&last) {
+            Ok(done) => done,
+            Err(err) => {
+                let mut slot = lock(&self.last_cleanup);
+                if slot.is_none() {
+                    *slot = Some(last);
+                }
+                return Err(err);
+            }
+        };
         if let Some(id) = last.history_id {
             let at = crate::run::unix_seconds(std::time::SystemTime::now());
             self.with_history(true, |h| h.record_put_back(id, at, &rows));

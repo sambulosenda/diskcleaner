@@ -6,7 +6,7 @@ struct HistoryScreen: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        if model.history.isEmpty {
+        if model.history.isEmpty && model.lastCleanupResult == nil && model.historyMessage == nil {
             CenteredMessage(
                 symbol: "clock.arrow.circlepath",
                 title: "No cleanups yet",
@@ -16,12 +16,24 @@ struct HistoryScreen: View {
             }
         } else {
             List {
-                if model.lastCleanup != nil, let newest = model.history.first, newest.putBackAt == nil {
+                if let message = model.historyMessage {
+                    Section {
+                        Label(message, systemImage: "exclamationmark.circle")
+                            .padding(.vertical, 4)
+                    }
+                }
+                // Tied to the cleanup Put back undoes, not to the newest History row, so it is right even
+                // if that cleanup could not be saved to History.
+                if let last = model.lastCleanupResult, model.lastCleanup != nil {
                     Section {
                         HStack {
-                            Text("Your last cleanup moved \(Format.bytes(newest.bytesInTrash)) to the Trash.")
+                            Text("Your last cleanup moved \(Format.bytes(last.bytesMoved)) to the Trash.")
                             Spacer()
+                            if model.isPuttingBack {
+                                ProgressView().controlSize(.small)
+                            }
                             Button("Put back") { model.putBack() }
+                                .disabled(model.isPuttingBack)
                                 .help("Moves these items from the Trash back to where they were.")
                         }
                         .padding(.vertical, 4)

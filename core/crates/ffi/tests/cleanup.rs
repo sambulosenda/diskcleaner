@@ -365,7 +365,7 @@ fn put_back_restores_the_last_cleanup_once() {
     // Only once.
     assert!(matches!(
         s.core.put_back_cleanup(cleanup),
-        Err(CoreError::CleanupUnavailable { .. })
+        Err(CoreError::NothingToPutBack)
     ));
     // History shows it.
     let history = s.core.cleanup_history(10);

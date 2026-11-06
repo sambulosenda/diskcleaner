@@ -27,9 +27,6 @@ const TRASH_UNAVAILABLE: &str = "Roomy couldn't open your Trash, so nothing was 
 const HOME_UNAVAILABLE: &str = "Roomy couldn't open your home folder, so nothing was moved.";
 /// Shown for a move or removal that failed partway.
 const MOVE_FAILED: &str = "The move to the Trash did not work.";
-/// Shown when there is nothing to put back.
-const NOTHING_TO_PUT_BACK: &str =
-    "Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash.";
 
 /// The last cleanup, kept so it can be put back once.
 pub(crate) struct LastCleanup {
@@ -186,9 +183,7 @@ pub(crate) fn plan_gone() -> CoreError {
 
 /// The error for a cleanup that can't be put back.
 pub(crate) fn nothing_to_put_back() -> CoreError {
-    CoreError::CleanupUnavailable {
-        reason: NOTHING_TO_PUT_BACK.to_string(),
-    }
+    CoreError::NothingToPutBack
 }
 
 /// Seconds since 1970, for History. A clock before 1970 reads as 0.

@@ -74,6 +74,11 @@ pub enum CoreError {
     /// the Trash could not be opened. `reason` is plain words with no path.
     #[error("{reason}")]
     CleanupUnavailable { reason: String },
+    /// Put back was asked for a cleanup the core no longer holds: not the
+    /// most recent one, already put back, or from before Roomy started.
+    /// Trying again will not help, unlike `CleanupUnavailable`.
+    #[error("Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash.")]
+    NothingToPutBack,
 }
 
 /// Space on the volume that holds a given path, in bytes.

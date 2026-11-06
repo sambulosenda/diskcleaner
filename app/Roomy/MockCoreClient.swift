@@ -36,6 +36,13 @@ final class MockCoreClient: CoreClient {
     private var historyEntries: [HistoryEntry] = []
     /// The clock History uses. Tests can set it.
     var now: () -> Date = Date.init
+    /// When true, cleanups are not saved to History, as when its database can't be opened. Tests set it.
+    var historyUnavailable = false
+    /// When set, the next put back throws this before anything moves, and the cleanup can still be put
+    /// back afterwards. Tests set it.
+    var nextPutBackError: CoreError?
+    /// How many times `putBackCleanup` was called. Tests read it.
+    private(set) var putBackCalls = 0
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -166,6 +173,11 @@ final class MockCoreClient: CoreClient {
         }
         let handle = CleanupHandle(id: nextCleanup)
         nextCleanup += 1
+        if historyUnavailable {
+            lastCleanup = (handle, -1, moved)
+            return CleanupResult(cleanup: handle, items: moved, bytesMoved: moved.reduce(0) { $0 + $1.sizeBytes },
+                                 savedToHistory: false)
+        }
         historyEntries.append(HistoryEntry(
             id: Int64(historyEntries.count + 1),
             finishedAt: Int64(now().timeIntervalSince1970),
@@ -180,14 +192,21 @@ final class MockCoreClient: CoreClient {
 
     func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult {
         guard let last = lastCleanup, last.handle == cleanup else {
-            throw CoreError.CleanupUnavailable(reason: "Roomy can only put back its most recent cleanup, until Roomy quits.")
+            throw CoreError.NothingToPutBack
+        }
+        putBackCalls += 1
+        if let error = nextPutBackError {
+            nextPutBackError = nil
+            throw error
         }
         lastCleanup = nil
-        let old = historyEntries[last.historyIndex]
-        historyEntries[last.historyIndex] = HistoryEntry(
-            id: old.id, finishedAt: old.finishedAt, putBackAt: Int64(now().timeIntervalSince1970), bytesInTrash: 0,
-            items: old.items.map { HistoryItem(title: $0.title, sizeBytes: $0.sizeBytes, state: .putBack) }
-        )
+        if historyEntries.indices.contains(last.historyIndex) {
+            let old = historyEntries[last.historyIndex]
+            historyEntries[last.historyIndex] = HistoryEntry(
+                id: old.id, finishedAt: old.finishedAt, putBackAt: Int64(now().timeIntervalSince1970), bytesInTrash: 0,
+                items: old.items.map { HistoryItem(title: $0.title, sizeBytes: $0.sizeBytes, state: .putBack) }
+            )
+        }
         return PutBackResult(items: last.moved, bytesPutBack: last.moved.reduce(0) { $0 + $1.sizeBytes })
     }
 

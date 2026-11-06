@@ -238,6 +238,7 @@ Why the core made an item's tier more careful. Carries no path.
 | `unknown_item` | The scan has no item with that id |
 | `nothing_selected` | `preview_cleanup` was called with no items |
 | `cleanup_unavailable { reason }` | The preview could not check anything, for example because the Trash could not be opened. `reason` is plain words with no path |
+| `nothing_to_put_back` | `put_back_cleanup` was given a cleanup the core no longer holds. Trying again won't help |
 
 ## Cleanup preview
 
@@ -333,8 +334,10 @@ Moves the plan's items to the Trash. Throws `cleanup_unavailable` if `plan` is n
 can't be opened. Nothing moves then.
 
 ### `put_back_cleanup(cleanup: CleanupHandle) -> PutBackResult` throws
-Moves the last cleanup's items back. Throws `cleanup_unavailable` if `cleanup` is not the most
-recent cleanup that moved anything, or was already put back.
+Moves the last cleanup's items back. Throws `nothing_to_put_back` if `cleanup` is not the most
+recent cleanup that moved anything, or was already put back; trying again won't help. Throws
+`cleanup_unavailable` if the Trash or home folder can't be opened; nothing moved, and the same
+cleanup can be put back later.
 
 ### `cleanup_history(limit: u32) -> [HistoryEntry]`
 Past cleanups, newest first, at most `limit`. Empty before the first cleanup; reading it never makes

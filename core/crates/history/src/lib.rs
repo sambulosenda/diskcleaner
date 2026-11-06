@@ -202,9 +202,9 @@ impl History {
         Ok(id)
     }
 
-    /// Records that a cleanup was put back. `results` gives, for each item
-    /// id that was in the Trash, `None` if it was put back or the reason it
-    /// stayed in the Trash.
+    /// Records a put back. `results` gives, for each item id that was in
+    /// the Trash, `None` if it was put back or the reason it stayed in the
+    /// Trash. `put_back_at` is set only if at least one item came back.
     pub fn record_put_back(
         &mut self,
         cleanup_id: i64,
@@ -212,10 +212,7 @@ impl History {
         results: &[(String, Option<String>)],
     ) -> Result<(), HistoryError> {
         let tx = self.conn.transaction()?;
-        tx.execute(
-            "UPDATE cleanups SET put_back_at = ?2 WHERE id = ?1",
-            params![cleanup_id, at],
-        )?;
+        let mut any_put_back = false;
         for (item_id, refused) in results {
             let state = match refused {
                 None => ItemState::PutBack,
@@ -224,10 +221,20 @@ impl History {
                 },
             };
             let (state, reason) = state.to_row();
-            tx.execute(
+            let changed = tx.execute(
                 "UPDATE cleanup_items SET state = ?3, reason = ?4
                  WHERE cleanup_id = ?1 AND item_id = ?2 AND state = 'moved'",
                 params![cleanup_id, item_id, state, reason],
+            )?;
+            if changed > 0 && refused.is_none() {
+                any_put_back = true;
+            }
+        }
+        // Only mark the cleanup as put back when something really came back.
+        if any_put_back {
+            tx.execute(
+                "UPDATE cleanups SET put_back_at = ?2 WHERE id = ?1",
+                params![cleanup_id, at],
             )?;
         }
         tx.commit()?;
@@ -388,6 +395,23 @@ mod tests {
         ));
         assert!(matches!(got.items[2].state, ItemState::NotMoved { .. }));
         assert_eq!(got.bytes_in_trash(), 40);
+    }
+
+    #[test]
+    fn nothing_put_back_leaves_put_back_at_empty() {
+        let mut h = History::in_memory().unwrap();
+        let id = h
+            .record_cleanup(5, &[item("a", 100, ItemState::Moved)])
+            .unwrap();
+        h.record_put_back(id, 9, &[("a".into(), Some("No.".into()))])
+            .unwrap();
+        let got = h.get(id).unwrap().unwrap();
+        assert_eq!(got.put_back_at, None);
+        assert!(matches!(
+            got.items[0].state,
+            ItemState::StayedInTrash { .. }
+        ));
+        assert_eq!(got.bytes_in_trash(), 100);
     }
 
     #[test]
