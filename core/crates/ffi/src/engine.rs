@@ -10,13 +10,15 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use planner::Plan;
 use rules::Rule;
 use scanner::{ScanError, ScanOptions};
 
+use crate::cleanup::Pending;
+use crate::run::LastCleanup;
 use crate::types::{
-    Category, CleanupChoice, CleanupPreview, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
-    ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult, HistoryEntry,
+    ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PutBackResult, ScanHandle, ScanPhase,
+    ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -43,7 +45,13 @@ pub struct RoomyCore {
     next_plan_id: AtomicU64,
     /// The one cleanup plan waiting for the user, if any. A new preview
     /// replaces it, so at most one plan exists at a time.
-    pending_plan: Mutex<Option<Plan>>,
+    pending_plan: Mutex<Option<Pending>>,
+    /// The next cleanup number. Starts at 1.
+    next_cleanup_id: AtomicU64,
+    /// The most recent cleanup that moved anything, until it is put back.
+    last_cleanup: Mutex<Option<LastCleanup>>,
+    /// The History database, opened the first time it is needed.
+    history: Mutex<Option<history::History>>,
 }
 
 /// One scan's shared state, written by its thread and read by commands.
@@ -101,6 +109,9 @@ impl RoomyCore {
             scans: Mutex::new(HashMap::new()),
             next_plan_id: AtomicU64::new(1),
             pending_plan: Mutex::new(None),
+            next_cleanup_id: AtomicU64::new(1),
+            last_cleanup: Mutex::new(None),
+            history: Mutex::new(None),
         }))
     }
 
@@ -251,8 +262,104 @@ impl RoomyCore {
     /// or with an unknown plan.
     pub fn discard_cleanup(&self, plan: PlanHandle) {
         let mut pending = lock(&self.pending_plan);
-        if pending.as_ref().is_some_and(|p| p.id() == plan.id) {
+        if pending.as_ref().is_some_and(|p| p.plan.id() == plan.id) {
             *pending = None;
+        }
+    }
+
+    /// Carries out the waiting plan: moves its items to the Trash. The
+    /// executor checks every item again first; an item that changed since
+    /// the review stays where it is. The plan is used up.
+    ///
+    /// Throws `cleanup_unavailable` if `plan` is not the waiting plan, it
+    /// has expired, or the Trash can't be opened. Nothing moves then.
+    pub fn run_cleanup(&self, plan: PlanHandle) -> Result<CleanupResult, CoreError> {
+        let pending = {
+            let mut slot = lock(&self.pending_plan);
+            match slot.take() {
+                Some(p) if p.plan.id() == plan.id => p,
+                other => {
+                    *slot = other;
+                    return Err(crate::run::plan_gone());
+                }
+            }
+        };
+        let id = self.next_cleanup_id.fetch_add(1, Ordering::Relaxed);
+        let now = std::time::SystemTime::now();
+        let mut ran = crate::run::run(pending, id, now)?;
+        let history_id = self.with_history(true, |h| {
+            h.record_cleanup(crate::run::unix_seconds(now), &ran.history_items)
+        });
+        ran.result.saved_to_history = history_id.is_some();
+        if let Some(last) = ran.last.as_mut() {
+            last.history_id = history_id;
+        }
+        // A newer cleanup replaces the older undo, even if nothing moved.
+        *lock(&self.last_cleanup) = ran.last;
+        Ok(ran.result)
+    }
+
+    /// Puts the last cleanup back: moves what it moved from the Trash to
+    /// where it was. Works once, for the most recent cleanup since the core
+    /// was made. An item stays in the Trash if it changed there, or if
+    /// something new is in its old place.
+    pub fn put_back_cleanup(&self, cleanup: CleanupHandle) -> Result<PutBackResult, CoreError> {
+        let last = {
+            let mut slot = lock(&self.last_cleanup);
+            match slot.take() {
+                Some(l) if l.handle == cleanup => l,
+                other => {
+                    *slot = other;
+                    return Err(crate::run::nothing_to_put_back());
+                }
+            }
+        };
+        let (result, rows) = crate::run::put_back(&last)?;
+        if let Some(id) = last.history_id {
+            let at = crate::run::unix_seconds(std::time::SystemTime::now());
+            self.with_history(true, |h| h.record_put_back(id, at, &rows));
+        }
+        Ok(result)
+    }
+
+    /// The most recent cleanups, newest first, at most `limit`. Empty if
+    /// nothing has been cleaned yet. Holds no paths.
+    pub fn cleanup_history(&self, limit: u32) -> Vec<HistoryEntry> {
+        self.with_history(false, |h| h.recent(limit))
+            .map(crate::run::entries)
+            .unwrap_or_default()
+    }
+}
+
+impl RoomyCore {
+    /// Runs `work` on the History database, opening it first if needed.
+    /// With `create` false, a database that does not exist yet is not
+    /// made. Errors go to the log; History never stops a cleanup.
+    fn with_history<T>(
+        &self,
+        create: bool,
+        work: impl FnOnce(&mut history::History) -> Result<T, history::HistoryError>,
+    ) -> Option<T> {
+        let mut slot = lock(&self.history);
+        if slot.is_none() {
+            if !create && !history::path_for(&self.home).is_file() {
+                return None;
+            }
+            match history::History::open_for_home(&self.home) {
+                Ok(h) => *slot = Some(h),
+                Err(err) => {
+                    tracing::warn!(%err, "History could not be opened");
+                    return None;
+                }
+            }
+        }
+        let h = slot.as_mut()?;
+        match work(h) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                tracing::warn!(%err, "History could not be used");
+                None
+            }
         }
     }
 }

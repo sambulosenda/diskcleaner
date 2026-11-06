@@ -1,9 +1,12 @@
 //! UniFFI surface between the Rust core and the SwiftUI app.
 //!
 //! Every function here is a typed command the app can call; the contract is
-//! `docs/command-contract.md`. Nothing in this crate modifies the filesystem:
+//! `docs/command-contract.md`. Nothing in this crate itself modifies the
+//! filesystem (History writes only its own database, in its own crate):
 //! scans are read only, `disk_summary` reads volume metadata only (via
 //! `statfs`), and the cleanup preview runs the executor's read-only checks.
+//! The cleanup and put-back commands hand a plan to the `executor` crate,
+//! which is the only code that moves files.
 //!
 //! No path goes to the app in simple mode, and the app never sends a path to
 //! the core except in the T02 `disk_summary` command and the test-only
@@ -12,6 +15,7 @@
 mod cleanup;
 mod embedded_rules;
 mod engine;
+mod run;
 #[cfg(feature = "testing")]
 mod testing;
 mod types;
@@ -25,9 +29,10 @@ pub use engine::RoomyCore;
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{
-    Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupPreview,
-    CleanupPreviewItem, Confidence, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
-    ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupHandle,
+    CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, HistoryEntry,
+    HistoryItem, HistoryItemState, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
+    PutBackResult, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

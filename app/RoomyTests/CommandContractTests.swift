@@ -176,4 +176,30 @@ final class CommandContractTests: XCTestCase {
             XCTAssertFalse(reason.contains("/"), reason)
         }
     }
+
+    func testRunCleanupMovesToTheTrashAndPutBackRestores() throws {
+        let home = URL(fileURLWithPath: try makeFixtureHome(dir: fixtureDir.path + "-run"))
+        let trash = home.appendingPathComponent(".Trash")
+        try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: false)
+        core = try RoomyCore.withHomeForTesting(home: home.path)
+        let handle = try finishedScan(.simple)
+        let likely = try core.listItems(handle: handle, category: nil, tier: .likelySafe, sort: .largestFirst)
+        let preview = try core.previewCleanup(handle: handle, choices: likely.map {
+            CleanupChoice(itemId: $0.id, chosenAlone: true)
+        })
+        let plan = try XCTUnwrap(preview.plan)
+
+        let result = try core.runCleanup(plan: plan)
+        XCTAssertEqual(result.bytesMoved, preview.bytesToMove)
+        XCTAssertTrue(result.items.allSatisfy(\.done))
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: trash.path).isEmpty)
+        XCTAssertThrowsError(try core.runCleanup(plan: plan), "a plan is single use")
+
+        let back = try core.putBackCleanup(cleanup: try XCTUnwrap(result.cleanup))
+        XCTAssertEqual(back.bytesPutBack, result.bytesMoved)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: trash.path), [])
+        let history = core.cleanupHistory(limit: 10)
+        XCTAssertEqual(history.count, 1)
+        XCTAssertNotNil(history.first?.putBackAt)
+    }
 }

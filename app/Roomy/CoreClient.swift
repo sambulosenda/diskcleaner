@@ -35,4 +35,13 @@ protocol CoreClient: AnyObject {
 
     /// Drops the plan a preview made, when the user closes the review without cleaning up.
     func discardCleanup(plan: PlanHandle) async
+
+    /// Moves the plan's items to the Trash. The core checks every item again first. The plan is used up.
+    func runCleanup(plan: PlanHandle) async throws -> CleanupResult
+
+    /// Puts the most recent cleanup back where it was. Works once, until the app quits.
+    func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult
+
+    /// Past cleanups, newest first. Holds no paths.
+    func cleanupHistory(limit: UInt32) async -> [HistoryEntry]
 }

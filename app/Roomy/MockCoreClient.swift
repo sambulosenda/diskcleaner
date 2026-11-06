@@ -27,6 +27,15 @@ final class MockCoreClient: CoreClient {
     private var nextPlan: UInt64 = 1
     /// Every plan `discardCleanup` was called with, in order. Tests read it.
     private(set) var discardedPlans: [PlanHandle] = []
+    /// The rows of the one waiting plan, as the core keeps one plan at a time.
+    private var pendingPlan: (handle: PlanHandle, rows: [CleanupPreviewItem])?
+    /// The last cleanup that can be put back, and what it moved.
+    private var lastCleanup: (handle: CleanupHandle, historyIndex: Int, moved: [CleanupResultItem])?
+    private var nextCleanup: UInt64 = 1
+    /// Pretend History, oldest first.
+    private var historyEntries: [HistoryEntry] = []
+    /// The clock History uses. Tests can set it.
+    var now: () -> Date = Date.init
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -130,9 +139,12 @@ final class MockCoreClient: CoreClient {
         }
         let moving = rows.filter { $0.check == .willMove }
         var plan: PlanHandle?
+        pendingPlan = nil
         if !moving.isEmpty {
-            plan = PlanHandle(id: nextPlan)
+            let handle = PlanHandle(id: nextPlan)
+            plan = handle
             nextPlan += 1
+            pendingPlan = (handle, moving)
         }
         return CleanupPreview(plan: plan, items: rows, bytesToMove: moving.reduce(0) { $0 + $1.sizeBytes },
                               expiresInSeconds: 600)
@@ -140,6 +152,47 @@ final class MockCoreClient: CoreClient {
 
     func discardCleanup(plan: PlanHandle) async {
         discardedPlans.append(plan)
+        if pendingPlan?.handle == plan { pendingPlan = nil }
+    }
+
+    /// Pretends every item of the waiting plan moved. Nothing here touches the disk.
+    func runCleanup(plan: PlanHandle) async throws -> CleanupResult {
+        guard let pending = pendingPlan, pending.handle == plan else {
+            throw CoreError.CleanupUnavailable(reason: "This review is no longer open. Please review again.")
+        }
+        pendingPlan = nil
+        let moved = pending.rows.map {
+            CleanupResultItem(itemId: $0.itemId, title: $0.title, sizeBytes: $0.sizeBytes, done: true, reason: nil)
+        }
+        let handle = CleanupHandle(id: nextCleanup)
+        nextCleanup += 1
+        historyEntries.append(HistoryEntry(
+            id: Int64(historyEntries.count + 1),
+            finishedAt: Int64(now().timeIntervalSince1970),
+            putBackAt: nil,
+            bytesInTrash: moved.reduce(0) { $0 + $1.sizeBytes },
+            items: moved.map { HistoryItem(title: $0.title, sizeBytes: $0.sizeBytes, state: .moved) }
+        ))
+        lastCleanup = (handle, historyEntries.count - 1, moved)
+        return CleanupResult(cleanup: handle, items: moved, bytesMoved: moved.reduce(0) { $0 + $1.sizeBytes },
+                             savedToHistory: true)
+    }
+
+    func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult {
+        guard let last = lastCleanup, last.handle == cleanup else {
+            throw CoreError.CleanupUnavailable(reason: "Roomy can only put back its most recent cleanup, until Roomy quits.")
+        }
+        lastCleanup = nil
+        let old = historyEntries[last.historyIndex]
+        historyEntries[last.historyIndex] = HistoryEntry(
+            id: old.id, finishedAt: old.finishedAt, putBackAt: Int64(now().timeIntervalSince1970), bytesInTrash: 0,
+            items: old.items.map { HistoryItem(title: $0.title, sizeBytes: $0.sizeBytes, state: .putBack) }
+        )
+        return PutBackResult(items: last.moved, bytesPutBack: last.moved.reduce(0) { $0 + $1.sizeBytes })
+    }
+
+    func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
+        Array(historyEntries.reversed().prefix(Int(limit)))
     }
 }
 

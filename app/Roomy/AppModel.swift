@@ -40,7 +40,7 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
-    /// What the cleanup review sheet shows. The review is a dry run: nothing moves.
+    /// What the cleanup sheet shows. It opens as a dry run; nothing moves until the user confirms.
     enum CleanupState: Equatable {
         /// No review is open.
         case closed
@@ -48,8 +48,24 @@ final class AppModel: ObservableObject {
         case checking
         /// What would move to the Trash, and what wouldn't and why.
         case ready(CleanupPreview)
-        /// The core could not check the items. The text is ready to show.
+        /// The user confirmed; the core is moving the items to the Trash.
+        case moving(CleanupPreview)
+        /// The cleanup finished.
+        case done(CleanupResult)
+        /// The user asked to put the cleanup back; the core is moving things back.
+        case puttingBack(CleanupResult)
+        /// Putting back finished.
+        case putBack(PutBackResult)
+        /// The core could not check, move or put back. The text is ready to show.
         case failed(String)
+
+        /// Whether the core is moving files right now. The sheet can't be closed then.
+        var isBusy: Bool {
+            switch self {
+            case .moving, .puttingBack: return true
+            default: return false
+            }
+        }
     }
 
     static let modeKey = "roomy.mode"
@@ -83,6 +99,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var checkedItemIDs: Set<String> = []
     /// The cleanup review sheet.
     @Published private(set) var cleanupState: CleanupState = .closed
+    /// The most recent cleanup, while it can still be put back (until the app quits).
+    @Published private(set) var lastCleanup: CleanupHandle?
+    /// Past cleanups for the History screen, newest first.
+    @Published private(set) var history: [HistoryEntry] = []
+    /// Set once something has moved, so the scan is out of date. The next close of the sheet rescans.
+    private var needsRescan = false
 
     let client: CoreClient
     private let defaults: UserDefaults
@@ -192,8 +214,10 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Closes the cleanup review without cleaning up, and lets the core forget its plan.
+    /// Closes the cleanup sheet. A review that was not carried out lets the core forget its plan. After
+    /// a cleanup or a put back, scans again so the sizes are right. Does nothing while files are moving.
     func closeCleanupReview() {
+        guard !cleanupState.isBusy else { return }
         cleanupTask?.cancel()
         cleanupTask = nil
         if case .ready(let preview) = cleanupState, let plan = preview.plan {
@@ -203,9 +227,77 @@ final class AppModel: ObservableObject {
         if cleanupState != .closed {
             cleanupState = .closed
         }
+        if needsRescan {
+            needsRescan = false
+            startScan()
+        }
     }
 
-    /// Waits for the cleanup review's check to finish. Used by tests.
+    // MARK: - Cleanup (moves files)
+
+    /// Moves the reviewed items to the Trash. Call only after the user confirmed. The core checks every
+    /// item again first, and an item that changed since the review stays where it is.
+    func moveToTrash() {
+        guard case .ready(let preview) = cleanupState, let plan = preview.plan else { return }
+        let client = self.client
+        cleanupState = .moving(preview)
+        cleanupTask = Task { [weak self] in
+            // Not cancelled by closing: the sheet can't close while this runs.
+            do {
+                let result = try await client.runCleanup(plan: plan)
+                guard let self else { return }
+                self.needsRescan = true
+                self.checkedItemIDs = []
+                self.checkedSizes = [:]
+                self.lastCleanup = result.cleanup
+                self.cleanupState = .done(result)
+                await self.reloadHistory()
+            } catch {
+                guard let self else { return }
+                // A refused cleanup moved nothing, but the review is used up either way.
+                self.cleanupState = .failed(Self.cleanupMessage(for: error))
+            }
+        }
+    }
+
+    /// Puts the most recent cleanup back where it was. Works once, until the app quits.
+    func putBack() {
+        guard let handle = lastCleanup else { return }
+        let client = self.client
+        let shown: CleanupResult?
+        if case .done(let result) = cleanupState { shown = result } else { shown = nil }
+        if let shown { cleanupState = .puttingBack(shown) }
+        cleanupTask = Task { [weak self] in
+            do {
+                let result = try await client.putBackCleanup(cleanup: handle)
+                guard let self else { return }
+                self.lastCleanup = nil
+                self.needsRescan = true
+                if shown != nil {
+                    self.cleanupState = .putBack(result)
+                } else {
+                    // Put back from History: no sheet is open, so scan again now.
+                    self.needsRescan = false
+                    self.startScan()
+                }
+                await self.reloadHistory()
+            } catch {
+                guard let self else { return }
+                self.lastCleanup = nil
+                if shown != nil {
+                    self.cleanupState = .failed(Self.cleanupMessage(for: error))
+                }
+                await self.reloadHistory()
+            }
+        }
+    }
+
+    /// Asks the core for past cleanups.
+    func reloadHistory() async {
+        history = await client.cleanupHistory(limit: 50)
+    }
+
+    /// Waits for the cleanup sheet's current step (check, move or put back) to finish. Used by tests.
     func waitForCleanupCheck() async {
         await cleanupTask?.value
     }
@@ -315,7 +407,7 @@ final class AppModel: ObservableObject {
 
     /// A new scan's results: forget the old selection and ticks, then list the current screen.
     private func resetItems() {
-        closeCleanupReview()
+        if !cleanupState.isBusy { closeCleanupReview() }
         checkedItemIDs = []
         checkedSizes = [:]
         selectedItemID = nil
@@ -416,6 +508,9 @@ final class AppModel: ObservableObject {
         selectedItemID = nil
         tierFilter = nil
         reloadItems()
+        if selection == .history {
+            Task { [weak self] in await self?.reloadHistory() }
+        }
     }
 
     private func modeDidChange() {

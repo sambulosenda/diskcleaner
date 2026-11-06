@@ -26,9 +26,14 @@
 //! [`execute`] does, and stops there. It only opens folders and reads
 //! metadata, so it never changes anything.
 //!
+//! [`put_back`] is the undo for a move to the Trash: it moves what this
+//! executor moved back to where it was, only if the Trash still holds the
+//! same thing and nothing new is in its old place.
+//!
 //! Not here yet: the allow-listed tool commands (`docs/safety/allowed-commands.md`),
 //! writing to History, and the UniFFI commands. Each is its own change.
 
+mod put_back;
 mod survey;
 mod sys;
 
@@ -43,6 +48,7 @@ use planner::{Plan, PlanError, PlanItem};
 use safety::protected::{BlockReason, ReviewReason};
 use safety::Refusal;
 
+pub use put_back::{put_back, PutBack, PutBackRefusal};
 pub use survey::size_matches;
 
 /// The Trash folder inside home.
@@ -174,6 +180,9 @@ pub struct ItemReport {
     pub bytes: u64,
     /// What happened.
     pub outcome: Outcome,
+    /// For an item moved to the Trash: the inode number of what was moved,
+    /// so [`put_back`] can check the Trash still holds the same thing.
+    pub moved_ino: Option<u64>,
 }
 
 /// The result of one plan.
@@ -309,6 +318,7 @@ impl Context {
     /// Checks and acts on one item. Never panics; every failure is an outcome.
     fn act(&self, item: PlanItem, mode: Mode, plan_id: u64, n: usize) -> ItemReport {
         let path = item.path().to_path_buf();
+        let mut moved_ino = None;
         let (bytes, outcome) = match self.prepare(&item, mode) {
             Err(refusal) => (0, Outcome::Refused(refusal)),
             Ok(ready) => {
@@ -317,6 +327,9 @@ impl Context {
                     Mode::Trash => self.move_to_trash(&ready),
                     Mode::Delete => self.delete(&ready, plan_id, n),
                 };
+                if matches!(outcome, Outcome::MovedToTrash { .. }) {
+                    moved_ino = Some(ready.survey.ino);
+                }
                 let bytes = match outcome {
                     Outcome::MovedToTrash { .. } | Outcome::Deleted => size,
                     _ => 0,
@@ -329,6 +342,7 @@ impl Context {
             path,
             bytes,
             outcome,
+            moved_ino,
         }
     }
 

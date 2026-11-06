@@ -2,9 +2,9 @@
 
 This is the typed API the SwiftUI app uses to talk to the Rust core. It is defined in
 `core/crates/ffi` and reaches Swift through UniFFI. Everything here is **read only**: no command
-moves, deletes or changes a file. The cleanup preview (a dry run) has its own section,
-[Cleanup preview](#cleanup-preview); it is read only too. The command that carries a plan out
-comes in a later change.
+moves, deletes or changes a file, except the two in [Cleanup](#cleanup) (`run_cleanup` and
+`put_back_cleanup`), which hand the move to the `executor` crate. The cleanup preview (a dry run)
+has its own section, [Cleanup preview](#cleanup-preview); it is read only.
 
 Sam approves this document in the T09 pull request before the implementation is merged.
 
@@ -303,6 +303,85 @@ app calls it when the user closes the review without cleaning up.
 | `items` | `[CleanupPreviewItem]` | One per distinct id, in the order sent |
 | `bytes_to_move` | `u64` | Sum of `size_bytes` of the `will_move` items |
 | `expires_in_seconds` | `u64` | How long the plan stays usable (600) |
+
+## Cleanup
+
+Moving to the Trash, putting it back, and History. Only the `executor` crate moves files.
+
+Rules:
+
+1. The app sends a `PlanHandle` or `CleanupHandle`, never a path.
+2. `run_cleanup` takes only the plan the last preview made. A plan is used once, whatever happens.
+   The executor checks every item again just before moving it, so an item that changed since the
+   review stays where it is and is listed with a reason.
+3. Trash only. Nothing is removed for good.
+4. `put_back_cleanup` works once, for the most recent cleanup since the core was made. It uses the
+   executor's own record of what moved, kept in memory, never anything read from History. An item
+   stays in the Trash if what is in the Trash under its name is no longer what Roomy moved there,
+   if a folder on the way back changed (for example became a link), or if something new is in its
+   old place. A put back never replaces anything.
+5. History is a SQLite file at `~/Library/Application Support/Roomy/history.sqlite`. It holds
+   titles, sizes, times and outcomes, **no paths**. The core makes the `Roomy` folder the first time
+   a cleanup is recorded, and never any other folder. If History can't be written, the cleanup still
+   happens and `saved_to_history` is `false`.
+6. The licence's free limit is not enforced yet (Sam, 2026-11-06). It will be enforced here in the
+   core.
+
+### `run_cleanup(plan: PlanHandle) -> CleanupResult` throws
+Moves the plan's items to the Trash. Throws `cleanup_unavailable` if `plan` is not the waiting plan
+(already used, discarded, or replaced by a newer preview), has expired, or the Trash or home folder
+can't be opened. Nothing moves then.
+
+### `put_back_cleanup(cleanup: CleanupHandle) -> PutBackResult` throws
+Moves the last cleanup's items back. Throws `cleanup_unavailable` if `cleanup` is not the most
+recent cleanup that moved anything, or was already put back.
+
+### `cleanup_history(limit: u32) -> [HistoryEntry]`
+Past cleanups, newest first, at most `limit`. Empty before the first cleanup; reading it never makes
+the file.
+
+### `CleanupHandle` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | `u64` | Opaque number, starts at 1 |
+
+### `CleanupResultItem` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `item_id` | `ItemId` | |
+| `title` | `String` | |
+| `size_bytes` | `u64` | Bytes that moved; 0 if it did not |
+| `done` | `bool` | Whether it moved (or, in a `PutBackResult`, whether it is back) |
+| `reason` | `String?` | Why not, plain words with no path. `nil` when `done` |
+
+### `CleanupResult` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `cleanup` | `CleanupHandle?` | For putting it back; `nil` if nothing moved |
+| `items` | `[CleanupResultItem]` | One per plan item, in order |
+| `bytes_moved` | `u64` | Sum of the moved items' sizes. The space comes back when the Trash is emptied |
+| `saved_to_history` | `bool` | |
+
+### `PutBackResult` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `items` | `[CleanupResultItem]` | One per item that had moved |
+| `bytes_put_back` | `u64` | |
+
+### `HistoryEntry` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | `i64` | |
+| `finished_at` | `i64` | Seconds since 1970, UTC |
+| `put_back_at` | `i64?` | When it was put back |
+| `bytes_in_trash` | `u64` | Bytes that went to the Trash and were not put back |
+| `items` | `[HistoryItem]` | |
+
+### `HistoryItem` (record)
+`title: String`, `size_bytes: u64`, `state: HistoryItemState`.
+
+### `HistoryItemState` (enum)
+`moved`, `not_moved { reason }`, `put_back`, `stayed_in_trash { reason }`.
 
 ## Testing
 
