@@ -147,4 +147,8 @@ private final class FailingCore: CoreClient {
     func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview {
         throw CoreError.HomeNotFound
     }
+    func androidOverview(mode: Mode) async -> AndroidOverview {
+        AndroidOverview(sdkFound: false, parts: [], projects: [], totalBytes: 0, unusedBytes: 0, note: nil)
+    }
+    func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview { throw CoreError.HomeNotFound }
 }
