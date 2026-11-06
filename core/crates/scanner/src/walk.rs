@@ -25,6 +25,7 @@ const CANCEL_CHECK_EVERY: usize = 256;
 /// One folder while the walk runs. Turned into flat [`Dir`] records after.
 struct Node {
     name: OsString,
+    modified: Option<std::time::SystemTime>,
     own_bytes: u64,
     own_logical: u64,
     own_files: u64,
@@ -148,6 +149,7 @@ fn wait_with_progress(
 fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Shared<'_>) -> Node {
     let mut node = Node {
         name,
+        modified: meta.modified().ok(),
         own_bytes: allocated(meta),
         own_logical: 0,
         own_files: 0,
@@ -202,6 +204,7 @@ fn settle_links(root: &mut Node, shared: &Shared<'_>) {
                         name: link.name,
                         allocated_bytes: link.allocated,
                         logical_bytes: link.logical,
+                        modified: link.modified,
                     });
                     recorded = true;
                 }
@@ -286,6 +289,7 @@ fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec
                     name: entry.file_name(),
                     allocated_bytes: bytes,
                     logical_bytes: meta.len(),
+                    modified: meta.modified().ok(),
                 });
             }
             shared
@@ -425,6 +429,7 @@ impl<'a> Shared<'a> {
         other_volumes.sort();
         ScanResult {
             root: root.to_path_buf(),
+            root_dev: self.dev,
             dirs: flatten(root_node),
             largest_files: self.largest.into_sorted(),
             unreadable,
@@ -455,6 +460,7 @@ fn flatten(root: Node) -> Vec<Dir> {
             name: node.name,
             parent,
             children: Vec::with_capacity(node.children.len()),
+            modified: node.modified,
             own_bytes: node.own_bytes,
             total_bytes: node.own_bytes,
             total_logical_bytes: node.own_logical,

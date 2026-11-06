@@ -656,3 +656,103 @@ fn delete_refuses_an_item_with_a_read_only_folder_before_moving_it() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// The dry run
+// ---------------------------------------------------------------------------
+
+/// Every path in the fixture manifest, with what it held.
+fn snapshot(home: &Home, manifest: &fixtures::Manifest) -> Vec<(String, Option<String>)> {
+    manifest
+        .entries
+        .iter()
+        .map(|e| {
+            let path = home.path(&e.path);
+            let meta = path
+                .symlink_metadata()
+                .unwrap_or_else(|_| panic!("{} is gone", e.path));
+            let held = match e.kind {
+                fixtures::EntryKind::File => Some(sha(&path)),
+                fixtures::EntryKind::Symlink => {
+                    Some(fs::read_link(&path).unwrap().display().to_string())
+                }
+                fixtures::EntryKind::Dir => None,
+            };
+            (format!("{} {:?}", e.path, meta.modified().unwrap()), held)
+        })
+        .collect()
+}
+
+#[test]
+fn preview_reports_what_would_move_and_touches_nothing() {
+    let (home, manifest) = Home::fixture();
+    let before = snapshot(&home, &manifest);
+    let plan = home.plan_of(&[
+        fixtures::paths::DERIVED_DATA_ORPHAN,
+        fixtures::paths::NPM_CACHE,
+        "AndroidStudioProjects/Shopper/app",
+    ]);
+    let checks = executor::preview(&plan, Mode::Trash, SystemTime::now()).unwrap();
+    assert_eq!(checks.len(), 3);
+    for check in &checks[..2] {
+        let bytes = check.result.as_ref().unwrap();
+        assert!(*bytes > 0, "{check:?}");
+    }
+    assert!(matches!(
+        checks[2].result,
+        Err(ItemRefusal::ContainsProtected {
+            reason: BlockReason::SigningMaterial,
+            ..
+        })
+    ));
+    // Nothing moved, nothing changed, the Trash is still empty.
+    assert_eq!(snapshot(&home, &manifest), before);
+    assert!(home.trash_names().is_empty());
+
+    // The same plan can still be carried out afterwards.
+    let report = run(plan, Mode::Trash);
+    assert!(matches!(
+        report.items[0].outcome,
+        Outcome::MovedToTrash { .. }
+    ));
+    assert!(matches!(
+        report.items[1].outcome,
+        Outcome::MovedToTrash { .. }
+    ));
+    assert!(matches!(report.items[2].outcome, Outcome::Refused(_)));
+}
+
+#[test]
+fn preview_sees_a_change_since_review() {
+    let home = Home::plain();
+    home.file("Library/Caches/com.example/a.bin", 4096);
+    let plan = home.plan_of(&["Library/Caches/com.example"]);
+    home.file("Library/Caches/com.example/b.bin", 1 << 20);
+    let checks = executor::preview(&plan, Mode::Trash, SystemTime::now()).unwrap();
+    assert_eq!(checks[0].result, Err(ItemRefusal::ChangedSinceReview));
+    assert!(home.path("Library/Caches/com.example/b.bin").exists());
+}
+
+#[test]
+fn preview_of_an_expired_plan_is_refused() {
+    let home = Home::plain();
+    home.file("Library/Caches/com.example/a.bin", 4096);
+    let plan = home.plan_of(&["Library/Caches/com.example"]);
+    let later = SystemTime::now() + PLAN_LIFETIME;
+    assert!(matches!(
+        executor::preview(&plan, Mode::Trash, later),
+        Err(ExecuteError::Plan(PlanError::Expired))
+    ));
+}
+
+#[test]
+fn preview_without_a_trash_is_refused() {
+    let home = Home::plain();
+    home.file("Library/Caches/com.example/a.bin", 4096);
+    let plan = home.plan_of(&["Library/Caches/com.example"]);
+    fs::remove_dir(home.path(TRASH_DIR)).unwrap();
+    assert!(matches!(
+        executor::preview(&plan, Mode::Trash, SystemTime::now()),
+        Err(ExecuteError::TrashUnavailable)
+    ));
+}

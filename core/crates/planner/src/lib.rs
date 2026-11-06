@@ -2,9 +2,10 @@
 //! filesystem itself: plan-time path checks are done by the `safety` crate,
 //! which only reads metadata.
 //!
-//! This crate holds the [`Plan`] type the executor acts on. Mapping
-//! recommendation IDs from the UI to [`ItemRequest`]s (finding each item's
-//! path, size and modification time in the scan) is a later task.
+//! This crate holds the [`Plan`] type the executor acts on, and
+//! [`request_for`], which turns an item the user ticked into an
+//! [`ItemRequest`] using the path, size and modification time from the
+//! engine's own scan.
 //!
 //! A plan:
 //! - holds only paths that passed [`safety::validate`] when it was built;
@@ -12,8 +13,12 @@
 //! - expires [`PLAN_LIFETIME`] after it was built;
 //! - is single use: it cannot be cloned, and the executor takes it by value.
 
+mod select;
+
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
+
+pub use select::{request_for, NotOffered};
 
 use safety::{Refusal, ValidatedPath};
 

@@ -2,13 +2,14 @@
 //!
 //! Every function here is a typed command the app can call; the contract is
 //! `docs/command-contract.md`. Nothing in this crate modifies the filesystem:
-//! scans are read only, and `disk_summary` reads volume metadata only (via
-//! `statfs`).
+//! scans are read only, `disk_summary` reads volume metadata only (via
+//! `statfs`), and the cleanup preview runs the executor's read-only checks.
 //!
 //! No path goes to the app in simple mode, and the app never sends a path to
 //! the core except in the T02 `disk_summary` command and the test-only
 //! commands behind the `testing` feature.
 
+mod cleanup;
 mod embedded_rules;
 mod engine;
 #[cfg(feature = "testing")]
@@ -24,7 +25,8 @@ pub use engine::RoomyCore;
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
 pub use types::{
-    Action, Category, CategoryTotal, Caution, Confidence, ItemDetail, ItemSummary, Mode, Overview,
+    Action, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice, CleanupPreview,
+    CleanupPreviewItem, Confidence, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
     ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 
@@ -60,6 +62,13 @@ pub enum CoreError {
     /// The scan has no item with that id.
     #[error("Roomy could not find that item. Please scan again.")]
     UnknownItem,
+    /// A cleanup preview was asked for with no items.
+    #[error("Nothing was chosen.")]
+    NothingSelected,
+    /// The cleanup preview could not check anything, for example because
+    /// the Trash could not be opened. `reason` is plain words with no path.
+    #[error("{reason}")]
+    CleanupUnavailable { reason: String },
 }
 
 /// Space on the volume that holds a given path, in bytes.

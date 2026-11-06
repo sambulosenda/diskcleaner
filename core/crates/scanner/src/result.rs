@@ -16,6 +16,9 @@ pub struct Dir {
     pub parent: Option<DirId>,
     /// Sub-folders, sorted by name.
     pub children: Vec<DirId>,
+    /// The folder's own modification time (`lstat`), if the system reported
+    /// one. The executor checks it is unchanged before acting.
+    pub modified: Option<SystemTime>,
     /// Allocated bytes of the folder itself and the files directly in it.
     pub own_bytes: u64,
     /// Allocated bytes of everything in the folder, sub-folders included.
@@ -45,6 +48,8 @@ pub struct FileEntry {
     pub allocated_bytes: u64,
     /// File length.
     pub logical_bytes: u64,
+    /// Last modification time (`lstat`), if the system reported one.
+    pub modified: Option<SystemTime>,
 }
 
 /// A large file kept for E2.
@@ -85,6 +90,9 @@ pub struct Unreadable {
 pub struct ScanResult {
     /// The folder that was scanned.
     pub root: PathBuf,
+    /// The device id of the scanned folder's volume. The planner and
+    /// executor refuse anything on another volume.
+    pub root_dev: u64,
     /// Every folder reached. Index 0 is the root; parents come before children.
     pub dirs: Vec<Dir>,
     /// The largest files, largest first.

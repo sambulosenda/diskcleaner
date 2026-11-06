@@ -20,6 +20,7 @@
 		A10000000000000000000050 /* RustCoreClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000050 /* RustCoreClient.swift */; };
 		A10000000000000000000051 /* ItemListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000051 /* ItemListView.swift */; };
 		A10000000000000000000052 /* ItemDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000052 /* ItemDetailPanel.swift */; };
+		A10000000000000000000070 /* CleanupReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000070 /* CleanupReview.swift */; };
 		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
 		A10000000000000000000026 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* OverviewView.swift */; };
 		A10000000000000000000027 /* CategoryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* CategoryStrip.swift */; };
@@ -60,6 +61,7 @@
 		A20000000000000000000050 /* RustCoreClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustCoreClient.swift; sourceTree = "<group>"; };
 		A20000000000000000000051 /* ItemListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemListView.swift; sourceTree = "<group>"; };
 		A20000000000000000000052 /* ItemDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailPanel.swift; sourceTree = "<group>"; };
+		A20000000000000000000070 /* CleanupReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupReview.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* CategoryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStrip.swift; sourceTree = "<group>"; };
@@ -117,6 +119,7 @@
 				A20000000000000000000050 /* RustCoreClient.swift */,
 				A20000000000000000000051 /* ItemListView.swift */,
 				A20000000000000000000052 /* ItemDetailPanel.swift */,
+				A20000000000000000000070 /* CleanupReview.swift */,
 				A20000000000000000000025 /* Formatting.swift */,
 				A20000000000000000000026 /* OverviewView.swift */,
 				A20000000000000000000027 /* CategoryStrip.swift */,
@@ -274,6 +277,7 @@
 				A10000000000000000000050 /* RustCoreClient.swift in Sources */,
 				A10000000000000000000051 /* ItemListView.swift in Sources */,
 				A10000000000000000000052 /* ItemDetailPanel.swift in Sources */,
+				A10000000000000000000070 /* CleanupReview.swift in Sources */,
 				A10000000000000000000025 /* Formatting.swift in Sources */,
 				A10000000000000000000026 /* OverviewView.swift in Sources */,
 				A10000000000000000000027 /* CategoryStrip.swift in Sources */,

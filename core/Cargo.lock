@@ -397,9 +397,12 @@ version = "0.1.0"
 dependencies = [
  "classifier",
  "dirs",
+ "executor",
  "fixtures",
  "libc",
+ "planner",
  "rules",
+ "safety",
  "scanner",
  "tempfile",
  "thiserror",
@@ -602,6 +605,8 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 name = "planner"
 version = "0.1.0"
 dependencies = [
+ "classifier",
+ "rules",
  "safety",
  "tempfile",
  "thiserror",

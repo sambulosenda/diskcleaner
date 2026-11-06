@@ -284,4 +284,75 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(Reveal.url(forDisplayPath: "~/a//b", home: home))
         XCTAssertNil(Reveal.url(forDisplayPath: "~other/x", home: home))
     }
+
+    // MARK: - Cleanup review (dry run)
+
+    func testReviewChecksTheTickedRowsAndMovesNothing() async {
+        let model = await scannedModel()
+        let all = await items(on: .largeFiles, in: model)
+        guard let derived = all.first(where: { $0.id == "xcode-derived-data" }),
+              let backup = all.first(where: { $0.id == "iphone-backup" }) else {
+            return XCTFail("mock items missing")
+        }
+        model.setChecked(true, for: derived)
+        model.setChecked(true, for: backup)
+        XCTAssertEqual(model.checkedBytes, derived.sizeBytes + backup.sizeBytes)
+
+        model.reviewCleanup()
+        XCTAssertEqual(model.cleanupState, .checking)
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        // Largest first, each sent as chosen on its own, so the Review first backup would move too.
+        XCTAssertEqual(preview.items.map(\.itemId), ["iphone-backup", "xcode-derived-data"])
+        XCTAssertTrue(preview.items.allSatisfy { $0.check == .willMove })
+        XCTAssertEqual(preview.bytesToMove, derived.sizeBytes + backup.sizeBytes)
+        XCTAssertNotNil(preview.plan)
+        // The ticks stay, so the user can change them and review again.
+        XCTAssertEqual(model.checkedItemIDs, ["xcode-derived-data", "iphone-backup"])
+    }
+
+    func testClosingTheReviewDiscardsItsPlan() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .largeFiles, in: model)
+        let first = try XCTUnwrap(all.first { $0.tier == .likelySafe })
+        model.setChecked(true, for: first)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        let plan = try XCTUnwrap(preview.plan)
+        model.closeCleanupReview()
+        XCTAssertEqual(model.cleanupState, .closed)
+        // The discard runs on its own task.
+        await Task.yield()
+        for _ in 0..<10 where (model.client as? MockCoreClient)?.discardedPlans.isEmpty ?? true {
+            await Task.yield()
+        }
+        XCTAssertEqual((model.client as? MockCoreClient)?.discardedPlans, [plan])
+    }
+
+    func testReviewNeedsATick() async {
+        let model = await scannedModel()
+        model.reviewCleanup()
+        XCTAssertEqual(model.cleanupState, .closed)
+    }
+
+    func testANewScanClosesTheReviewAndClearsTicks() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .largeFiles, in: model)
+        model.setChecked(true, for: try XCTUnwrap(all.first { $0.tier == .likelySafe }))
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertEqual(model.cleanupState, .closed)
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+        XCTAssertEqual(model.checkedBytes, 0)
+    }
+
+    func testCleanupErrorsAreInPlainWords() {
+        XCTAssertEqual(AppModel.cleanupMessage(for: CoreError.CleanupUnavailable(reason: "Roomy couldn't open your Trash, so nothing can be moved.")),
+                       "Roomy couldn't open your Trash, so nothing can be moved.")
+        XCTAssertFalse(AppModel.cleanupMessage(for: CoreError.UnknownItem).isEmpty)
+        XCTAssertFalse(AppModel.cleanupMessage(for: CancellationError()).isEmpty)
+    }
 }

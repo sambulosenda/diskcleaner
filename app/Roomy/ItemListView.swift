@@ -32,6 +32,10 @@ struct ItemBrowser: View {
                     ItemListControls()
                     Divider()
                     ItemListBody(item: item)
+                    if !model.checkedItemIDs.isEmpty {
+                        Divider()
+                        CleanupBar()
+                    }
                     Divider()
                     UnmeasuredNote(unreadableCount: unreadableCount)
                         .font(.footnote)
@@ -44,6 +48,13 @@ struct ItemBrowser: View {
                 ItemDetailPanel()
                     .frame(width: max(geometry.size.width / 3, 280))
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { model.cleanupState != .closed },
+            set: { if !$0 { model.closeCleanupReview() } }
+        )) {
+            CleanupReviewSheet()
+                .environmentObject(model)
         }
     }
 }
@@ -117,8 +128,8 @@ struct ItemListBody: View {
 
 /// Checkbox, icon, title, explanation, size and tier label.
 ///
-/// The checkbox does nothing yet (cleanup arrives in a later task). `keep` items have none, and
-/// nothing is ticked for the user, so Review first items are never preselected.
+/// Ticked rows go into the cleanup review. `keep` items have no checkbox, and nothing is ticked for
+/// the user, so Review first items are never preselected.
 struct ItemRow: View {
     @EnvironmentObject private var model: AppModel
     let item: ItemSummary
@@ -164,7 +175,7 @@ struct ItemRow: View {
             ))
             .toggleStyle(.checkbox)
             .labelsHidden()
-            .help("Choosing items arrives with cleanup in a later update.")
+            .help("Choose this to review it for cleanup.")
         }
     }
 }

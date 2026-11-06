@@ -24,6 +24,9 @@ final class MockCoreClient: CoreClient {
     private var steps: [ScanHandle: Int] = [:]
     private var cancelled: Set<ScanHandle> = []
     private var modes: [ScanHandle: Mode] = [:]
+    private var nextPlan: UInt64 = 1
+    /// Every plan `discardCleanup` was called with, in order. Tests read it.
+    private(set) var discardedPlans: [PlanHandle] = []
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -99,6 +102,44 @@ final class MockCoreClient: CoreClient {
             throw CoreError.UnknownItem
         }
         return MockData.detail(for: item, mode: modes[handle] ?? .simple)
+    }
+
+    /// Follows the core's rules: `keep` items never move, and Review first items move only when
+    /// chosen on their own. Nothing here touches the disk.
+    func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
+        _ = try await overview(handle: handle)
+        guard !choices.isEmpty else { throw CoreError.NothingSelected }
+        var seen: Set<String> = []
+        var rows: [CleanupPreviewItem] = []
+        for choice in choices where seen.insert(choice.itemId).inserted {
+            guard let item = MockData.found(for: scenario).first(where: { $0.id == choice.itemId }) else {
+                throw CoreError.UnknownItem
+            }
+            let check: CleanupCheck
+            switch item.tier {
+            case .keep:
+                check = .wontMove(reason: "The app keeps this, so it is not offered for cleanup.")
+            case .reviewFirst where !choice.chosenAlone:
+                check = .wontMove(reason: "This is something you need to choose yourself.")
+            default:
+                check = .willMove
+            }
+            let path = modes[handle] == .developer ? "~/Library/Mock/\(item.id)" : nil
+            rows.append(CleanupPreviewItem(itemId: item.id, title: item.title, sizeBytes: item.sizeBytes,
+                                           check: check, path: path))
+        }
+        let moving = rows.filter { $0.check == .willMove }
+        var plan: PlanHandle?
+        if !moving.isEmpty {
+            plan = PlanHandle(id: nextPlan)
+            nextPlan += 1
+        }
+        return CleanupPreview(plan: plan, items: rows, bytesToMove: moving.reduce(0) { $0 + $1.sizeBytes },
+                              expiresInSeconds: 600)
+    }
+
+    func discardCleanup(plan: PlanHandle) async {
+        discardedPlans.append(plan)
     }
 }
 

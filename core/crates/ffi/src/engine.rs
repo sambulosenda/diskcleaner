@@ -10,12 +10,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use planner::Plan;
 use rules::Rule;
 use scanner::{ScanError, ScanOptions};
 
 use crate::types::{
-    Category, ItemDetail, ItemSummary, Mode, Overview, ScanHandle, ScanPhase, ScanProgress, Sort,
-    Tier,
+    Category, CleanupChoice, CleanupPreview, ItemDetail, ItemSummary, Mode, Overview, PlanHandle,
+    ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -38,6 +39,11 @@ pub struct RoomyCore {
     next_id: AtomicU64,
     /// Every scan that has not been closed.
     scans: Mutex<HashMap<u64, Arc<Slot>>>,
+    /// The next cleanup plan number. Starts at 1.
+    next_plan_id: AtomicU64,
+    /// The one cleanup plan waiting for the user, if any. A new preview
+    /// replaces it, so at most one plan exists at a time.
+    pending_plan: Mutex<Option<Plan>>,
 }
 
 /// One scan's shared state, written by its thread and read by commands.
@@ -93,6 +99,8 @@ impl RoomyCore {
             rules: Arc::new(rules),
             next_id: AtomicU64::new(1),
             scans: Mutex::new(HashMap::new()),
+            next_plan_id: AtomicU64::new(1),
+            pending_plan: Mutex::new(None),
         }))
     }
 
@@ -218,6 +226,35 @@ impl RoomyCore {
     ) -> Result<ItemDetail, CoreError> {
         self.finished(handle)?.detail(&item_id)
     }
+
+    /// The dry run: checks the ticked items exactly as a cleanup would, just
+    /// before it acts, and says what would move to the Trash. Moves nothing.
+    ///
+    /// Keeps a single-use plan of the items that would move, replacing any
+    /// earlier plan. Nothing in this version carries a plan out.
+    pub fn preview_cleanup(
+        &self,
+        handle: ScanHandle,
+        choices: Vec<CleanupChoice>,
+    ) -> Result<CleanupPreview, CoreError> {
+        let f = self.finished(handle)?;
+        // Any earlier plan is dropped first, so a failed preview never leaves
+        // an older plan behind.
+        *lock(&self.pending_plan) = None;
+        let id = self.next_plan_id.fetch_add(1, Ordering::Relaxed);
+        let prepared = crate::cleanup::prepare(&f, &choices, id, std::time::SystemTime::now())?;
+        *lock(&self.pending_plan) = prepared.plan;
+        Ok(prepared.preview)
+    }
+
+    /// Drops the waiting plan, if it is `plan`. Safe to call more than once
+    /// or with an unknown plan.
+    pub fn discard_cleanup(&self, plan: PlanHandle) {
+        let mut pending = lock(&self.pending_plan);
+        if pending.as_ref().is_some_and(|p| p.id() == plan.id) {
+            *pending = None;
+        }
+    }
 }
 
 /// The scan thread: walks, classifies and stores the result in `slot`.
@@ -273,6 +310,7 @@ fn scan_and_classify(home: &Path, rules: &[Rule], mode: Mode, slot: &Slot) -> St
         mode,
         home.to_path_buf(),
         scan.total_bytes(),
+        scan.root_dev,
         unreadable,
         items,
     )))

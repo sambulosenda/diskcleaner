@@ -107,6 +107,7 @@ fn unknown_items(scan: &ScanResult, claimed: &HashMap<DirId, u64>) -> Vec<Classi
             command: None,
             kind: ItemKind::Folder,
             size_bytes: rest,
+            modified: dir.modified,
             path,
             lowered: Vec::new(),
         });

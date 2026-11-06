@@ -6,6 +6,8 @@ license.workspace = true
 publish = false
 
 [dependencies]
+classifier = { path = "../classifier" }
+rules = { path = "../rules" }
 safety = { path = "../safety" }
 thiserror = "2"
 

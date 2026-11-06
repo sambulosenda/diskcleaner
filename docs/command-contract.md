@@ -2,8 +2,9 @@
 
 This is the typed API the SwiftUI app uses to talk to the Rust core. It is defined in
 `core/crates/ffi` and reaches Swift through UniFFI. Everything here is **read only**: no command
-moves, deletes or changes a file. Cleanup commands come in a later task and will get their own
-section.
+moves, deletes or changes a file. The cleanup preview (a dry run) has its own section,
+[Cleanup preview](#cleanup-preview); it is read only too. The command that carries a plan out
+comes in a later change.
 
 Sam approves this document in the T09 pull request before the implementation is merged.
 
@@ -235,6 +236,73 @@ Why the core made an item's tier more careful. Carries no path.
 | `scan_cancelled` | The scan was cancelled |
 | `scan_failed { reason }` | The scan could not run; same plain-words reason as `ScanPhase.failed` |
 | `unknown_item` | The scan has no item with that id |
+| `nothing_selected` | `preview_cleanup` was called with no items |
+| `cleanup_unavailable { reason }` | The preview could not check anything, for example because the Trash could not be opened. `reason` is plain words with no path |
+
+## Cleanup preview
+
+The dry run. It checks the ticked items exactly the way a cleanup would just before acting, and
+says what would move to the Trash. **It moves, deletes and changes nothing.** It is the review
+screen the user sees before any cleanup.
+
+Rules:
+
+1. Swift sends item ids, never paths. Every path, size and modification time comes from the
+   core's own scan.
+2. Only items whose tier is not `keep`, whose rule is known, and whose action is `trash` can
+   move. Anything else is listed with a reason and never goes into a plan.
+3. Every other check is the executor's own (`executor::preview`): the path checks in
+   `docs/safety/` steps 1 to 6, every path inside a folder against the protected lists, no other
+   volume inside, and the size (within 1%) and modification time unchanged since the scan
+   (step 7). So "will move" means the executor would move it, if nothing changes before then.
+   The executor runs every check again when it acts.
+4. The core keeps one single-use plan holding only the items that would move. A new preview
+   replaces it. It expires ten minutes after the preview.
+5. Trash only. Permanent delete is not offered.
+
+### `preview_cleanup(handle: ScanHandle, choices: [CleanupChoice]) -> CleanupPreview` throws
+Builds the plan and the preview. A repeated id counts once. Throws `nothing_selected` for an
+empty list, `unknown_item` if an id is not in the scan, `cleanup_unavailable` if nothing could be
+checked (for example the Trash or the home folder could not be opened), and the same scan errors
+as `list_items`.
+
+### `discard_cleanup(plan: PlanHandle)`
+Drops the waiting plan if it is `plan`. Safe to call more than once, or with an unknown plan. The
+app calls it when the user closes the review without cleaning up.
+
+### `PlanHandle` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | `u64` | Opaque number. Starts at 1, goes up, never reused while the `RoomyCore` lives |
+
+### `CleanupChoice` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `item_id` | `ItemId` | An id from `list_items` or `overview` |
+| `chosen_alone` | `bool` | Whether the user ticked this item on its own, not as part of a group. Items that are, or hold, review-only things (an iPhone backup, an `.env` file) move only when this is `true`. Ticking a row's checkbox is `true` |
+
+### `CleanupCheck` (enum)
+| Value | Meaning |
+|---|---|
+| `will_move` | Passed every check; would move to the Trash |
+| `wont_move { reason: String }` | Would not move. `reason` is a plain-words sentence with no path, for example "This changed since you reviewed it." |
+
+### `CleanupPreviewItem` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `item_id` | `ItemId` | |
+| `title` | `String` | |
+| `size_bytes` | `u64` | For `will_move`, measured just now; otherwise the scan's size |
+| `check` | `CleanupCheck` | |
+| `path` | `String?` | **Developer mode only**, display string starting `~/`, like `ItemDetail.path`. Always `nil` in simple mode |
+
+### `CleanupPreview` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `plan` | `PlanHandle?` | The plan of the items that would move; `nil` if none would |
+| `items` | `[CleanupPreviewItem]` | One per distinct id, in the order sent |
+| `bytes_to_move` | `u64` | Sum of `size_bytes` of the `will_move` items |
+| `expires_in_seconds` | `u64` | How long the plan stays usable (600) |
 
 ## Testing
 
