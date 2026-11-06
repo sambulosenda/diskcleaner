@@ -143,6 +143,10 @@ fn hard_link_pair_is_counted_once() {
     let extra = (logical("Documents") - without_link("Documents"))
         + (logical("Movies") - without_link("Movies"));
     assert_eq!(extra, link_len);
+    // Always in the folder of the name that sorts first, whichever name a
+    // thread reached first: Documents before Movies.
+    assert_eq!(logical("Documents") - without_link("Documents"), link_len);
+    assert_eq!(logical("Movies"), without_link("Movies"));
 
     // And it appears once in the largest-files list.
     let names = result
@@ -306,14 +310,17 @@ fn two_scans_give_the_same_tree() {
         |_| {},
     )
     .unwrap();
-    // Folder records match except where the hard link's bytes landed, which
-    // depends on which name a thread reached first.
+    // Folder records match exactly, hard link included, whatever the
+    // number of threads.
     assert_eq!(a.dirs.len(), b.dirs.len());
     assert_eq!(a.total_bytes(), b.total_bytes());
     for (x, y) in a.dirs.iter().zip(&b.dirs) {
         assert_eq!(x.name, y.name);
         assert_eq!(x.parent, y.parent);
         assert_eq!(x.children, y.children);
+        assert_eq!(x.total_bytes, y.total_bytes, "{:?}", x.name);
+        assert_eq!(x.total_logical_bytes, y.total_logical_bytes, "{:?}", x.name);
+        assert_eq!(x.total_files, y.total_files, "{:?}", x.name);
     }
 }
 

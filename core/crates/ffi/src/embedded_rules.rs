@@ -70,23 +70,12 @@ mod tests {
         assert!(!built_in.is_empty());
     }
 
-    /// The two simulator rules tie (open with Sam since T07/T08), so the
-    /// classifier shows simulators as unknown `keep`. Any other tie is new
-    /// and should be fixed in the rules, so this test names the known one.
+    /// No two built-in rules tie. A tie makes the classifier show what
+    /// both rules match as unknown `keep`, so any tie is a rule bug.
     #[test]
-    fn the_only_tie_is_the_known_simulator_pair() {
+    fn no_built_in_rules_tie() {
         let rules = load().unwrap();
         assert!(classifier::check_ties(&rules, rules::Mode::Simple).is_empty());
-        let ties: Vec<(String, String)> = classifier::check_ties(&rules, rules::Mode::Developer)
-            .into_iter()
-            .map(|t| (t.first, t.second))
-            .collect();
-        assert_eq!(
-            ties,
-            vec![(
-                "xcode.simulator_device".to_string(),
-                "xcode.simulators_unavailable".to_string()
-            )]
-        );
+        assert!(classifier::check_ties(&rules, rules::Mode::Developer).is_empty());
     }
 }
