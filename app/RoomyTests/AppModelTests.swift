@@ -85,7 +85,7 @@ final class AppModelTests: XCTestCase {
     func testSidebarListsEveryWireframeEntryInOrder() {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
-            "Overview", "Backups", "Downloads and installers", "Large files", "Apps and caches",
+            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Apps and caches",
             "System Data", "Remove apps", "Cleanup", "History",
         ])
         model.mode = .developer
