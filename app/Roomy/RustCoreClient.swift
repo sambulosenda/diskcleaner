@@ -118,6 +118,10 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.runDockerCleanup(plan: plan) }
     }
 
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview {
+        try await offMain { try $0.javascriptProjects(handle: handle) }
+    }
+
     func listApps() async -> [AppSummary] {
         (try? await offMain { $0.listApps() }) ?? []
     }

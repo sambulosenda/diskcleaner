@@ -188,7 +188,7 @@ impl Finished {
 }
 
 /// The list row for an item. Never holds a path.
-fn summary(item: &ClassifiedItem) -> ItemSummary {
+pub(crate) fn summary(item: &ClassifiedItem) -> ItemSummary {
     ItemSummary {
         id: item.id.as_str().to_string(),
         title: item.title.clone(),

@@ -25,6 +25,7 @@
 		A100000000000000D0C4E501 /* DockerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000D0C4E501 /* DockerView.swift */; };
 		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
 		A10000000000000000000081 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* AppsView.swift */; };
+		A100000000000000000000D2 /* JavaScriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000D2 /* JavaScriptView.swift */; };
 		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
 		A10000000000000000000026 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* OverviewView.swift */; };
 		A10000000000000000000027 /* CategoryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* CategoryStrip.swift */; };
@@ -76,6 +77,7 @@
 		A200000000000000D0C4E501 /* DockerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
+		A200000000000000000000D2 /* JavaScriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptView.swift; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* CategoryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStrip.swift; sourceTree = "<group>"; };
@@ -144,6 +146,7 @@
 				A200000000000000D0C4E501 /* DockerView.swift */,
 				A20000000000000000000072 /* FullDiskAccessView.swift */,
 				A20000000000000000000081 /* AppsView.swift */,
+				A200000000000000000000D2 /* JavaScriptView.swift */,
 				A20000000000000000000025 /* Formatting.swift */,
 				A20000000000000000000026 /* OverviewView.swift */,
 				A20000000000000000000027 /* CategoryStrip.swift */,
@@ -312,6 +315,7 @@
 				A100000000000000D0C4E501 /* DockerView.swift in Sources */,
 				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
 				A10000000000000000000081 /* AppsView.swift in Sources */,
+				A100000000000000000000D2 /* JavaScriptView.swift in Sources */,
 				A10000000000000000000025 /* Formatting.swift in Sources */,
 				A10000000000000000000026 /* OverviewView.swift in Sources */,
 				A10000000000000000000027 /* CategoryStrip.swift in Sources */,

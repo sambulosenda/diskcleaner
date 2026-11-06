@@ -23,6 +23,7 @@ mod docker;
 mod embedded_rules;
 mod engine;
 mod folders;
+mod javascript;
 mod low_space;
 mod run;
 #[cfg(feature = "testing")]
@@ -40,6 +41,7 @@ pub use docker::{
     DockerPreviewItem, DockerStatus, DockerUsageRow,
 };
 pub use engine::RoomyCore;
+pub use javascript::{ActivitySource, JavaScriptOverview, JsProject, PackageManager};
 pub use low_space::{
     check_low_space, low_space_default_threshold, low_space_threshold_choices, LowSpaceCheck,
 };

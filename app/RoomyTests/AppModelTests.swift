@@ -754,4 +754,72 @@ final class AppModelTests: XCTestCase {
     func testUnknownAppErrorReadsPlainly() {
         XCTAssertEqual(AppModel.message(for: CoreError.UnknownApp), "Roomy lost track of this app. Please look again.")
     }
+
+    // MARK: - JavaScript
+
+    private func javascriptModel() async -> AppModel {
+        let model = await scannedModel(.developer)
+        model.selection = .javascript
+        await model.waitForJavaScript()
+        return model
+    }
+
+    func testTheJavaScriptScreenListsProjectsAndCachesInDeveloperMode() async {
+        let model = await javascriptModel()
+        guard case .loaded(let overview) = model.javascriptState else {
+            return XCTFail("\(model.javascriptState)")
+        }
+        XCTAssertEqual(overview.projects.map(\.name), ["shop", "blog", "landing", "cli"])
+        XCTAssertEqual(model.visibleJavaScriptCaches.map(\.id), ["npm-cache"])
+        // Nothing is ticked for the user.
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
+    func testJavaScriptProjectsSortByLastWorkedOnWithUndatedLast() async {
+        let model = await javascriptModel()
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["shop", "blog", "landing", "cli"])
+        model.javascriptSort = .leastRecent
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["landing", "blog", "shop", "cli"])
+    }
+
+    func testJavaScriptSearchMatchesNameFolderAndTool() async {
+        let model = await javascriptModel()
+        model.searchText = "pnpm"
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["shop"])
+        model.searchText = "~/code"
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["landing"])
+    }
+
+    func testATickedProjectGoesThroughTheUsualCleanupReview() async throws {
+        let model = await javascriptModel()
+        let blog = try XCTUnwrap(model.visibleJavaScriptProjects.first { $0.name == "blog" })
+        model.setChecked(true, for: blog.item)
+        XCTAssertEqual(model.checkedBytes, blog.item.sizeBytes)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(preview.items.map(\.itemId), [blog.item.id])
+        XCTAssertEqual(preview.items.first?.check, .willMove)
+    }
+
+    func testTheJavaScriptScreenIsEmptyInSimpleMode() async {
+        let model = await scannedModel(.simple)
+        model.selection = .javascript
+        await model.waitForJavaScript()
+        XCTAssertEqual(model.javascriptState, .loaded(JavaScriptOverview(projects: [], caches: [], totalBytes: 0)))
+    }
+
+    func testJavaScriptWordsSayWhenAndHowToGetPackagesBack() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let overview = MockData.javascript(now: now)
+        let shop = overview.projects[0], cli = overview.projects[3]
+        XCTAssertEqual(JavaScriptText.lastWorkedOn(cli, now: now), "No date found")
+        XCTAssertTrue(JavaScriptText.subtitle(shop, now: now).contains("pnpm"))
+        XCTAssertTrue(JavaScriptText.subtitle(shop, now: now).contains("~/Developer/shop"))
+        XCTAssertTrue(JavaScriptText.sourceHelp(shop).contains("run pnpm install"))
+        XCTAssertTrue(JavaScriptText.sourceHelp(cli).contains("no package.json"))
+        XCTAssertEqual(
+            JavaScriptText.summary(overview, now: now),
+            "4 projects, \(Format.bytes(3_602_000_000)). 2 not worked on for 3 months or more, \(Format.bytes(1_552_000_000)).")
+    }
 }

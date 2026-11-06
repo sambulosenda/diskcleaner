@@ -523,6 +523,43 @@ part "<app>: <part>". Throws `unknown_app`, `unknown_item`, `nothing_selected` o
 `item_id`, `title`, `explain`, `size_bytes: u64`, `preselected: Bool`, `sure: Bool`,
 `path: String?` (Developer mode only).
 
+## JavaScript screen
+
+The Developer mode JavaScript screen (PRD D2). Read only: rows come from the finished scan (the
+`js.*` rules); for each `node_modules` the core reads only the modified times of the project's
+`package.json`, lock files (`package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`,
+`yarn.lock`, `bun.lock`, `bun.lockb`) and the nearest git repository's `.git/index` and
+`.git/logs/HEAD` (never above or at the home folder). It never opens a file and never follows a
+symlink, and it reads a project only after `safety::validate` passes for its `node_modules`.
+Cleaning uses `preview_cleanup` with the rows' item ids, so plans, extra checks, the Trash, put
+back and History are the same as everywhere else.
+
+### `javascript_projects(handle: ScanHandle) -> JavaScriptOverview` throws
+
+Same errors as `list_items`. In simple mode the list is empty (the rules are Developer only), and
+no row would carry a folder anyway.
+
+### `JavaScriptOverview` (record)
+
+`projects: [JsProject]` (largest first, then id), `caches: [ItemSummary]` (the other `js.*` items,
+same order), `total_bytes: u64` (every row added up).
+
+### `JsProject` (record)
+
+`item: ItemSummary` (the `node_modules` item; its id goes to `preview_cleanup`), `name: String`
+(the project folder's name in Developer mode, the item title in simple mode), `folder: String?`
+(Developer mode only, starts `~`), `last_activity_unix_seconds: i64?` (newest of the files above),
+`activity_source: ActivitySource?`, `package_manager: PackageManager?` (from the newest lock file),
+`install_command: String?` (for example `pnpm install`), `has_manifest: bool`.
+
+### `ActivitySource` (enum)
+
+`git`, `lock_file`, `manifest`.
+
+### `PackageManager` (enum)
+
+`npm`, `pnpm`, `yarn`, `bun`.
+
 ## Testing
 
 The `ffi` crate has a `testing` Cargo feature. With it, and only with it, the core also exports:
