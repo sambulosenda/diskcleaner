@@ -56,6 +56,7 @@ pub fn request_for(
         selected_individually,
         owners: crate::owner_apps(&item.rule_id),
         belongs_to: None,
+        keep_copy: None,
     })
 }
 

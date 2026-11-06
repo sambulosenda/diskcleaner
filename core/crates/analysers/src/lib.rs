@@ -1,8 +1,9 @@
-//! Per-tool analysis (xcode, android, js, docker, everyday). Read only; may run read-only CLI queries.
+//! Per-tool analysis (xcode, android, js, docker, everyday), plus the duplicate finder. Read only; may run read-only CLI queries.
 
 pub mod android;
 pub mod apps;
 pub mod docker;
+pub mod duplicates;
 pub mod files;
 pub mod ios_backup;
 pub mod js;

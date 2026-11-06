@@ -10,7 +10,9 @@
 //! which is the only code that moves files. The Docker commands do the same
 //! with the executor's allow-listed Docker clean-ups. The System Data
 //! breakdown only reads sizes, including of a few folders outside the home
-//! folder, which nothing can clean.
+//! folder, which nothing can clean. The duplicate finder reads the user's
+//! own folders (by content, read only) and hands its plan to the same
+//! executor.
 //!
 //! No path goes to the app in simple mode (except an installed app's own
 //! bundle location, for "Show in Finder", which is not personal), and the
@@ -24,6 +26,7 @@ mod backup;
 mod changes;
 mod cleanup;
 mod docker;
+mod duplicates;
 mod embedded_rules;
 mod engine;
 mod files;
@@ -65,7 +68,8 @@ pub use types::{
     Action, AndroidKind, AndroidOverview, AndroidPart, AndroidProject, AndroidUsage, AppLocation,
     AppPart, AppReview, AppSummary, Category, CategoryChange, CategoryTotal, Caution, ChangeKind,
     CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
-    CleanupResultItem, Confidence, DeviceBackup, FileRow, FullDiskAccess, HistoryEntry,
+    CleanupResultItem, Confidence, DeviceBackup, DuplicateCopy, DuplicateGroup, DuplicateReport,
+    DuplicateSearch, FileRow, FullDiskAccess, HistoryEntry,
     HistoryItem, HistoryItemState, ItemChange, ItemDetail, ItemSummary, LargeFiles, LibraryKind,
     LibrarySize, Mode, Overview, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle,
     ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,

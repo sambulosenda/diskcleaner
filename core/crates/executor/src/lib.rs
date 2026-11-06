@@ -11,11 +11,13 @@
 //!    path inside it, refuses anything on another volume, and measures it;
 //! 4. checks the size (within 1%) and modification time still match the plan
 //!    (validation step 7), and that the item is still the same file or folder;
-//! 5. runs the extra checks in [`Guards`]: the user's protected folders, the
+//! 5. for the duplicate finder, checks the copy the user keeps is still
+//!    there, unchanged, and byte for byte the same as the item;
+//! 6. runs the extra checks in [`Guards`]: the user's protected folders, the
 //!    owner app being open (for the app uninstaller, any program inside the
 //!    app or the item), unsaved git work, and changes in the last few
 //!    minutes;
-//! 6. moves it into `~/.Trash` with a move that never replaces anything.
+//! 7. moves it into `~/.Trash` with a move that never replaces anything.
 //!
 //! Permanent delete is allowed only when every item in the plan is
 //! regenerable (CLAUDE.md safety rule 5). It moves the item into a fresh
@@ -42,6 +44,7 @@
 pub mod commands;
 mod git;
 mod guards;
+mod keep_copy;
 mod processes;
 mod put_back;
 mod survey;
@@ -185,6 +188,14 @@ pub enum ItemRefusal {
     /// program may be using it.
     #[error("it changed in the last few minutes, so it may be in use")]
     ChangedRecently,
+    /// For the duplicate finder: the copy the user keeps is gone, moved or
+    /// changed since the review.
+    #[error("the copy you're keeping has changed or moved, so this copy was left alone")]
+    KeptCopyChanged,
+    /// For the duplicate finder: the item is no longer the same, byte for
+    /// byte, as the copy the user keeps.
+    #[error("it's no longer the same as the copy you're keeping")]
+    NotSameAsKeptCopy,
     /// The item is inside a git project and removing it could lose work.
     #[error("{}", git_text(*.0))]
     Git(GitConcern),
@@ -476,6 +487,22 @@ impl Context {
         let after = sys::stat_at(&parent_fd, &name).map_err(|_| ItemRefusal::ChangedSinceReview)?;
         if after != before || (survey.dev, survey.ino) != (before.dev, before.ino) {
             return Err(ItemRefusal::ChangedSinceReview);
+        }
+        if let Some(keep) = item.keep_copy() {
+            if survey.is_dir || keep.dev != self.dev {
+                return Err(ItemRefusal::NotSameAsKeptCopy);
+            }
+            let (keep_parent, keep_name) = self
+                .open_parent(&keep.path)
+                .map_err(|_| ItemRefusal::KeptCopyChanged)?;
+            keep_copy::check(
+                keep,
+                &keep_parent,
+                &keep_name,
+                &parent_fd,
+                &name,
+                (survey.dev, survey.ino),
+            )?;
         }
         git::check(&self.home, path, survey.is_dir).map_err(ItemRefusal::Git)?;
         guards.check_recent(survey.newest_modified, now)?;

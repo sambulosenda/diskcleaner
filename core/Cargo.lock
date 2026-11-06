@@ -30,6 +30,7 @@ dependencies = [
  "libc",
  "plist",
  "scanner",
+ "sha2",
  "tempfile",
  "thiserror",
  "tracing",

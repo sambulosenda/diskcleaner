@@ -871,6 +871,89 @@ impl From<&analysers::libraries::LibrarySize> for LibrarySize {
             needs_access: s.needs_access,
         }
     }
+
+/// One copy of a file the duplicate finder found.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct DuplicateCopy {
+    /// Id to send to `preview_duplicate_cleanup`.
+    pub copy_id: String,
+    /// The file's name.
+    pub name: String,
+    /// The folder it is in, in plain words, for example "Documents › Trips".
+    pub location: String,
+    /// When it was last changed, in seconds since 1970.
+    pub modified_unix_seconds: i64,
+    /// About how much moving it to the Trash and emptying the Trash frees.
+    /// Less than the file's size for an APFS clone.
+    pub frees_bytes: u64,
+    /// Whether it shares most of its space with another file (an APFS
+    /// clone, as Finder's Duplicate makes), so removing it frees little.
+    pub shares_space: bool,
+    /// Whether the user may choose it. When false, it can only be kept.
+    pub can_move: bool,
+    /// Why it can't move, when `can_move` is false. Never holds a path.
+    pub stays_reason: Option<String>,
+    /// Developer mode only: the place as a display string starting `~`.
+    pub path: Option<String>,
+}
+
+/// Files with exactly the same content.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct DuplicateGroup {
+    /// Stable for this search, for the app's lists.
+    pub group_id: String,
+    /// The name of the oldest copy.
+    pub name: String,
+    /// Allocated bytes of one copy.
+    pub size_bytes: u64,
+    /// The most that removing copies could free while keeping one.
+    pub could_free_bytes: u64,
+    /// Two or more copies, oldest first. None is ever ticked to begin with.
+    pub copies: Vec<DuplicateCopy>,
+}
+
+/// What a finished duplicate search found.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct DuplicateReport {
+    /// Groups with the most space to free first.
+    pub groups: Vec<DuplicateGroup>,
+    /// Sum of every group's `could_free_bytes`.
+    pub could_free_bytes: u64,
+    /// The folders in the home folder that were searched, by name.
+    pub folders: Vec<String>,
+}
+
+/// Where the duplicate search is.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum DuplicateSearch {
+    /// No search has been started.
+    NotStarted,
+    /// Listing files.
+    Looking {
+        /// Files looked at so far.
+        files_seen: u64,
+    },
+    /// Comparing files of the same size, by content.
+    Comparing {
+        /// Files looked at.
+        files_seen: u64,
+        /// Bytes read so far.
+        bytes_compared: u64,
+        /// About how many bytes need reading. Can be more than end up read.
+        bytes_to_compare: u64,
+    },
+    /// Done.
+    Finished {
+        /// What was found.
+        report: DuplicateReport,
+    },
+    /// Stopped by the app.
+    Cancelled,
+    /// Could not run. `reason` is plain words with no path.
+    Failed {
+        /// Why.
+        reason: String,
+    },
 }
 
 /// One row of the Large files screen (E2): a file, or for old Downloads a

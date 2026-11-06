@@ -61,6 +61,26 @@ pub struct ItemRequest {
     /// bundle, or inside the item itself, is running. `None` for cleanup
     /// items, which use `owners` instead.
     pub belongs_to: Option<AppBundle>,
+    /// For the duplicate finder: the copy the user keeps. The executor
+    /// moves this item only if that copy is still there, unchanged, and
+    /// byte for byte the same as this item. `None` for everything else.
+    pub keep_copy: Option<KeepCopy>,
+}
+
+/// The copy of a duplicate file that the user keeps, as it was when they
+/// reviewed it. Never in the same plan as an item to move.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeepCopy {
+    /// Absolute path, from the engine's own search. Never from the UI.
+    pub path: PathBuf,
+    /// Device id (`st_dev`).
+    pub dev: u64,
+    /// Inode number (`st_ino`). Never the same file as the item to move.
+    pub ino: u64,
+    /// Length in bytes (`st_size`).
+    pub len: u64,
+    /// Modification time (`lstat`).
+    pub modified: SystemTime,
 }
 
 /// One item of a built plan. Only [`Plan::build`] makes these.
@@ -73,6 +93,7 @@ pub struct PlanItem {
     selected_individually: bool,
     owners: &'static [OwnerApp],
     belongs_to: Option<AppBundle>,
+    keep_copy: Option<KeepCopy>,
 }
 
 impl PlanItem {
@@ -110,6 +131,11 @@ impl PlanItem {
     pub fn belongs_to(&self) -> Option<&AppBundle> {
         self.belongs_to.as_ref()
     }
+
+    /// For the duplicate finder: the copy the user keeps.
+    pub fn keep_copy(&self) -> Option<&KeepCopy> {
+        self.keep_copy.as_ref()
+    }
 }
 
 /// Why a plan could not be built, or can no longer be used.
@@ -133,6 +159,13 @@ pub enum PlanError {
         outer: String,
         /// The inner (or repeated) item's recommendation.
         inner: String,
+    },
+    /// An item's kept copy is also an item to move, or is the item itself,
+    /// so the plan could leave no copy behind.
+    #[error("one of the copies to keep is also chosen to move")]
+    KeepCopyMoves {
+        /// The item whose kept copy would move.
+        recommendation_id: String,
     },
     /// The plan is older than [`PLAN_LIFETIME`].
     #[error("this review has expired, so please review again")]
@@ -173,6 +206,7 @@ impl Plan {
             return Err(PlanError::Empty);
         }
         check_no_overlap(&requests)?;
+        check_keep_copies_stay(&requests)?;
         let mut items = Vec::with_capacity(requests.len());
         for req in requests {
             let path = safety::validate(home, scan_root_dev, &req.path, req.selected_individually)
@@ -188,6 +222,7 @@ impl Plan {
                 selected_individually: req.selected_individually,
                 owners: req.owners,
                 belongs_to: req.belongs_to,
+                keep_copy: req.keep_copy,
             });
         }
         Ok(Plan {
@@ -271,6 +306,27 @@ fn check_no_overlap(requests: &[ItemRequest]) -> Result<(), PlanError> {
     Ok(())
 }
 
+/// Refuses a plan where an item's kept copy is the item itself, or is (or
+/// is inside) another item of the plan, so a duplicate cleanup can never
+/// move every copy. The executor checks again that the kept copy is still
+/// there before it moves each item.
+fn check_keep_copies_stay(requests: &[ItemRequest]) -> Result<(), PlanError> {
+    for req in requests {
+        let Some(keep) = &req.keep_copy else {
+            continue;
+        };
+        if requests
+            .iter()
+            .any(|other| keep.path.starts_with(&other.path))
+        {
+            return Err(PlanError::KeepCopyMoves {
+                recommendation_id: req.recommendation_id.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,6 +344,7 @@ mod tests {
             selected_individually: false,
             owners: &[],
             belongs_to: None,
+            keep_copy: None,
         }
     }
 
@@ -378,6 +435,52 @@ mod tests {
         assert_eq!(
             plan.check_fresh(now - Duration::from_secs(1)),
             Err(PlanError::ClockWentBack)
+        );
+    }
+
+    fn keep(path: PathBuf) -> Option<KeepCopy> {
+        Some(KeepCopy {
+            path,
+            dev: 1,
+            ino: 1,
+            len: 0,
+            modified: SystemTime::UNIX_EPOCH,
+        })
+    }
+
+    #[test]
+    fn a_kept_copy_that_is_also_moved_refuses_the_plan() {
+        let (_d, home, dev) = home();
+        let a = home.join("Library/Caches/a");
+        let ab = home.join("Library/Caches/ab");
+        let mut first = request("a", a.clone());
+        first.keep_copy = keep(ab.clone());
+        let mut second = request("ab", ab.clone());
+        second.keep_copy = keep(a.clone());
+        let err = Plan::build(
+            1,
+            &home,
+            dev,
+            vec![first.clone(), second],
+            SystemTime::now(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            PlanError::KeepCopyMoves {
+                recommendation_id: "a".into()
+            }
+        );
+        // Keeping the item itself is refused too.
+        let mut itself = request("a", a.clone());
+        itself.keep_copy = keep(a.clone());
+        let err = Plan::build(1, &home, dev, vec![itself], SystemTime::now()).unwrap_err();
+        assert!(matches!(err, PlanError::KeepCopyMoves { .. }), "{err:?}");
+        // Keeping a copy that stays is fine.
+        let plan = Plan::build(1, &home, dev, vec![first], SystemTime::now()).unwrap();
+        assert_eq!(
+            plan.items()[0].keep_copy().map(|k| k.path.clone()),
+            Some(ab)
         );
     }
 }

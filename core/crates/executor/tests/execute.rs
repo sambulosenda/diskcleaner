@@ -105,6 +105,7 @@ impl Home {
             selected_individually: false,
             owners: &[],
             belongs_to: None,
+            keep_copy: None,
         }
     }
 

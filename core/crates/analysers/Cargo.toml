@@ -9,6 +9,7 @@ publish = false
 libc = "0.2"
 plist = "1"
 scanner = { path = "../scanner" }
+sha2 = "0.10"
 thiserror = "2"
 tracing = "0.1"
 

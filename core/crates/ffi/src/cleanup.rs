@@ -30,6 +30,9 @@ const PREVIEW_FAILED: &str = "Roomy couldn't check these items. Please scan agai
 /// Shown for an item inside another chosen item. The classifier never makes
 /// such items, so this is a guard, not something users should see.
 const INSIDE_ANOTHER: &str = "It is inside another item you chose.";
+/// Shown for a duplicate whose kept copy was also chosen. The duplicate
+/// finder never builds such a plan, so this is a guard.
+const KEEP_COPY_MOVES: &str = "The copy you're keeping was chosen too, so this one stays.";
 
 /// What one ticked item looks like on its way through the preview.
 pub(crate) struct Entry {
@@ -198,6 +201,9 @@ fn build_dropping_refused(
                 refusal,
             }) => (recommendation_id, sentence(&refusal.to_string())),
             Err(PlanError::Overlap { inner, .. }) => (inner, INSIDE_ANOTHER.to_string()),
+            Err(PlanError::KeepCopyMoves { recommendation_id }) => {
+                (recommendation_id, KEEP_COPY_MOVES.to_string())
+            }
             Err(err) => {
                 tracing::warn!(%err, "cleanup plan could not be built");
                 return Err(CoreError::CleanupUnavailable {
