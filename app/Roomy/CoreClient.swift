@@ -8,7 +8,9 @@ import Foundation
 /// call off the main thread.
 @MainActor
 protocol CoreClient: AnyObject {
-    /// Starts a read-only scan of the home folder and returns its handle straight away.
+    /// Starts a read-only scan of the home folder and returns its handle straight away. The real core reads
+    /// again only the folders that changed since the last scan when it can be sure which those are
+    /// (`Overview.quickRescan`), and otherwise scans everything.
     func startScan(mode: Mode) async -> ScanHandle
 
     /// How far the scan has got. Throws `CoreError.UnknownScan` for a handle the core doesn't know.
@@ -22,6 +24,10 @@ protocol CoreClient: AnyObject {
 
     /// The Overview for a finished scan. Throws `CoreError.ScanNotFinished` while it runs.
     func overview(handle: ScanHandle) async throws -> Overview
+
+    /// What grew or shrank since the previous scan in the same mode, or `nil` if there was none (or the core
+    /// can't say). Holds no paths.
+    func scanChanges(handle: ScanHandle) async -> ScanChanges?
 
     /// Every item of a finished scan, optionally one category and/or one tier (`nil` means any).
     func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary]

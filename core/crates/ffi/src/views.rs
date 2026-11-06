@@ -54,6 +54,11 @@ pub struct Finished {
     pub items: Vec<ClassifiedItem>,
     /// Item id to index in `items`.
     pub by_id: HashMap<String, usize>,
+    /// The scan reused the previous scan's tree for folders that did not
+    /// change.
+    pub quick_rescan: bool,
+    /// What changed since the previous scan in this mode, if there was one.
+    pub changes: Option<crate::types::ScanChanges>,
 }
 
 impl Finished {
@@ -83,6 +88,8 @@ impl Finished {
             unreadable_areas,
             items,
             by_id,
+            quick_rescan: false,
+            changes: None,
         }
     }
 

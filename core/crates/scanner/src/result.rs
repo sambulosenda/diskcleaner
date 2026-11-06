@@ -19,8 +19,18 @@ pub struct Dir {
     /// The folder's own modification time (`lstat`), if the system reported
     /// one. The executor checks it is unchanged before acting.
     pub modified: Option<SystemTime>,
+    /// The folder's inode number (`lstat`). A rescan uses it to notice a
+    /// different folder that took the same name.
+    pub ino: u64,
     /// Allocated bytes of the folder itself and the files directly in it.
     pub own_bytes: u64,
+    /// Symlinks directly in the folder (counted, never followed).
+    pub own_symlinks: u64,
+    /// Some entry directly in the folder has more than one hard link. A
+    /// rescan that would read such a folder again does a full scan instead,
+    /// because which name a linked file is counted under depends on the
+    /// whole tree.
+    pub has_hard_links: bool,
     /// Allocated bytes of everything in the folder, sub-folders included.
     pub total_bytes: u64,
     /// File lengths (not allocated size) of everything in the folder.

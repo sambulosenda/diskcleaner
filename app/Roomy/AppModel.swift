@@ -166,6 +166,8 @@ final class AppModel: ObservableObject {
     /// The parts of the chosen app that are ticked. The core says which to tick to begin with; data the
     /// app keeps for itself, and anything matched only by name, is never ticked for the user.
     @Published private(set) var checkedPartIDs: Set<String> = []
+    /// What grew or shrank between the previous scan and the one showing, if there was a previous one.
+    @Published private(set) var scanChanges: ScanChanges?
     /// Set once something has moved after the current scan started, so its sizes are out of date.
     /// Cleared when a new scan starts. A scan that was already running when files moved is followed by
     /// another one.
@@ -665,12 +667,14 @@ final class AppModel: ObservableObject {
                 break
             }
             let overview = try await client.overview(handle: handle)
+            let changes = await client.scanChanges(handle: handle)
             guard !Task.isCancelled else { return }
             activeHandle = nil
             if let old = loadedHandle {
                 Task { await client.closeScan(handle: old) }
             }
             loadedHandle = handle
+            scanChanges = changes
             scanState = .loaded(overview, scannedAt: now())
             resetItems()
         } catch {

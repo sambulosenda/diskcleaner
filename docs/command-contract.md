@@ -69,6 +69,23 @@ mode leaves out developer rules, so what they describe counts as unknown) and wh
 Licence gates for Developer mode are not part of T09. They belong to the licensing task and will
 be enforced here in the core, not only in the UI.
 
+### `start_rescan(mode: Mode) -> ScanHandle`
+Like `start_scan`, but may read again only the folders that changed since the last finished
+scan in the same mode (F12), and reuse that scan's figures for the rest. The core keeps the last
+scan's folder tree in memory, with the macOS file event (FSEvents) id from just before it
+started, and asks the event log what changed since. It scans everything instead, exactly like
+`start_scan`, whenever it can't be sure: no event log (any system but macOS), no kept tree, a
+different mode, a tree over an hour old, dropped events, wrapped event ids, a mount or unmount,
+the home folder moved, a change outside home, a hard-linked file in a folder it would read
+again, or a folder missing that nothing said changed. Folders the last scan could not read are
+always read again. `Overview.quick_rescan` says which it did. The app uses this for every scan.
+
+### `scan_changes(handle: ScanHandle) -> ScanChanges?` throws
+What grew or shrank since the previous finished scan in the same mode (F11), or `nil` if there
+was none or History could not be used. Each finished scan leaves a short record in History
+(item ids, titles, categories and sizes; no paths); the last 5 per mode are kept. Same errors as
+`list_items`.
+
 ### `scan_progress(handle: ScanHandle) -> ScanProgress` throws
 How far the scan has got. Throws `unknown_scan` for a handle the core does not know (never
 issued, or closed).
@@ -173,6 +190,20 @@ After `finished`, `bytes_seen` equals the scan's total.
 | `top_items` | `[ItemSummary]` | Up to 8 of the largest `likely_safe` and `review_first` items, largest first. `keep` items are never here |
 | `unreadable_count` | `u64` | Folders the scan could not read (for example because of privacy protection) |
 | `unreadable_areas` | `[UnreadableArea]` | The same folders, counted by `PrivateArea`. Most folders first, ties in the order `PrivateArea` lists them. The counts add up to `unreadable_count` |
+| `quick_rescan` | `bool` | The scan read again only the folders that changed since the previous scan (see `start_rescan`) |
+
+### `ScanChanges` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `previous_scan_at` | `i64` | When the previous scan finished, seconds since 1970 (UTC) |
+| `scanned_bytes_before` | `u64` | Allocated bytes in the whole home folder then |
+| `scanned_bytes_now` | `u64` | The same, now |
+| `categories` | `[CategoryChange]` | Categories whose total changed by at least 10 MB, biggest change first |
+| `items` | `[ItemChange]` | Items that changed by at least 10 MB, biggest change first, at most 20 |
+
+`CategoryChange` holds `category`, `bytes_before` and `bytes_now`. `ItemChange` holds `item_id`
+(this scan's id, `nil` when the item is gone), `title`, `category`, `kind` (`ChangeKind`:
+`new`, `grew`, `shrank`, `gone`), `bytes_before` (0 if new) and `bytes_now` (0 if gone).
 
 ### `PrivateArea` (enum)
 A part of home that macOS may keep private: `mail`, `messages`, `safari`, `device_backups`,
