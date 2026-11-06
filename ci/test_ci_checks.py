@@ -54,9 +54,6 @@ class SafetyGrepTests(unittest.TestCase):
         self.repo.write(rel, code)
         self.assertEqual(self.repo.reasons(), [])
 
-    def test_the_real_repo_passes(self) -> None:
-        self.assertEqual(safety_grep.scan(REPO_ROOT), [])
-
     def test_remove_file_in_scanner_is_flagged(self) -> None:
         self.assertFlags("core/crates/scanner/src/lib.rs", "fn f() { std::fs::remove_file(p).ok(); }")
 

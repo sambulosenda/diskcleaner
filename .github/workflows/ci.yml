@@ -36,10 +36,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Test the CI checks
-        run: python3 -m unittest discover -s ci -p 'test_*.py' -v
       - name: Safety grep
         run: python3 ci/safety_grep.py
+      - name: Test the CI checks
+        if: ${{ !cancelled() }}
+        run: python3 -m unittest discover -s ci -p 'test_*.py' -v
 
   rust:
     name: Rust fmt, clippy and tests
