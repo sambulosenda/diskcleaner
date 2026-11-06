@@ -8,7 +8,7 @@ core/                      Cargo workspace
   Cargo.toml               workspace members below
   crates/scanner rules classifier analysers recommend planner safety executor history licensing ffi
 rules/                     (empty, .gitkeep)
-app/                       Xcode project "CODENAME" (SwiftUI, macOS 13+), with a unit test target
+app/                       Xcode project "Roomy" (SwiftUI, macOS 13+), with a unit test target
 fixtures/                  (empty, .gitkeep)
 tests/zero_data_loss/      (empty, .gitkeep)
 scripts/

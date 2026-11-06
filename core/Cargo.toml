@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/scanner",
+    "crates/rules",
+    "crates/classifier",
+    "crates/analysers",
+    "crates/recommend",
+    "crates/planner",
+    "crates/safety",
+    "crates/executor",
+    "crates/history",
+    "crates/licensing",
+    "crates/ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
