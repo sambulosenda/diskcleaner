@@ -9,13 +9,15 @@
 //! which is the only code that moves files.
 //!
 //! No path goes to the app in simple mode, and the app never sends a path to
-//! the core except in the T02 `disk_summary` command and the test-only
-//! commands behind the `testing` feature.
+//! the core except in the T02 `disk_summary` command, the user's own
+//! protected folders (`set_protected_folders`, which can only stop things
+//! being cleaned) and the test-only commands behind the `testing` feature.
 
 mod backup;
 mod cleanup;
 mod embedded_rules;
 mod engine;
+mod folders;
 mod run;
 #[cfg(feature = "testing")]
 mod testing;

@@ -1,6 +1,7 @@
+import AppKit
 import SwiftUI
 
-/// The Settings window (⌘,). For now it holds the mode picker.
+/// The Settings window (⌘,): the mode picker and the folders Roomy must keep.
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -21,6 +22,10 @@ struct SettingsView: View {
 
             FullDiskAccessSetting()
                 .padding(.top, 8)
+
+            Divider().padding(.vertical, 8)
+
+            ProtectedFoldersSection()
 
             Text("Core version \(coreVersion())")
                 .font(.footnote)
@@ -55,5 +60,70 @@ struct FullDiskAccessSetting: View {
         case .notGranted: return "Off. Some folders aren't measured."
         case .unknown, nil: return "Roomy can't tell."
         }
+    }
+}
+
+/// "Folders to keep": Roomy never cleans anything inside these folders, or anything that holds one.
+struct ProtectedFoldersSection: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Folders to keep")
+                .font(.headline)
+            Text("Roomy never cleans anything inside these folders.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if model.protectedFolders.isEmpty {
+                Text("No folders yet.")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+            } else {
+                ForEach(model.protectedFolders, id: \.self) { folder in
+                    HStack {
+                        Image(systemName: "folder")
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        Text((folder as NSString).abbreviatingWithTildeInPath)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(folder)
+                        Spacer()
+                        Button {
+                            Task { await model.removeProtectedFolder(folder) }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Stop keeping this folder")
+                        .accessibilityLabel("Stop keeping \((folder as NSString).lastPathComponent)")
+                    }
+                }
+            }
+
+            if let message = model.protectedFoldersMessage {
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
+
+            Button("Add Folder…") { chooseFolders() }
+        }
+    }
+
+    /// Asks the user for one or more folders with the standard open panel.
+    private func chooseFolders() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = true
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        panel.prompt = "Keep"
+        panel.message = "Choose folders Roomy should never clean."
+        guard panel.runModal() == .OK else { return }
+        let urls = panel.urls
+        Task { await model.addProtectedFolders(urls) }
     }
 }

@@ -52,6 +52,20 @@ pub struct RoomyCore {
     last_cleanup: Mutex<Option<LastCleanup>>,
     /// The History database, opened the first time it is needed.
     history: Mutex<Option<history::History>>,
+    /// The folders the user asked Roomy to keep. The app stores them and
+    /// sends them at launch and on every change.
+    protected_folders: Mutex<Vec<PathBuf>>,
+    /// Test-only changes to the extra checks. Empty in the app.
+    guard_overrides: Mutex<GuardOverrides>,
+}
+
+/// Test-only changes to the extra checks, set by Rust tests only.
+#[derive(Debug, Default)]
+struct GuardOverrides {
+    /// Replaces the recent-change window.
+    recent_window: Option<std::time::Duration>,
+    /// Replaces the list of running programs.
+    running: Option<executor::Running>,
 }
 
 /// One scan's shared state, written by its thread and read by commands.
@@ -112,7 +126,42 @@ impl RoomyCore {
             next_cleanup_id: AtomicU64::new(1),
             last_cleanup: Mutex::new(None),
             history: Mutex::new(None),
+            protected_folders: Mutex::new(Vec::new()),
+            guard_overrides: Mutex::new(GuardOverrides::default()),
         }))
+    }
+
+    /// Rust-only, for tests: changes how long ago an item must have last
+    /// changed to be cleaned. Fixture homes are made just before a test, so
+    /// tests that expect items to move set this to zero.
+    pub fn set_recent_change_window_for_testing(&self, window: std::time::Duration) {
+        lock(&self.guard_overrides).recent_window = Some(window);
+    }
+
+    /// Rust-only, for tests: pretends exactly these programs are running
+    /// (executable paths), or with `None`, that the list can't be read.
+    pub fn set_running_programs_for_testing(&self, programs: Option<Vec<PathBuf>>) {
+        lock(&self.guard_overrides).running = Some(match programs {
+            Some(programs) => executor::Running::Known(programs),
+            None => executor::Running::Unknown,
+        });
+    }
+
+    /// The extra checks for one preview or run, read just now.
+    fn guards(&self) -> executor::Guards {
+        let folders = lock(&self.protected_folders).clone();
+        let overrides = lock(&self.guard_overrides);
+        let running = match &overrides.running {
+            Some(running) => running.clone(),
+            None => executor::Running::now(),
+        };
+        executor::Guards {
+            recent_window: overrides
+                .recent_window
+                .unwrap_or(executor::RECENT_CHANGE_WINDOW),
+            protected_folders: folders,
+            running,
+        }
     }
 
     /// The scan behind `handle`, or `unknown_scan`.
@@ -259,7 +308,9 @@ impl RoomyCore {
         // an older plan behind.
         *lock(&self.pending_plan) = None;
         let id = self.next_plan_id.fetch_add(1, Ordering::Relaxed);
-        let prepared = crate::cleanup::prepare(&f, &choices, id, std::time::SystemTime::now())?;
+        let guards = self.guards();
+        let prepared =
+            crate::cleanup::prepare(&f, &choices, id, &guards, std::time::SystemTime::now())?;
         *lock(&self.pending_plan) = prepared.plan;
         Ok(prepared.preview)
     }
@@ -292,7 +343,7 @@ impl RoomyCore {
         };
         let id = self.next_cleanup_id.fetch_add(1, Ordering::Relaxed);
         let now = std::time::SystemTime::now();
-        let mut ran = crate::run::run(pending, id, now)?;
+        let mut ran = crate::run::run(pending, id, &self.guards(), now)?;
         let history_id = self.with_history(true, |h| {
             h.record_cleanup(crate::run::unix_seconds(now), &ran.history_items)
         });
@@ -303,6 +354,32 @@ impl RoomyCore {
         // A newer cleanup replaces the older undo, even if nothing moved.
         *lock(&self.last_cleanup) = ran.last;
         Ok(ran.result)
+    }
+
+    /// Sets the folders the user asked Roomy to keep. Nothing inside one of
+    /// them, and nothing that holds one, is ever cleaned. Replaces the
+    /// earlier list and returns the new one, as the core will use it.
+    ///
+    /// Each folder must be a full path inside the home folder. A folder that
+    /// exists is stored as its real location, with any symlinks resolved, so
+    /// keeping a link also keeps what it points to. Throws `invalid_path`
+    /// (and keeps the earlier list) if any folder is not usable.
+    pub fn set_protected_folders(&self, folders: Vec<String>) -> Result<Vec<String>, CoreError> {
+        let mut checked: Vec<PathBuf> = Vec::with_capacity(folders.len());
+        for folder in &folders {
+            let path = crate::folders::checked(&self.home, folder)?;
+            if !checked.contains(&path) {
+                checked.push(path);
+            }
+        }
+        let shown = crate::folders::shown(&checked);
+        *lock(&self.protected_folders) = checked;
+        Ok(shown)
+    }
+
+    /// The folders the user asked Roomy to keep, as the core uses them.
+    pub fn protected_folders(&self) -> Vec<String> {
+        crate::folders::shown(&lock(&self.protected_folders))
     }
 
     /// Puts the last cleanup back: moves what it moved from the Trash to

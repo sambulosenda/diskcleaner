@@ -170,6 +170,9 @@ pub const TRAP_HARD_LINK_A: &str = "Documents/Family video.mov";
 pub const TRAP_HARD_LINK_B: &str = "Movies/Family video.mov";
 /// Trap: git repository with `node_modules` beside `.git`.
 pub const TRAP_GIT_DIR: &str = "projects/a/.git";
+
+/// The `.gitignore` of the trap git repository; it ignores `node_modules`.
+pub const TRAP_GIT_IGNORE: &str = "projects/a/.gitignore";
 /// Trap: `node_modules` inside a git repository (the allowed child).
 pub const TRAP_GIT_NODE_MODULES: &str = "projects/a/node_modules";
 /// Trap: environment file with fake secrets (review-only).

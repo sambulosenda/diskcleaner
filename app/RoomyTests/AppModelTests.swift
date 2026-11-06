@@ -454,6 +454,42 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(AppModel.cleanupMessage(for: CancellationError()).isEmpty)
     }
 
+    // MARK: - Folders to keep
+
+    func testKeptFoldersAreSavedAndSentBeforeEveryReview() async throws {
+        let client = MockCoreClient(scenario: .normal, totalSteps: 5)
+        let model = AppModel(client: client, defaults: defaults, pollInterval: 0, now: { Date() })
+        let folder = NSHomeDirectory() + "/Developer/keep-me"
+        await model.addProtectedFolders([URL(fileURLWithPath: folder)])
+        XCTAssertEqual(model.protectedFolders, [folder])
+        XCTAssertNil(model.protectedFoldersMessage)
+        XCTAssertEqual(defaults.stringArray(forKey: AppModel.protectedFoldersKey), [folder])
+
+        // A new launch reads them back and sends them before checking anything.
+        let fresh = MockCoreClient(scenario: .normal, totalSteps: 5)
+        let relaunched = AppModel(client: fresh, defaults: defaults, pollInterval: 0, now: { Date() })
+        XCTAssertEqual(relaunched.protectedFolders, [folder])
+        relaunched.startScan()
+        await relaunched.waitForScan()
+        let all = await items(on: .largeFiles, in: relaunched)
+        let row = try XCTUnwrap(all.first { $0.tier == .likelySafe })
+        relaunched.setChecked(true, for: row)
+        relaunched.reviewCleanup()
+        await relaunched.waitForCleanupCheck()
+        XCTAssertEqual(fresh.protectedFolders, [folder])
+
+        await model.removeProtectedFolder(folder)
+        XCTAssertEqual(model.protectedFolders, [])
+    }
+
+    func testAFolderOutsideHomeIsRefusedAndTheListStays() async {
+        let model = makeModel()
+        await model.addProtectedFolders([URL(fileURLWithPath: "/Library/Caches")])
+        XCTAssertEqual(model.protectedFolders, [])
+        XCTAssertEqual(model.protectedFoldersMessage, "Choose a folder inside your home folder.")
+        XCTAssertNil(defaults.stringArray(forKey: AppModel.protectedFoldersKey))
+    }
+
     // MARK: - Cleanup (moving to the Trash), put back, History
 
     /// A model with a finished scan, one likely safe row ticked and the review ready.

@@ -27,6 +27,10 @@ fn setup() -> Setup {
     // The cleanup preview needs a Trash to check against.
     fs::create_dir(root.join(".Trash")).unwrap();
     let core = RoomyCore::with_home(root.clone()).unwrap();
+    // Fixture homes are made just now, and the test machine runs its own
+    // programs: switch off those two extra checks (tested in extra_checks.rs).
+    core.set_recent_change_window_for_testing(std::time::Duration::ZERO);
+    core.set_running_programs_for_testing(Some(Vec::new()));
     Setup {
         _dir: dir,
         root,

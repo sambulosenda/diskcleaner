@@ -6,7 +6,8 @@ import Foundation
 /// responsive however long a call takes. The scan itself already runs on the core's own thread;
 /// `AppModel` polls `scanProgress` at most ten times a second.
 ///
-/// The client never sends a path to the core. It sends scan handles, item ids and enum values only.
+/// The client sends scan handles, item ids and enum values. The one exception is the folders the user
+/// asked Roomy to keep, which can only stop things being cleaned.
 @MainActor
 final class RustCoreClient: CoreClient {
     /// The core, or the error that stopped it being made (for example no home folder).
@@ -87,5 +88,9 @@ final class RustCoreClient: CoreClient {
     func fullDiskAccess() async -> FullDiskAccess {
         // With no core there is nothing to scan, so there is nothing to ask the user for either.
         (try? await offMain { $0.fullDiskAccess() }) ?? .unknown
+    }
+
+    func setProtectedFolders(_ folders: [String]) async throws -> [String] {
+        try await offMain { try $0.setProtectedFolders(folders: folders) }
     }
 }

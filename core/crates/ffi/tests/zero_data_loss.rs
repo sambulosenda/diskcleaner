@@ -368,6 +368,10 @@ fn fixture_home() -> Home {
     let root = fixtures::canonical_root(&dir).unwrap();
     fs::create_dir(root.join(TRASH)).unwrap();
     let core = RoomyCore::with_home(root.clone()).unwrap();
+    // Fixture homes are made just now, and the test machine runs its own
+    // programs: switch off those two extra checks (tested in extra_checks.rs).
+    core.set_recent_change_window_for_testing(std::time::Duration::ZERO);
+    core.set_running_programs_for_testing(Some(Vec::new()));
     Home {
         _dir: dir,
         root,
@@ -742,4 +746,147 @@ fn ledger_shallow(dir: &Path) -> BTreeSet<(String, u64)> {
             Some((e.file_name().to_string_lossy().into_owned(), ino))
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// The extra checks, switched on
+// ---------------------------------------------------------------------------
+
+/// Sets every file and folder in `path` older than two hours, if it is newer.
+/// Symlinks are left alone.
+fn age_to_two_hours(path: &Path) {
+    let when = std::time::SystemTime::now() - Duration::from_secs(2 * 60 * 60);
+    let meta = path.symlink_metadata().unwrap();
+    if meta.file_type().is_symlink() {
+        return;
+    }
+    if meta.is_dir() {
+        for entry in fs::read_dir(path).unwrap() {
+            age_to_two_hours(&entry.unwrap().path());
+        }
+    }
+    if meta.modified().unwrap() > when {
+        fs::File::open(path).unwrap().set_modified(when).unwrap();
+    }
+}
+
+/// Every item in every tier is ticked, with all four extra checks holding
+/// something back: a folder the user keeps (DerivedData), an open app
+/// (Android Studio), a git project that no longer ignores `node_modules`,
+/// and a cache that changed a moment ago. The ledger proves none of those
+/// moved, the reasons say why, everything else still moved, and putting
+/// back restores the home exactly.
+#[test]
+fn the_extra_checks_hold_things_back_and_lose_nothing() {
+    let home = fixture_home();
+    age_to_two_hours(&home.root);
+    // The real ten-minute window, and Android Studio open.
+    home.core
+        .set_recent_change_window_for_testing(Duration::from_secs(10 * 60));
+    home.core
+        .set_running_programs_for_testing(Some(vec![PathBuf::from(
+            "/Applications/Android Studio.app/Contents/MacOS/studio",
+        )]));
+    let kept = home.root.join(fixtures::paths::DERIVED_DATA);
+    let set = home
+        .core
+        .set_protected_folders(vec![kept.to_str().unwrap().to_string()])
+        .unwrap();
+    assert_eq!(set, vec![kept.to_str().unwrap().to_string()]);
+    // The project stops ignoring node_modules (same size, so only the git
+    // check can tell).
+    fs::write(
+        home.root.join(fixtures::paths::TRAP_GIT_IGNORE),
+        b"# Dependencies\nnode_mod/\n.DS_Store\n",
+    )
+    .unwrap();
+    // Firefox writes to its cache just before the scan.
+    fs::write(
+        home.root.join(fixtures::paths::FIREFOX_CACHE).join("fresh"),
+        b"just now",
+    )
+    .unwrap();
+
+    let before = ledger(&home.root);
+    let h = finished_scan(&home.core, Mode::Developer);
+    let items = listed(&home.core, h, Pick::Everything);
+    let preview = home.core.preview_cleanup(h, choices(&items, true)).unwrap();
+    assert_eq!(ledger(&home.root), before, "the dry run changed something");
+
+    let held: Vec<(&str, &str)> = vec![
+        (
+            fixtures::paths::DERIVED_DATA,
+            "in a folder you asked Roomy to keep",
+        ),
+        (fixtures::paths::GRADLE_CACHES, "Android Studio is open"),
+        (
+            fixtures::paths::ANDROID_STUDIO_CACHE,
+            "Android Studio is open",
+        ),
+        (fixtures::paths::TRAP_GIT_NODE_MODULES, "doesn't ignore it"),
+        (
+            fixtures::paths::FIREFOX_CACHE,
+            "changed in the last few minutes",
+        ),
+    ];
+    for (place, why) in &held {
+        let rows: Vec<_> = preview
+            .items
+            .iter()
+            .filter(|i| {
+                let rel = i.path.as_deref().unwrap().trim_start_matches("~/");
+                under(rel, place)
+            })
+            .collect();
+        assert!(!rows.is_empty(), "no ticked item under {place}");
+        for row in rows {
+            match &row.check {
+                CleanupCheck::WontMove { reason } => {
+                    assert!(reason.contains(why), "{place}: {reason}")
+                }
+                other => panic!("{place} would move: {other:?}"),
+            }
+        }
+    }
+
+    let plan = preview.plan.unwrap();
+    let result = home.core.run_cleanup(plan).unwrap();
+    let after = ledger(&home.root);
+    let moved = prove_only_moves_into_trash(&before, &after);
+    prove_nothing_protected_moved(&before, &moved, true);
+    assert!(!moved.is_empty(), "everything else should still move");
+    for m in &moved {
+        for (place, _) in &held {
+            assert!(!under(m, place) && !under(place, m), "{m} moved");
+        }
+    }
+    assert_eq!(will_move(&preview).len(), moved.len());
+
+    let back = home.core.put_back_cleanup(result.cleanup.unwrap()).unwrap();
+    assert!(back.items.iter().all(|i| i.done), "{back:?}");
+    assert_eq!(ledger(&home.root), before);
+}
+
+/// The folders the user keeps must be inside home, and a bad list leaves the
+/// earlier one in place.
+#[test]
+fn kept_folders_must_be_inside_home() {
+    let home = fixture_home();
+    let good = home.root.join("Developer").to_str().unwrap().to_string();
+    assert_eq!(
+        home.core
+            .set_protected_folders(vec![good.clone(), good.clone()])
+            .unwrap(),
+        vec![good.clone()]
+    );
+    assert!(home
+        .core
+        .set_protected_folders(vec!["/etc".to_string()])
+        .is_err());
+    assert!(home
+        .core
+        .set_protected_folders(vec![home.root.to_str().unwrap().to_string()])
+        .is_err());
+    assert_eq!(home.core.protected_folders(), vec![good]);
+    assert!(home.core.set_protected_folders(vec![]).unwrap().is_empty());
 }

@@ -66,6 +66,7 @@ pub(crate) fn prepare(
     f: &Finished,
     choices: &[CleanupChoice],
     plan_id: u64,
+    guards: &executor::Guards,
     now: SystemTime,
 ) -> Result<Prepared, CoreError> {
     let mut entries = entries_for(f, choices)?;
@@ -77,8 +78,11 @@ pub(crate) fn prepare(
     let Some(plan) = build_dropping_refused(f, &mut entries, plan_id, now)? else {
         return Ok(finish(entries, None));
     };
-    // The executor's checks just before acting (steps 1 to 7), touching nothing.
-    let checks = executor::preview(&plan, executor::Mode::Trash, now).map_err(execute_error)?;
+    // The executor's checks just before acting (steps 1 to 7, then the
+    // extra checks: folders you keep, apps open, git work, recent changes),
+    // touching nothing.
+    let checks =
+        executor::preview(&plan, executor::Mode::Trash, guards, now).map_err(execute_error)?;
     drop(plan);
     for check in checks {
         let Some(entry) = entries

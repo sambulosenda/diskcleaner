@@ -47,4 +47,9 @@ protocol CoreClient: AnyObject {
 
     /// Whether Roomy can read the folders macOS keeps private, right now. Reads a few folder listings only.
     func fullDiskAccess() async -> FullDiskAccess
+
+    /// Tells the core which folders the user asked Roomy to keep. Nothing inside one, and nothing that
+    /// holds one, is ever cleaned. Returns the list as the core will use it (symlinks resolved).
+    /// Throws `CoreError.InvalidPath` for a folder outside the home folder; the earlier list stays.
+    func setProtectedFolders(_ folders: [String]) async throws -> [String]
 }

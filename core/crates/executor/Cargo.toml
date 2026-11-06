@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+ignore = "0.4"
 libc = "0.2"
 planner = { path = "../planner" }
 safety = { path = "../safety" }
