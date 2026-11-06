@@ -27,8 +27,8 @@ use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult,
-    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LibrarySize, Mode, Overview, PlanHandle,
-    PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LargeFiles, LibrarySize, Mode, Overview,
+    PlanHandle, PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -379,6 +379,16 @@ impl RoomyCore {
         Ok(self.finished(handle)?.list(category, tier, sort))
     }
 
+    /// What the Large files screen lists (E2): up to 500 of the largest
+    /// files, and files and folders in Downloads not opened for a while.
+    /// Read when the scan finished; paths only in Developer mode. Nothing
+    /// is ticked for the user. The row ids go to `preview_cleanup` like
+    /// any item id.
+    pub fn large_files(&self, handle: ScanHandle) -> Result<LargeFiles, CoreError> {
+        let f = self.finished(handle)?;
+        Ok(f.loose.view(&f.home, f.mode))
+    }
+
     /// Everything the detail panel shows for one item.
     pub fn item_detail(
         &self,
@@ -688,10 +698,14 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
     let rule_mode = rules::Mode::from(mode);
     let opts = ScanOptions {
         cancel: Arc::clone(&slot.cancel),
-        record_files: Some(classifier::record_files(rules, rule_mode)),
-        // Nothing in the app uses the scanner's own largest-files list, and
-        // a rescan can't keep it exact.
-        largest_files: 0,
+        record_files: Some(crate::files::record_files(classifier::record_files(
+            rules, rule_mode,
+        ))),
+        // A full scan keeps the largest files for the Large files screen. A
+        // quick rescan can't (see `scanner::rescan`), so it carries the last
+        // full scan's list forward instead; each row is checked again.
+        largest_files: crate::files::SCANNED_LARGE_FILES,
+        largest_in: Some(crate::files::largest_in()),
         ..ScanOptions::default()
     };
     // Noted before anything is read, so whatever changes during the walk
@@ -702,12 +716,20 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         slot.files.store(p.files, Ordering::Relaxed);
     };
     let quick = if job.quick {
-        quick_rescan(job, &opts, &progress)
+        let quick_opts = ScanOptions {
+            largest_files: 0,
+            largest_in: None,
+            ..opts.clone()
+        };
+        quick_rescan(job, &quick_opts, &progress)
     } else {
         None
     };
     let (scan, quick_rescan) = match quick {
-        Some(Ok(scan)) => (scan, true),
+        Some(Ok(mut scan)) => {
+            scan.largest_files = kept_largest_files(job);
+            (scan, true)
+        }
         Some(Err(err)) => return failed_state(&err),
         None => match scanner::scan(home, opts, progress) {
             Ok(scan) => (scan, false),
@@ -719,6 +741,10 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         return State::Cancelled;
     }
     let items = classifier::classify(&scan, rules, rule_mode);
+    if slot.cancel.load(Ordering::Relaxed) {
+        return State::Cancelled;
+    }
+    let loose = crate::files::find(&scan, &items, home, std::time::SystemTime::now());
     let unreadable =
         crate::views::unreadable_areas(home, scan.unreadable.iter().map(|u| u.path.as_path()));
     let mut finished = Finished::new(
@@ -728,6 +754,7 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         scan.root_dev,
         unreadable,
         items,
+        loose,
     )
     .with_libraries(
         analysers::libraries::library_sizes(&scan)
@@ -783,6 +810,17 @@ fn quick_rescan(
         }
         Err(RescanError::Scan(err)) => Some(Err(err)),
     }
+}
+
+/// The kept tree's largest files, for a quick rescan, which can't find
+/// them itself. `crate::files::find` checks each again, so one that
+/// changed or went away is left out; a file new since the last full scan
+/// shows after the next one.
+fn kept_largest_files(job: &Job) -> Vec<scanner::LargeFile> {
+    lock(&job.kept_tree)
+        .as_ref()
+        .map(|kept| kept.scan.largest_files.clone())
+        .unwrap_or_default()
 }
 
 /// Keeps `scan` for the next quick rescan, replacing the older tree. Only

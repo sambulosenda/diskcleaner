@@ -125,9 +125,9 @@ final class CommandPaletteTests: XCTestCase {
         XCTAssertEqual(SidebarItem.screen(for: .cache, mode: .simple), .appsAndCaches)
         XCTAssertEqual(SidebarItem.screen(for: .logs, mode: .simple), .systemData)
         XCTAssertEqual(SidebarItem.screen(for: .docker, mode: .developer), .docker)
-        // Developer screens are hidden in Simple mode, so their items open in Large files.
-        XCTAssertEqual(SidebarItem.screen(for: .docker, mode: .simple), .largeFiles)
-        XCTAssertEqual(SidebarItem.screen(for: .userData, mode: .developer), .largeFiles)
+        // Developer screens are hidden in Simple mode, so their items open in Cleanup, which lists everything.
+        XCTAssertEqual(SidebarItem.screen(for: .docker, mode: .simple), .cleanup)
+        XCTAssertEqual(SidebarItem.screen(for: .userData, mode: .developer), .cleanup)
         for mode in Mode.allCases {
             let shown = SidebarItem.sections(for: mode).flatMap { $0 }
             for item in MockData.found(for: .normal) {
@@ -191,7 +191,7 @@ final class CommandPaletteTests: XCTestCase {
         let palette = await openPalette(model)
         palette.close()
         guard let item = palette.items.first(where: { $0.tier == .likelySafe }) else { return XCTFail("no item") }
-        model.selection = .largeFiles
+        model.selection = .cleanup
         model.setChecked(true, for: item)
         model.reviewCleanup()
         await model.waitForCleanupCheck()
@@ -276,14 +276,14 @@ final class CommandPaletteTests: XCTestCase {
 
     func testShowItemClearsATierFilterThatHidesIt() async throws {
         let model = await scannedModel()
-        model.selection = .largeFiles
+        model.selection = .cleanup
         model.tierFilter = .keep
         await model.waitForItems()
         let palette = await openPalette(model)
         let video = try XCTUnwrap(command("item.large-video", in: palette))
         palette.run(video, openSettings: {})
         await model.waitForItems()
-        XCTAssertEqual(model.selection, .largeFiles)
+        XCTAssertEqual(model.selection, .cleanup)
         XCTAssertNil(model.tierFilter)
         XCTAssertEqual(model.selectedItemID, "large-video")
     }
@@ -327,7 +327,7 @@ final class CommandPaletteTests: XCTestCase {
         let review = try XCTUnwrap(command("action.reviewCleanup", in: palette))
         palette.run(review, openSettings: {})
         // The review sheet lives on the item lists, so the palette shows one first.
-        XCTAssertEqual(model.selection, .largeFiles)
+        XCTAssertEqual(model.selection, .cleanup)
         await model.waitForCleanupCheck()
         guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
         XCTAssertEqual(preview.items.map(\.itemId), [item.id])

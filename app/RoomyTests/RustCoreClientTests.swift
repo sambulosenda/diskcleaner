@@ -55,7 +55,7 @@ final class RustCoreClientTests: XCTestCase {
 
     func testSimpleModeShowsNoPathAnywhere() async throws {
         let (model, overview) = try await scanned(.simple)
-        model.selection = .largeFiles
+        model.selection = .cleanup
         await model.waitForItems()
         guard case .loaded(let items) = model.listState else { return XCTFail("\(model.listState)") }
         XCTAssertEqual(items.count, Int(overview.categories.reduce(0) { $0 + $1.itemCount }))

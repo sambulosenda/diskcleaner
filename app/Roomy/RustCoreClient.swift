@@ -76,6 +76,10 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.itemDetail(handle: handle, itemId: itemId) }
     }
 
+    func largeFiles(handle: ScanHandle) async throws -> LargeFiles {
+        try await offMain { try $0.largeFiles(handle: handle) }
+    }
+
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
         try await offMain { try $0.previewCleanup(handle: handle, choices: choices) }
     }

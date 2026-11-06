@@ -59,12 +59,15 @@ pub(crate) struct LinkedFile {
     is_file: bool,
     is_symlink: bool,
     record: bool,
+    /// Whether the file may go in the largest-files list.
+    largest: bool,
 }
 
 /// State shared by every worker thread.
 pub(crate) struct Shared<'a> {
     root: &'a Path,
     record_files: Option<&'a RecordFiles>,
+    largest_in: Option<&'a RecordFiles>,
     pub(crate) dev: u64,
     cancel: &'a AtomicBool,
     largest: Largest,
@@ -98,6 +101,7 @@ pub fn run(
     let shared = Shared::new(
         root,
         opts.record_files.as_ref(),
+        opts.largest_in.as_ref(),
         root_meta.dev(),
         &opts.cancel,
         opts.largest_files,
@@ -235,10 +239,12 @@ fn settle_links(root: &mut Node, shared: &Shared<'_>) {
                     });
                     recorded = true;
                 }
-                let path = link.path;
-                shared
-                    .largest
-                    .offer(link.allocated, link.logical, link.modified, || path);
+                if link.largest {
+                    let path = link.path;
+                    shared
+                        .largest
+                        .offer(link.allocated, link.logical, link.modified, || path);
+                }
             }
         }
         if recorded {
@@ -253,6 +259,7 @@ fn settle_links(root: &mut Node, shared: &Shared<'_>) {
 fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec<SubDir>> {
     let mut subdirs = Vec::new();
     let record = shared.wants_files(path);
+    let largest = shared.wants_largest(path);
     for (i, entry) in fs::read_dir(path)?.enumerate() {
         if i % CANCEL_CHECK_EVERY == 0 && shared.cancelled() {
             break;
@@ -301,6 +308,7 @@ fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec
                 is_file: file_type.is_file(),
                 is_symlink: file_type.is_symlink(),
                 record,
+                largest,
             });
             continue;
         }
@@ -321,9 +329,11 @@ fn list_dir(path: &Path, node: &mut Node, shared: &Shared<'_>) -> io::Result<Vec
                     modified: meta.modified().ok(),
                 });
             }
-            shared
-                .largest
-                .offer(bytes, meta.len(), meta.modified().ok(), || entry.path());
+            if largest {
+                shared
+                    .largest
+                    .offer(bytes, meta.len(), meta.modified().ok(), || entry.path());
+            }
         }
     }
     subdirs.sort_by(|a, b| a.name.cmp(&b.name));
@@ -345,6 +355,7 @@ impl<'a> Shared<'a> {
     pub(crate) fn new(
         root: &'a Path,
         record_files: Option<&'a RecordFiles>,
+        largest_in: Option<&'a RecordFiles>,
         dev: u64,
         cancel: &'a AtomicBool,
         largest_files: usize,
@@ -352,6 +363,7 @@ impl<'a> Shared<'a> {
         Self {
             root,
             record_files,
+            largest_in,
             dev,
             cancel,
             largest: Largest::new(largest_files),
@@ -371,6 +383,18 @@ impl<'a> Shared<'a> {
     fn wants_files(&self, path: &Path) -> bool {
         let Some(RecordFiles(want)) = self.record_files else {
             return false;
+        };
+        match path.strip_prefix(self.root) {
+            Ok(rel) => want(rel),
+            Err(_) => false,
+        }
+    }
+
+    /// Whether files in folder `path` may go in the largest-files list.
+    /// Every folder may, unless the caller said otherwise.
+    fn wants_largest(&self, path: &Path) -> bool {
+        let Some(RecordFiles(want)) = self.largest_in else {
+            return true;
         };
         match path.strip_prefix(self.root) {
             Ok(rel) => want(rel),

@@ -132,7 +132,11 @@ fn entries_for(f: &Finished, choices: &[CleanupChoice]) -> Result<Vec<Entry>, Co
         if !seen.insert(choice.item_id.as_str()) {
             continue;
         }
-        let item = f.item(&choice.item_id).ok_or(CoreError::UnknownItem)?;
+        let Some(item) = f.item(&choice.item_id) else {
+            let file = f.loose.get(&choice.item_id).ok_or(CoreError::UnknownItem)?;
+            entries.push(file_entry(f, file, choice.chosen_alone));
+            continue;
+        };
         let (request, wont_move) = match planner::request_for(item, choice.chosen_alone) {
             Ok(req) => (Some(req), None),
             Err(why) => (None, Some(sentence(&why.to_string()))),
@@ -152,6 +156,23 @@ fn entries_for(f: &Finished, choices: &[CleanupChoice]) -> Result<Vec<Entry>, Co
         });
     }
     Ok(entries)
+}
+
+/// The entry for a ticked row of the Large files screen.
+fn file_entry(f: &Finished, file: &crate::files::LooseFile, chosen_alone: bool) -> Entry {
+    Entry {
+        item_id: file.id.clone(),
+        title: file.name.clone(),
+        history_title: None,
+        size_bytes: file.expected.size_bytes,
+        path: match f.mode {
+            crate::Mode::Developer => display_path(&f.home, &file.path),
+            crate::Mode::Simple => None,
+        },
+        device_backup: None,
+        request: Some(crate::files::request_for(file, chosen_alone)),
+        wont_move: None,
+    }
 }
 
 /// Builds a plan of every entry still in the running. An entry the planner

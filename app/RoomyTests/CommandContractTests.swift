@@ -265,4 +265,17 @@ final class CommandContractTests: XCTestCase {
             guard case CoreError.UnknownApp = error else { return XCTFail("Expected UnknownApp, got \(error)") }
         }
     }
+
+    func testLargeFilesListsNoPathInSimpleModeAndNothingIsTicked() throws {
+        let handle = try finishedScan(.simple)
+        let files = try core.largeFiles(handle: handle)
+        XCTAssertEqual(files.oldAfterDays, 90)
+        XCTAssertLessThanOrEqual(files.largeFiles.count, 500)
+        for row in files.largeFiles + files.oldDownloads {
+            XCTAssertNil(row.path)
+            XCTAssertFalse(row.name.contains("/"))
+        }
+        let sizes = files.largeFiles.map(\.sizeBytes)
+        XCTAssertEqual(sizes, sizes.sorted(by: >))
+    }
 }
