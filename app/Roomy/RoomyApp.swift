@@ -12,6 +12,17 @@ struct RoomyApp: App {
     /// Free space for the menu bar item and the low-space alert. Read only.
     @StateObject private var lowSpace = LowSpaceMonitor.live()
 
+    /// Whether the menu bar item shows. SwiftUI writes this binding back on every scene update, so
+    /// it only passes on real changes; setting the published value each time made an endless update loop.
+    private var menuBarInserted: Binding<Bool> {
+        Binding(
+            get: { lowSpace.showInMenuBar },
+            set: { newValue in
+                if newValue != lowSpace.showInMenuBar { lowSpace.showInMenuBar = newValue }
+            }
+        )
+    }
+
     var body: some Scene {
         Window("Roomy", id: "main") {
             ContentView()
@@ -36,7 +47,7 @@ struct RoomyApp: App {
                 .environmentObject(model)
         }
 
-        MenuBarExtra(isInserted: $lowSpace.showInMenuBar) {
+        MenuBarExtra(isInserted: menuBarInserted) {
             MenuBarMenu(monitor: lowSpace)
         } label: {
             MenuBarLabel(monitor: lowSpace)
