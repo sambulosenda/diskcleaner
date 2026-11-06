@@ -119,3 +119,78 @@ explain = "Copies of the libraries CocoaPods has downloaded, kept so later insta
 risk = "The next pod install downloads the libraries again, which takes longer."
 restore = "CocoaPods downloads them again when a project needs them."
 action = "trash"
+
+[[rule]]
+id = "xcode.cache"
+version = 1
+match.path = "Library/Caches/com.apple.dt.Xcode"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "Xcode cache"
+explain = "Files Xcode keeps so it starts and searches faster, such as downloaded lists and documentation."
+risk = "Xcode may be a little slower the first time you open it. Your projects and settings are kept."
+restore = "Xcode fills it again as you use it."
+action = "trash"
+
+[[rule]]
+id = "xcode.previews"
+version = 1
+match.path = "Library/Developer/Xcode/UserData/Previews"
+category = "build"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "SwiftUI preview data"
+explain = "Builds and simulators Xcode made to show SwiftUI previews."
+risk = "The next preview in each project takes longer to appear."
+restore = "Xcode makes them again the next time you show a preview."
+action = "trash"
+
+[[rule]]
+id = "xcode.simulator_caches"
+version = 1
+match.path = "Library/Developer/CoreSimulator/Caches"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "Simulator cache"
+explain = "Prepared system files the simulators keep so they start faster."
+risk = "Each simulator takes longer to start the first time, while it prepares them again."
+restore = "The simulators make them again when they start."
+action = "trash"
+
+[[rule]]
+id = "swiftpm.cache"
+version = 1
+match.path = "Library/Caches/org.swift.swiftpm"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Swift package cache"
+explain = "Copies of Swift packages that Xcode and SwiftPM have downloaded, kept so later builds are faster."
+risk = "The next build of each project downloads its packages again, which needs a network connection."
+restore = "Xcode and SwiftPM download them again on the next build."
+action = "trash"
+
+[[rule]]
+id = "carthage.cache"
+version = 1
+match.path = "Library/Caches/org.carthage.CarthageKit"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "developer"
+title = "Carthage download cache"
+explain = "Copies of libraries Carthage has downloaded, kept so later builds are faster."
+risk = "The next carthage update or bootstrap downloads them again, which takes longer."
+restore = "Carthage downloads them again when a project needs them."
+action = "trash"

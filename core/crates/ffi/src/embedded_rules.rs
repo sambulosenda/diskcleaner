@@ -27,8 +27,19 @@ pub(crate) const FILES: &[(&str, &str)] = &[
         "everyday.toml",
         include_str!("../../../../rules/everyday.toml"),
     ),
+    ("go.toml", include_str!("../../../../rules/go.toml")),
+    (
+        "homebrew.toml",
+        include_str!("../../../../rules/homebrew.toml"),
+    ),
     ("js.toml", include_str!("../../../../rules/js.toml")),
+    ("jvm.toml", include_str!("../../../../rules/jvm.toml")),
+    ("python.toml", include_str!("../../../../rules/python.toml")),
     ("rust.toml", include_str!("../../../../rules/rust.toml")),
+    (
+        "web_tools.toml",
+        include_str!("../../../../rules/web_tools.toml"),
+    ),
     ("xcode.toml", include_str!("../../../../rules/xcode.toml")),
 ];
 
