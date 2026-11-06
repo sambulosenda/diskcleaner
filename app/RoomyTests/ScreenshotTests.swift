@@ -46,7 +46,10 @@ final class ScreenshotTests: XCTestCase {
             try capture(ContentView().environmentObject(paletteModel), size: CGSize(width: 1120, height: 740),
                         appearance: appearance, to: folder.appendingPathComponent("13-palette-\(suffix).png"))
             let model = makeModel(mode: .developer, state: .neverScanned)
-            try capture(SettingsView().environmentObject(model), size: CGSize(width: 440, height: 200),
+            let lowSpace = LowSpaceMonitor(readDisk: { DiskSummary(totalBytes: 500_000_000_000, freeBytes: 42_000_000_000) },
+                                           notifier: FakeLowSpaceNotifier(),
+                                           defaults: UserDefaults(suiteName: suiteName) ?? .standard)
+            try capture(SettingsView(lowSpace: lowSpace).environmentObject(model), size: CGSize(width: 440, height: 480),
                         appearance: appearance, to: folder.appendingPathComponent("7-settings-\(suffix).png"))
         }
     }
