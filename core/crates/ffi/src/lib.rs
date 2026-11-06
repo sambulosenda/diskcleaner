@@ -19,15 +19,18 @@
 
 mod android;
 mod backup;
+mod changes;
 mod cleanup;
 mod docker;
 mod embedded_rules;
 mod engine;
 mod folders;
+mod javascript;
 mod low_space;
 mod run;
 #[cfg(feature = "testing")]
 mod testing;
+mod tools;
 mod types;
 mod uninstall;
 mod views;
@@ -41,18 +44,23 @@ pub use docker::{
     DockerPreviewItem, DockerStatus, DockerUsageRow,
 };
 pub use engine::RoomyCore;
+pub use javascript::{ActivitySource, JavaScriptOverview, JsProject, PackageManager};
 pub use low_space::{
     check_low_space, low_space_default_threshold, low_space_threshold_choices, LowSpaceCheck,
 };
 #[cfg(feature = "testing")]
 pub use testing::make_fixture_home;
+pub use tools::{
+    ToolCleanupKind, ToolCleanupPreview, ToolCleanupResult, ToolPlanHandle, ToolPreviewItem,
+};
 pub use types::{
     Action, AndroidKind, AndroidOverview, AndroidPart, AndroidProject, AndroidUsage, AppLocation,
-    AppPart, AppReview, AppSummary, Category, CategoryTotal, Caution, CleanupCheck, CleanupChoice,
-    CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult, CleanupResultItem,
-    Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState,
-    ItemDetail, ItemSummary, Mode, Overview, PlanHandle, PrivateArea, PutBackResult, ScanHandle,
-    ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    AppPart, AppReview, AppSummary, Category, CategoryChange, CategoryTotal, Caution, ChangeKind,
+    CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
+    CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess, HistoryEntry, HistoryItem,
+    HistoryItemState, ItemChange, ItemDetail, ItemSummary, LibraryKind, LibrarySize, Mode,
+    Overview, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle, ScanPhase,
+    ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");
@@ -108,6 +116,12 @@ pub enum CoreError {
     /// `list_apps` (or, for `preview_uninstall`, not the app last reviewed).
     #[error("Roomy lost track of this app. Please look again.")]
     UnknownApp,
+    /// A tool clean-up (Homebrew, simulators, Android SDK) could not be
+    /// previewed or was refused before it ran: the tool is missing, the
+    /// review expired, the package was not in the review, or something
+    /// changed. Nothing was removed. `reason` is plain words, no path.
+    #[error("{reason}")]
+    ToolUnavailable { reason: String },
 }
 
 /// Space on the volume that holds a given path, in bytes.

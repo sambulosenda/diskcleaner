@@ -171,6 +171,7 @@ extension SidebarItem {
         switch self {
         case .overview: return ["home", "summary", "disk"]
         case .backups: return ["iphone", "ipad"]
+        case .libraries: return ["photos", "mail", "music", "messages", "attachments", "final cut", "tv"]
         case .downloads: return ["installers", "dmg"]
         case .largeFiles: return ["everything", "all items", "big"]
         case .appsAndCaches: return ["cache", "app data"]
@@ -180,6 +181,7 @@ extension SidebarItem {
         case .android: return ["gradle", "emulator"]
         case .javascript: return ["npm", "node", "yarn", "pnpm"]
         case .docker: return ["images", "containers"]
+        case .tools: return ["brew", "homebrew", "simulators", "sdkmanager", "android sdk"]
         case .apps: return ["uninstall", "delete app", "leftovers"]
         case .cleanup: return ["trash", "free space"]
         case .history: return ["past cleanups", "put back", "undo"]

@@ -1,6 +1,7 @@
 //! The allow-listed tool commands of `docs/safety/allowed-commands.md`.
 //!
-//! Only the two Docker commands are here so far:
+//! The two Docker commands are here. Homebrew, the simulators and the
+//! Android SDK are in [`crate::tools`], which shares [`run_program`].
 //!
 //! | Id | Preview (read-only) | Command |
 //! |---|---|---|
@@ -152,44 +153,58 @@ impl DockerRunner for RealDockerRunner {
             .args(args)
             .env("PATH", &self.path)
             // Keeps Docker's "What's next?" tips out of History.
-            .env("DOCKER_CLI_HINTS", "false")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        let mut child = command.spawn().map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => RunError::NotFound,
-            _ => RunError::Other(format!("Docker could not be started ({e}).")),
-        })?;
-        if let Some(mut pipe) = child.stdin.take() {
-            // A program that never reads its input closes the pipe; that is fine.
-            let _ = pipe.write_all(stdin);
-        }
-        let stdout = child.stdout.take().map(drain);
-        let stderr = child.stderr.take().map(drain);
-        let started = Instant::now();
-        let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
-                Ok(None) if started.elapsed() >= timeout => {
-                    // Stopping the docker program does not undo or corrupt
-                    // anything: Docker itself finishes or abandons the work.
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Err(RunError::TimedOut);
-                }
-                Ok(None) => std::thread::sleep(Duration::from_millis(50)),
-                Err(e) => return Err(RunError::Other(format!("Docker could not be read ({e})."))),
-            }
-        };
-        let collect = |h: Option<std::thread::JoinHandle<String>>| {
-            h.and_then(|h| h.join().ok()).unwrap_or_default()
-        };
-        Ok(Output {
-            success: status.success(),
-            stdout: collect(stdout),
-            stderr: collect(stderr),
-        })
+            .env("DOCKER_CLI_HINTS", "false");
+        run_program(command, stdin, timeout, "Docker")
     }
+}
+
+/// Starts `command`, writes `stdin` to it, and waits at most `timeout`,
+/// collecting stdout and stderr. `name` is the program's name for people,
+/// used in error messages. Shared by every allow-listed command.
+///
+/// Stopping a program that took too long does not undo anything: the tools
+/// on the allow-list finish or abandon their own work safely.
+pub(crate) fn run_program(
+    mut command: Command,
+    stdin: &[u8],
+    timeout: Duration,
+    name: &str,
+) -> Result<Output, RunError> {
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = command.spawn().map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => RunError::NotFound,
+        _ => RunError::Other(format!("{name} could not be started ({e}).")),
+    })?;
+    if let Some(mut pipe) = child.stdin.take() {
+        // A program that never reads its input closes the pipe; that is fine.
+        let _ = pipe.write_all(stdin);
+    }
+    let stdout = child.stdout.take().map(drain);
+    let stderr = child.stderr.take().map(drain);
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if started.elapsed() >= timeout => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(RunError::TimedOut);
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            Err(e) => return Err(RunError::Other(format!("{name} could not be read ({e})."))),
+        }
+    };
+    let collect = |h: Option<std::thread::JoinHandle<String>>| {
+        h.and_then(|h| h.join().ok()).unwrap_or_default()
+    };
+    Ok(Output {
+        success: status.success(),
+        stdout: collect(stdout),
+        stderr: collect(stderr),
+    })
 }
 
 /// Reads a pipe to the end on its own thread.
@@ -438,7 +453,7 @@ fn reclaimed(stdout: &str) -> Option<u64> {
 }
 
 /// Cuts `text` to at most [`KEPT_OUTPUT_BYTES`], on a character boundary.
-fn cut(mut text: String) -> String {
+pub(crate) fn cut(mut text: String) -> String {
     if text.len() > KEPT_OUTPUT_BYTES {
         let mut end = KEPT_OUTPUT_BYTES;
         while !text.is_char_boundary(end) {

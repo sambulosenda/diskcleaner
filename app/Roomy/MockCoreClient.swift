@@ -47,6 +47,10 @@ final class MockCoreClient: CoreClient {
     var access: FullDiskAccess = .granted
     /// How many times `fullDiskAccess` was called. Tests read it.
     private(set) var accessChecks = 0
+    /// What `scanChanges` answers for every finished scan after the first. Tests set it; `nil` by default.
+    var changes: ScanChanges?
+    /// Handles of scans that have finished, in order, so the first one has nothing to compare with.
+    private var finishedScans: [ScanHandle] = []
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -107,7 +111,13 @@ final class MockCoreClient: CoreClient {
         if cancelled.contains(handle) { throw CoreError.ScanCancelled }
         if scenario == .failure { throw CoreError.ScanFailed(reason: "Roomy could not read your home folder.") }
         guard step >= totalSteps else { throw CoreError.ScanNotFinished }
+        if !finishedScans.contains(handle) { finishedScans.append(handle) }
         return MockData.overview(for: scenario)
+    }
+
+    func scanChanges(handle: ScanHandle) async -> ScanChanges? {
+        guard (try? await overview(handle: handle)) != nil, finishedScans.first != handle else { return nil }
+        return changes
     }
 
     func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary] {
@@ -118,11 +128,14 @@ final class MockCoreClient: CoreClient {
             .sorted(by: AppModel.order(for: sort))
     }
 
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize] {
+        _ = try await overview(handle: handle)
+        return MockData.libraries(for: scenario)
+    }
+
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail {
         _ = try await overview(handle: handle)
-        guard let item = MockData.found(for: scenario).first(where: { $0.id == itemId }) else {
-            throw CoreError.UnknownItem
-        }
+        guard let item = MockData.lookup(itemId, in: scenario) else { throw CoreError.UnknownItem }
         return MockData.detail(for: item, mode: modes[handle] ?? .simple)
     }
 
@@ -134,9 +147,7 @@ final class MockCoreClient: CoreClient {
         var seen: Set<String> = []
         var rows: [CleanupPreviewItem] = []
         for choice in choices where seen.insert(choice.itemId).inserted {
-            guard let item = MockData.found(for: scenario).first(where: { $0.id == choice.itemId }) else {
-                throw CoreError.UnknownItem
-            }
+            guard let item = MockData.lookup(choice.itemId, in: scenario) else { throw CoreError.UnknownItem }
             let check: CleanupCheck
             switch item.tier {
             case .keep:
@@ -308,12 +319,96 @@ final class MockCoreClient: CoreClient {
                                    reclaimedBytes: pending.preview.totalBytes, savedToHistory: true)
     }
 
+    // MARK: Tool clean-ups
+
+    /// Tools that are "not installed". Tests set it.
+    var missingTools: Set<ToolCleanupKind> = []
+    /// The waiting tool plan.
+    private var pendingToolPlan: (handle: ToolPlanHandle, preview: ToolCleanupPreview)?
+    private var nextToolPlan: UInt64 = 1
+    /// Every tool command that "ran", as typed, in order. Tests read it. Nothing here runs a tool.
+    private(set) var toolRuns: [String] = []
+
+    func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview {
+        pendingToolPlan = nil
+        if missingTools.contains(kind) {
+            throw CoreError.ToolUnavailable(reason: "Homebrew isn't installed, so there is nothing for it to clean up.")
+        }
+        let items: [ToolPreviewItem]
+        let command: String
+        switch kind {
+        case .homebrew:
+            command = "brew cleanup"
+            items = [
+                ToolPreviewItem(id: "/opt/homebrew/Cellar/node/20.1.0", title: "20.1.0",
+                                detail: "/opt/homebrew/Cellar/node", sizeBytes: 64_000_000),
+                ToolPreviewItem(id: "/Users/sam/Library/Caches/Homebrew/wget--1.21.bottle.tar.gz",
+                                title: "wget--1.21.bottle.tar.gz", detail: "~/Library/Caches/Homebrew",
+                                sizeBytes: 1_600_000),
+            ]
+        case .unavailableSimulators:
+            command = "xcrun simctl delete unavailable"
+            items = [ToolPreviewItem(id: "0A1B2C3D-0000-4000-8000-000000000001", title: "iPhone 14",
+                                     detail: "iOS 16.0", sizeBytes: 1_200_000_000)]
+        case .androidSdkPackage:
+            command = "sdkmanager --uninstall <package>"
+            items = [
+                ToolPreviewItem(id: "build-tools;33.0.1", title: "Android SDK Build-Tools 33.0.1",
+                                detail: "build-tools;33.0.1, version 33.0.1", sizeBytes: 150_000_000),
+                ToolPreviewItem(id: "system-images;android-33;google_apis;arm64-v8a",
+                                title: "Google APIs ARM 64 v8a System Image",
+                                detail: "system-images;android-33;google_apis;arm64-v8a, version 9",
+                                sizeBytes: 3_400_000_000),
+            ]
+        }
+        let plan = ToolPlanHandle(id: nextToolPlan)
+        nextToolPlan += 1
+        let preview = ToolCleanupPreview(plan: plan, kind: kind, commandLine: command, items: items,
+                                         totalBytes: items.reduce(0) { $0 + $1.sizeBytes }, expiresInSeconds: 600)
+        pendingToolPlan = (plan, preview)
+        return preview
+    }
+
+    func discardToolCleanup(plan: ToolPlanHandle) async {
+        if pendingToolPlan?.handle == plan { pendingToolPlan = nil }
+    }
+
+    func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult {
+        guard let pending = pendingToolPlan, pending.handle == plan else {
+            throw CoreError.CleanupUnavailable(reason: "This review is no longer open. Please review again.")
+        }
+        pendingToolPlan = nil
+        let preview = pending.preview
+        var command = preview.commandLine
+        var freed = preview.totalBytes
+        if preview.kind == .androidSdkPackage {
+            guard let package, let item = preview.items.first(where: { $0.id == package }) else {
+                throw CoreError.ToolUnavailable(reason: "That package wasn't in the review, so nothing was removed. Please review again.")
+            }
+            command = "sdkmanager --uninstall \(package)"
+            freed = item.sizeBytes
+        } else if package != nil {
+            throw CoreError.ToolUnavailable(reason: "Roomy refused to run this command.")
+        }
+        toolRuns.append(command)
+        return ToolCleanupResult(kind: preview.kind, commandLine: command, success: true,
+                                 reclaimedBytes: freed, savedToHistory: true)
+    }
+
     // MARK: App uninstaller
 
     /// When true, `previewUninstall` refuses as if the app were open. Tests set it.
     var appIsOpen = false
     /// The app last reviewed, so `previewUninstall` refuses any other, as the core does.
     private var reviewedApp: String?
+
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview {
+        _ = try await overview(handle: handle)
+        guard scenario != .nothingFound, modes[handle] == .developer else {
+            return JavaScriptOverview(projects: [], caches: [], totalBytes: 0)
+        }
+        return MockData.javascript(now: now())
+    }
 
     func listApps() async -> [AppSummary] {
         reviewedApp = nil
@@ -532,6 +627,48 @@ enum MockData {
         scenario == .nothingFound ? [] : items
     }
 
+    /// The item with this id: one the scan lists, or a JavaScript project's `node_modules`. The projects
+    /// are kept out of `items`, so the Overview's figures stay as the wireframe shows them.
+    static func lookup(_ id: String, in scenario: MockCoreClient.Scenario) -> ItemSummary? {
+        guard scenario != .nothingFound else { return nil }
+        return (items + javascriptProjectItems).first { $0.id == id }
+    }
+
+    /// Made-up `node_modules` folders, one per JavaScript project, largest first.
+    static let javascriptProjectItems: [ItemSummary] = [
+        item("js-shop", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             1_840_000_000, .reviewFirst, .build),
+        item("js-blog", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             912_000_000, .reviewFirst, .build),
+        item("js-landing", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             640_000_000, .reviewFirst, .build),
+        item("js-cli", "Project packages (node_modules)",
+             "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
+             210_000_000, .reviewFirst, .build),
+    ]
+
+    /// The JavaScript screen for a Developer mode scan. Dates are counted back from `now`.
+    static func javascript(now: Date) -> JavaScriptOverview {
+        func daysAgo(_ days: Double) -> Int64 { Int64(now.timeIntervalSince1970 - days * 86_400) }
+        let p = javascriptProjectItems
+        let projects = [
+            JsProject(item: p[0], name: "shop", folder: "~/Developer/shop", lastActivityUnixSeconds: daysAgo(2),
+                      activitySource: .git, packageManager: .pnpm, installCommand: "pnpm install", hasManifest: true),
+            JsProject(item: p[1], name: "blog", folder: "~/projects/blog", lastActivityUnixSeconds: daysAgo(210),
+                      activitySource: .lockFile, packageManager: .npm, installCommand: "npm install", hasManifest: true),
+            JsProject(item: p[2], name: "landing", folder: "~/code/landing", lastActivityUnixSeconds: daysAgo(400),
+                      activitySource: .manifest, packageManager: nil, installCommand: nil, hasManifest: true),
+            JsProject(item: p[3], name: "cli", folder: "~/dev/cli", lastActivityUnixSeconds: nil,
+                      activitySource: nil, packageManager: nil, installCommand: nil, hasManifest: false),
+        ]
+        let caches = items.filter { $0.id == "npm-cache" }
+        let total = (p + caches).reduce(0) { $0 + $1.sizeBytes }
+        return JavaScriptOverview(projects: projects, caches: caches, totalBytes: total)
+    }
+
     /// The detail panel for a mock item. `path` is filled in only in Developer mode, as in the core.
     static func detail(for item: ItemSummary, mode: Mode) -> ItemDetail {
         let regenerable = item.tier == .likelySafe
@@ -566,6 +703,23 @@ enum MockData {
     }
 
     /// The Overview a finished scan returns, built the way the contract defines each field.
+    /// The pretend library sizes. Mail is only partly readable, as without Full Disk Access.
+    static func libraries(for scenario: MockCoreClient.Scenario) -> [LibrarySize] {
+        let empty = scenario == .nothingFound
+        func row(_ kind: LibraryKind, _ bytes: UInt64, count: UInt32 = 0, needsAccess: Bool = false) -> LibrarySize {
+            LibrarySize(kind: kind, bytes: empty ? 0 : bytes, libraryCount: empty ? 0 : count,
+                        found: !empty && bytes > 0, needsAccess: needsAccess)
+        }
+        return [
+            row(.photos, 41_300_000_000, count: 1),
+            row(.music, 8_200_000_000, count: 1),
+            row(.tv, 0),
+            row(.mail, 3_600_000_000, needsAccess: !empty),
+            row(.messagesAttachments, 12_700_000_000),
+            row(.finalCut, 0),
+        ]
+    }
+
     static func overview(for scenario: MockCoreClient.Scenario) -> Overview {
         let found = Self.found(for: scenario)
         return Overview(
@@ -576,7 +730,8 @@ enum MockData {
             categories: categoryTotals(found),
             topItems: Array(found.filter { $0.tier != .keep }.sorted { $0.sizeBytes > $1.sizeBytes }.prefix(8)),
             unreadableCount: unreadableCount,
-            unreadableAreas: unreadableAreas
+            unreadableAreas: unreadableAreas,
+            quickRescan: false
         )
     }
 

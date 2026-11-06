@@ -38,6 +38,39 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.scanState, .loaded(MockData.overview(for: .normal), scannedAt: fixedDate))
     }
 
+    func testTheFirstScanHasNoChangesAndTheNextShowsThem() async throws {
+        let model = makeModel()
+        let mock = try XCTUnwrap(model.client as? MockCoreClient)
+        let changes = ScanChanges(
+            previousScanAt: 1_799_990_000, scannedBytesBefore: 50_000_000_000, scannedBytesNow: 54_200_000_000,
+            categories: [CategoryChange(category: .cache, bytesBefore: 1_000_000_000, bytesNow: 5_200_000_000)],
+            items: [ItemChange(itemId: "safari-cache", title: "Safari cache", category: .cache, kind: .grew,
+                               bytesBefore: 1_000_000_000, bytesNow: 5_200_000_000)]
+        )
+        mock.changes = changes
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertNil(model.scanChanges, "nothing to compare the first scan with")
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertEqual(model.scanChanges, changes)
+    }
+
+    func testChangeSummariesUsePlainWords() {
+        func summary(_ before: UInt64, _ now: UInt64) -> String {
+            ChangesSinceLastScan.summary(for: ScanChanges(
+                previousScanAt: 1_800_000_000, scannedBytesBefore: before, scannedBytesNow: now,
+                categories: [], items: []))
+        }
+        XCTAssertTrue(summary(50_000_000_000, 54_000_000_000).hasSuffix("It's \(Format.bytes(4_000_000_000)) bigger now."))
+        XCTAssertTrue(summary(54_000_000_000, 50_000_000_000).hasSuffix("It's \(Format.bytes(4_000_000_000)) smaller now."))
+        XCTAssertTrue(summary(50_000_000_000, 50_000_001_000).hasSuffix("It's about the same size now."))
+        let gone = ItemChange(itemId: nil, title: "Old installer", category: .downloads, kind: .gone,
+                              bytesBefore: 2_000_000_000, bytesNow: 0)
+        XCTAssertEqual(ChangeRow.difference(for: gone), "\u{2212}\(Format.bytes(2_000_000_000))")
+        XCTAssertFalse(ChangeKind.gone.label.isEmpty)
+    }
+
     func testFailedScanShowsAPlainMessage() async {
         let model = makeModel(.failure)
         model.startScan()
@@ -85,11 +118,11 @@ final class AppModelTests: XCTestCase {
     func testSidebarListsEveryWireframeEntryInOrder() {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
-            "Overview", "Backups", "Downloads and installers", "Large files", "Apps and caches",
+            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Apps and caches",
             "System Data", "Remove apps", "Cleanup", "History",
         ])
         model.mode = .developer
-        XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker"])
+        XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker", "Tool clean-ups"])
     }
 
     func testSwitchingToSimpleLeavesADeveloperScreen() {
@@ -827,5 +860,111 @@ final class AppModelTests: XCTestCase {
     func testAStaleAndroidIdReadsPlainly() {
         XCTAssertEqual(AppModel.androidMessage(for: CoreError.UnknownItem),
                        "Some of these are no longer where Roomy last looked. Please look again.")
+    }
+
+    // MARK: - JavaScript
+
+    private func javascriptModel() async -> AppModel {
+        let model = await scannedModel(.developer)
+        model.selection = .javascript
+        await model.waitForJavaScript()
+        return model
+    }
+
+    func testTheJavaScriptScreenListsProjectsAndCachesInDeveloperMode() async {
+        let model = await javascriptModel()
+        guard case .loaded(let overview) = model.javascriptState else {
+            return XCTFail("\(model.javascriptState)")
+        }
+        XCTAssertEqual(overview.projects.map(\.name), ["shop", "blog", "landing", "cli"])
+        XCTAssertEqual(model.visibleJavaScriptCaches.map(\.id), ["npm-cache"])
+        // Nothing is ticked for the user.
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
+    func testJavaScriptProjectsSortByLastWorkedOnWithUndatedLast() async {
+        let model = await javascriptModel()
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["shop", "blog", "landing", "cli"])
+        model.javascriptSort = .leastRecent
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["landing", "blog", "shop", "cli"])
+    }
+
+    func testJavaScriptSearchMatchesNameFolderAndTool() async {
+        let model = await javascriptModel()
+        model.searchText = "pnpm"
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["shop"])
+        model.searchText = "~/code"
+        XCTAssertEqual(model.visibleJavaScriptProjects.map(\.name), ["landing"])
+    }
+
+    func testATickedProjectGoesThroughTheUsualCleanupReview() async throws {
+        let model = await javascriptModel()
+        let blog = try XCTUnwrap(model.visibleJavaScriptProjects.first { $0.name == "blog" })
+        model.setChecked(true, for: blog.item)
+        XCTAssertEqual(model.checkedBytes, blog.item.sizeBytes)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(preview.items.map(\.itemId), [blog.item.id])
+        XCTAssertEqual(preview.items.first?.check, .willMove)
+    }
+
+    func testTheJavaScriptScreenIsEmptyInSimpleMode() async {
+        let model = await scannedModel(.simple)
+        model.selection = .javascript
+        await model.waitForJavaScript()
+        XCTAssertEqual(model.javascriptState, .loaded(JavaScriptOverview(projects: [], caches: [], totalBytes: 0)))
+    }
+
+    func testJavaScriptWordsSayWhenAndHowToGetPackagesBack() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let overview = MockData.javascript(now: now)
+        let shop = overview.projects[0], cli = overview.projects[3]
+        XCTAssertEqual(JavaScriptText.lastWorkedOn(cli, now: now), "No date found")
+        XCTAssertTrue(JavaScriptText.subtitle(shop, now: now).contains("pnpm"))
+        XCTAssertTrue(JavaScriptText.subtitle(shop, now: now).contains("~/Developer/shop"))
+        XCTAssertTrue(JavaScriptText.sourceHelp(shop).contains("run pnpm install"))
+        XCTAssertTrue(JavaScriptText.sourceHelp(cli).contains("no package.json"))
+        XCTAssertEqual(
+            JavaScriptText.summary(overview, now: now),
+            "4 projects, \(Format.bytes(3_602_000_000)). 2 not worked on for 3 months or more, \(Format.bytes(1_552_000_000)).")
+    }
+
+    // MARK: - Photos, Mail and Music
+
+    func testLibrariesScreenAsksForAScanFirst() async {
+        let model = makeModel()
+        let libraries = LibrariesModel(client: model.client)
+        await libraries.load(handle: model.finishedScan)
+        XCTAssertEqual(libraries.phase, .noScan)
+    }
+
+    func testLibrariesShowOnlyWhatWasFoundLargestFirst() async {
+        let model = await scannedModel()
+        let libraries = LibrariesModel(client: model.client)
+        await libraries.load(handle: model.finishedScan)
+        guard case .loaded(let rows) = libraries.phase else { return XCTFail("\(libraries.phase)") }
+        XCTAssertEqual(rows.count, 6)
+        let shown = LibrariesModel.shown(rows)
+        XCTAssertEqual(shown.map(\.kind), [.photos, .messagesAttachments, .music, .mail])
+        XCTAssertTrue(shown.first { $0.kind == .mail }?.needsAccess ?? false)
+    }
+
+    func testLibrariesScreenIsInTheSidebarAndIsNotAList() {
+        XCTAssertEqual(SidebarItem.mainItems.prefix(3), [.overview, .backups, .libraries])
+        XCTAssertNil(SidebarItem.libraries.itemFilter)
+        XCTAssertFalse(SidebarItem.libraries.isDeveloperOnly)
+    }
+
+    func testEveryLibraryHasWordsAndAnApp() {
+        let kinds: [LibraryKind] = [.photos, .music, .tv, .mail, .messagesAttachments, .finalCut]
+        for kind in kinds {
+            XCTAssertFalse(LibraryText.title(kind).isEmpty)
+            XCTAssertFalse(LibraryText.explain(kind).isEmpty)
+            XCTAssertFalse(LibraryText.howToFree(kind).isEmpty)
+            XCTAssertTrue(LibraryText.appBundleID(kind).hasPrefix("com.apple."))
+            XCTAssertFalse(LibraryText.howToFree(kind).lowercased().contains("junk"))
+        }
+        XCTAssertTrue(LibraryActions.messagesAttachmentsFolder.path.hasSuffix("/Library/Messages/Attachments"))
     }
 }

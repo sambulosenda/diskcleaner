@@ -69,6 +69,23 @@ mode leaves out developer rules, so what they describe counts as unknown) and wh
 Licence gates for Developer mode are not part of T09. They belong to the licensing task and will
 be enforced here in the core, not only in the UI.
 
+### `start_rescan(mode: Mode) -> ScanHandle`
+Like `start_scan`, but may read again only the folders that changed since the last finished
+scan in the same mode (F12), and reuse that scan's figures for the rest. The core keeps the last
+scan's folder tree in memory, with the macOS file event (FSEvents) id from just before it
+started, and asks the event log what changed since. It scans everything instead, exactly like
+`start_scan`, whenever it can't be sure: no event log (any system but macOS), no kept tree, a
+different mode, a tree over an hour old, dropped events, wrapped event ids, a mount or unmount,
+the home folder moved, a change outside home, a hard-linked file in a folder it would read
+again, or a folder missing that nothing said changed. Folders the last scan could not read are
+always read again. `Overview.quick_rescan` says which it did. The app uses this for every scan.
+
+### `scan_changes(handle: ScanHandle) -> ScanChanges?` throws
+What grew or shrank since the previous finished scan in the same mode (F11), or `nil` if there
+was none or History could not be used. Each finished scan leaves a short record in History
+(item ids, titles, categories and sizes; no paths); the last 5 per mode are kept. Same errors as
+`list_items`.
+
 ### `scan_progress(handle: ScanHandle) -> ScanProgress` throws
 How far the scan has got. Throws `unknown_scan` for a handle the core does not know (never
 issued, or closed).
@@ -94,6 +111,14 @@ Every item of the scan, optionally only one category and/or one tier, in the giv
 ### `item_detail(handle: ScanHandle, item_id: ItemId) -> ItemDetail` throws
 Everything the detail panel shows for one item. Throws `unknown_item` if the scan has no item
 with that id, plus the same errors as `list_items`.
+
+### `libraries(handle: ScanHandle) -> [LibrarySize]` throws
+How much the Mac's own libraries take, measured from the same scan (PRD E6, E7, C1): Photos,
+Music, TV, Mail, Messages attachments and Final Cut Pro, one row per kind, always in that order.
+Pure: works on the scan's folder tree and reads nothing more. **Shown only**: Roomy never cleans
+inside a library (they are hard-blocked or review-only in `docs/safety/protected-paths.md`), and
+no row holds a path. The app names each library and opens the app that manages it. Same errors
+as `list_items`.
 
 ### `full_disk_access() -> FullDiskAccess`
 Whether Roomy can read the folders macOS keeps private, right now. Lists these folders inside
@@ -173,6 +198,20 @@ After `finished`, `bytes_seen` equals the scan's total.
 | `top_items` | `[ItemSummary]` | Up to 8 of the largest `likely_safe` and `review_first` items, largest first. `keep` items are never here |
 | `unreadable_count` | `u64` | Folders the scan could not read (for example because of privacy protection) |
 | `unreadable_areas` | `[UnreadableArea]` | The same folders, counted by `PrivateArea`. Most folders first, ties in the order `PrivateArea` lists them. The counts add up to `unreadable_count` |
+| `quick_rescan` | `bool` | The scan read again only the folders that changed since the previous scan (see `start_rescan`) |
+
+### `ScanChanges` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `previous_scan_at` | `i64` | When the previous scan finished, seconds since 1970 (UTC) |
+| `scanned_bytes_before` | `u64` | Allocated bytes in the whole home folder then |
+| `scanned_bytes_now` | `u64` | The same, now |
+| `categories` | `[CategoryChange]` | Categories whose total changed by at least 10 MB, biggest change first |
+| `items` | `[ItemChange]` | Items that changed by at least 10 MB, biggest change first, at most 20 |
+
+`CategoryChange` holds `category`, `bytes_before` and `bytes_now`. `ItemChange` holds `item_id`
+(this scan's id, `nil` when the item is gone), `title`, `category`, `kind` (`ChangeKind`:
+`new`, `grew`, `shrank`, `gone`), `bytes_before` (0 if new) and `bytes_now` (0 if gone).
 
 ### `PrivateArea` (enum)
 A part of home that macOS may keep private: `mail`, `messages`, `safari`, `device_backups`,
@@ -259,6 +298,23 @@ Why the core made an item's tier more careful. Carries no path.
 | `unreadable` | Part of it could not be read during the scan |
 | `unusual_name` | A name inside it could not be checked |
 
+### `LibraryKind` (enum)
+`photos` (every `*.photoslibrary` in home), `music` (every `*.musiclibrary`, plus
+`~/Music/Music/Media`, `~/Music/Music/Media.localized` and `~/Music/iTunes`), `tv` (every
+`*.tvlibrary`, plus `~/Movies/TV/Media` and `Media.localized`), `mail` (`~/Library/Mail` and
+`~/Library/Containers/com.apple.mail`), `messages_attachments` (`~/Library/Messages/Attachments`
+only, never the chat database), `final_cut` (every `*.fcpbundle`). A library inside another is
+counted once.
+
+### `LibrarySize` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | `LibraryKind` | Which library. |
+| `bytes` | `u64` | Allocated bytes, counted once. |
+| `library_count` | `u32` | How many separate library bundles were found. 0 for `mail` and `messages_attachments`. |
+| `found` | `bool` | Whether anything of this kind was found. |
+| `needs_access` | `bool` | Part of it couldn't be read (usually Full Disk Access is off), so it may be larger, or exist even though `found` is false. |
+
 ### `CoreError` (error)
 | Value | When |
 |---|---|
@@ -275,6 +331,7 @@ Why the core made an item's tier more careful. Carries no path.
 | `cleanup_unavailable { reason }` | The preview could not check anything, for example because the Trash could not be opened. `reason` is plain words with no path |
 | `nothing_to_put_back` | `put_back_cleanup` was given a cleanup the core no longer holds. Trying again won't help |
 | `docker_unavailable { reason }` | A Docker clean-up could not be previewed, or was refused before it ran (Docker missing or stopped, review expired, or something new appeared). Nothing was removed. Plain words, no path |
+| `tool_unavailable { reason }` | A tool clean-up (Homebrew, simulators, Android SDK) could not be previewed, or was refused before it ran (tool missing, Java missing for `sdkmanager`, review expired, package not in the review, or something changed). Nothing was removed. Plain words, no path |
 | `unknown_app` | `review_app` or `preview_uninstall` was given an app id that is not from the latest `list_apps` (or not the app last reviewed) |
 
 ## Cleanup preview
@@ -587,6 +644,43 @@ and the Gradle cache).
 `name`, `path` (Developer mode only) and `last_activity_unix_seconds` (when its build files or top
 folder last changed).
 
+## JavaScript screen
+
+The Developer mode JavaScript screen (PRD D2). Read only: rows come from the finished scan (the
+`js.*` rules); for each `node_modules` the core reads only the modified times of the project's
+`package.json`, lock files (`package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`,
+`yarn.lock`, `bun.lock`, `bun.lockb`) and the nearest git repository's `.git/index` and
+`.git/logs/HEAD` (never above or at the home folder). It never opens a file and never follows a
+symlink, and it reads a project only after `safety::validate` passes for its `node_modules`.
+Cleaning uses `preview_cleanup` with the rows' item ids, so plans, extra checks, the Trash, put
+back and History are the same as everywhere else.
+
+### `javascript_projects(handle: ScanHandle) -> JavaScriptOverview` throws
+
+Same errors as `list_items`. In simple mode the list is empty (the rules are Developer only), and
+no row would carry a folder anyway.
+
+### `JavaScriptOverview` (record)
+
+`projects: [JsProject]` (largest first, then id), `caches: [ItemSummary]` (the other `js.*` items,
+same order), `total_bytes: u64` (every row added up).
+
+### `JsProject` (record)
+
+`item: ItemSummary` (the `node_modules` item; its id goes to `preview_cleanup`), `name: String`
+(the project folder's name in Developer mode, the item title in simple mode), `folder: String?`
+(Developer mode only, starts `~`), `last_activity_unix_seconds: i64?` (newest of the files above),
+`activity_source: ActivitySource?`, `package_manager: PackageManager?` (from the newest lock file),
+`install_command: String?` (for example `pnpm install`), `has_manifest: bool`.
+
+### `ActivitySource` (enum)
+
+`git`, `lock_file`, `manifest`.
+
+### `PackageManager` (enum)
+
+`npm`, `pnpm`, `yarn`, `bun`.
+
 ## Testing
 
 The `ffi` crate has a `testing` Cargo feature. With it, and only with it, the core also exports:
@@ -661,3 +755,61 @@ these are estimates.
 
 ### `DockerCleanupResult` (record)
 `kind`, `success`, `reclaimed_bytes: u64?`, `saved_to_history`.
+
+## Tool clean-ups
+
+The Tool clean-ups screen (developer mode): the other three commands on the allow-list in
+`docs/safety/allowed-commands.md`. The app sends a `ToolCleanupKind`, never a command line or a path.
+For the Android SDK it also sends the id of one package that the preview listed.
+
+| Kind | Preview (read only) | Command |
+|---|---|---|
+| `homebrew` (`brew_cleanup`) | `brew cleanup --dry-run` | `brew cleanup` |
+| `unavailable_simulators` (`xcrun_simctl_delete_unavailable`) | `xcrun simctl list devices unavailable -j` | `xcrun simctl delete unavailable` |
+| `android_sdk_package` (`sdkmanager_uninstall`) | `sdkmanager --list_installed` | `sdkmanager --uninstall <package>` |
+
+Where the core looks, because a Mac app's own `PATH` holds none of these:
+
+- `brew`: `/opt/homebrew/bin/brew`, then `/usr/local/bin/brew`. Runs with `HOMEBREW_NO_AUTO_UPDATE`,
+  `HOMEBREW_NO_ANALYTICS`, `HOMEBREW_NO_ENV_HINTS` and `HOMEBREW_NO_COLOR` set.
+- `xcrun`: `/usr/bin/xcrun`, only when an Xcode with `simctl` is in `/Applications/Xcode.app`,
+  `/Applications/Xcode-beta.app` or `~/Applications/Xcode.app`. `DEVELOPER_DIR` is set to that Xcode,
+  so a Mac without Xcode never sees the "install developer tools" prompt.
+- `sdkmanager`: inside `~/Library/Android/sdk` only: `cmdline-tools/latest/bin`, else the newest
+  other `cmdline-tools/<version>/bin`, else `tools/bin`. Must be a regular file, not a symlink.
+  `JAVA_HOME` is set to Android Studio's own Java (`/Applications/Android Studio.app/Contents/jbr`)
+  when it is there.
+
+Every program runs with an argument array and a fixed `PATH`, never through a shell. Sizes are
+measured from metadata without following symlinks or leaving the volume: the simulator's folder in
+`~/Library/Developer/CoreSimulator/Devices`, the package's `Location` folder inside the SDK, and
+Homebrew's own figures for `brew`.
+
+### `preview_tool_cleanup(kind: ToolCleanupKind) -> ToolCleanupPreview` throws
+Runs the kind's read-only preview (at most two minutes) and keeps what it listed as a single-use
+plan, replacing any earlier tool plan. For the Android SDK the `cmdline-tools` packages are never
+listed, as removing them would remove `sdkmanager` itself. `plan` is `nil` when there is nothing to
+remove. Throws `tool_unavailable`.
+
+### `discard_tool_cleanup(plan: ToolPlanHandle)`
+Drops the waiting tool plan if it is `plan`.
+
+### `run_tool_cleanup(plan: ToolPlanHandle, package: String?) -> ToolCleanupResult` throws
+Throws `cleanup_unavailable` if `plan` is not the waiting tool plan. The plan is used up either way.
+The executor refuses with `tool_unavailable`, running nothing, if the plan is ten minutes old or
+more; if `package` is missing or not one the preview listed (Android SDK), or given at all (the
+others); or if the preview, run again just now, lists anything the user did not see (for the
+Android SDK: if the package is no longer installed). Then it runs the command, waits up to 30
+minutes, and saves the run to History (`command_runs`, as for Docker). `reclaimed_bytes` is
+Homebrew's "freed approximately" figure, or for the others the size the preview measured when the
+tool succeeded.
+
+### `ToolCleanupKind` (enum)
+`homebrew`, `unavailable_simulators`, `android_sdk_package`.
+
+### `ToolCleanupPreview` (record)
+`plan: ToolPlanHandle?`, `kind`, `command_line` (for the Android SDK, ending in `<package>`),
+`items` (each `id`, `title`, `detail`, `size_bytes`), `total_bytes`, `expires_in_seconds`.
+
+### `ToolCleanupResult` (record)
+`kind`, `command_line`, `success`, `reclaimed_bytes: u64?`, `saved_to_history`.

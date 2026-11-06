@@ -151,6 +151,18 @@ fn the_t07_rules_are_all_there() {
         "puppeteer.browser",
         "maven.repository",
         "dart.pub_cache",
+        // Local AI models (PRD D12)
+        "ollama.models",
+        "lm_studio.model",
+        "lm_studio.model_legacy",
+        "huggingface.model",
+        "huggingface.dataset",
+        // Video apps
+        "final_cut.render_files",
+        "final_cut.proxy_media",
+        "adobe.media_cache_files",
+        "adobe.media_cache_database",
+        "adobe.after_effects_disk_cache",
     ]
     .into_iter()
     .map(str::to_string)
@@ -381,6 +393,56 @@ fn android_rust_ai_and_editor_rules_match_exactly_the_expected_items() {
 }
 
 #[test]
+fn video_app_rules_match_only_their_caches_and_are_never_likely_safe() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let in_events = |sub: &str| -> BTreeSet<String> {
+        paths::FCP_EVENTS
+            .iter()
+            .map(|e| format!("{}/{e}/{sub}", paths::FCP_LIBRARY))
+            .collect()
+    };
+    assert_eq!(found("final_cut.render_files"), in_events("Render Files"));
+    assert_eq!(
+        found("final_cut.proxy_media"),
+        in_events("Transcoded Media/Proxy Media")
+    );
+    let one = |p: &str| -> BTreeSet<String> { [p.to_string()].into_iter().collect() };
+    assert_eq!(
+        found("adobe.media_cache_files"),
+        one(paths::ADOBE_MEDIA_CACHE_FILES)
+    );
+    assert_eq!(
+        found("adobe.media_cache_database"),
+        one(paths::ADOBE_MEDIA_CACHE_DB)
+    );
+    assert_eq!(
+        found("adobe.after_effects_disk_cache"),
+        paths::AFTER_EFFECTS_VERSIONS
+            .iter()
+            .map(|v| format!("{}/{v}", paths::AFTER_EFFECTS_CACHE))
+            .collect()
+    );
+    // The library itself, its project data and original media never match.
+    for r in rules
+        .iter()
+        .filter(|r| r.id.starts_with("final_cut.") || r.id.starts_with("adobe."))
+    {
+        assert_eq!(r.tier, rules::Tier::ReviewFirst, "{}", r.id);
+        assert_eq!(r.action, rules::Action::Trash, "{}", r.id);
+        for m in matches_in(r, &manifest) {
+            assert!(!m.ends_with(".fcpbundle"), "{m}");
+            assert!(!m.contains("Original Media"), "{m}");
+        }
+    }
+}
+
+#[test]
 fn no_rule_matches_a_folder_called_target_that_is_not_cargos() {
     let (_dir, manifest) = fixture_manifest();
     for r in repo_rules() {
@@ -590,6 +652,91 @@ fn no_rule_matches_installed_tools_settings_or_own_code() {
         ".pub-cache",
         "Library/Developer/Xcode/UserData",
         "Library/org.swift.swiftpm",
+    ];
+    for r in repo_rules() {
+        let hits = matches_in(&r, &manifest);
+        for p in never {
+            assert!(
+                !hits
+                    .iter()
+                    .any(|h| h == p || p.starts_with(&format!("{h}/"))),
+                "{} matches {p} or a folder holding it",
+                r.id
+            );
+        }
+    }
+}
+
+#[test]
+fn ai_model_rules_match_exactly_the_expected_items() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let under = |home: &str, names: &[&str]| -> BTreeSet<String> {
+        names.iter().map(|n| format!("{home}/{n}")).collect()
+    };
+
+    assert_eq!(found("ollama.models"), under(".ollama", &["models"]));
+    assert_eq!(
+        found("lm_studio.model"),
+        under(paths::LM_STUDIO_MODELS, &paths::LM_STUDIO_MODEL_NAMES)
+    );
+    assert_eq!(
+        found("lm_studio.model_legacy"),
+        under(
+            paths::LM_STUDIO_LEGACY_MODELS,
+            &[paths::LM_STUDIO_LEGACY_MODEL]
+        )
+    );
+    assert_eq!(
+        found("huggingface.model"),
+        under(paths::HUGGINGFACE_HUB, &paths::HUGGINGFACE_MODELS)
+    );
+    assert_eq!(
+        found("huggingface.dataset"),
+        under(paths::HUGGINGFACE_HUB, &[paths::HUGGINGFACE_DATASET])
+    );
+}
+
+#[test]
+fn ai_model_rules_are_review_first_and_never_permanently_deleted() {
+    let rules = repo_rules();
+    for id in [
+        "ollama.models",
+        "lm_studio.model",
+        "lm_studio.model_legacy",
+        "huggingface.model",
+        "huggingface.dataset",
+    ] {
+        let r = rule(&rules, id);
+        assert_eq!(r.tier, Tier::ReviewFirst, "{id}");
+        assert!(!r.regenerable, "{id}");
+    }
+    // Ollama's layers are shared between models, so moving them by hand
+    // would break other models: show only, and point to `ollama rm`.
+    assert_eq!(
+        rule(&rules, "ollama.models").action,
+        rules::Action::ShowOnly
+    );
+}
+
+#[test]
+fn no_rule_matches_ai_tool_keys_tokens_or_chats() {
+    let (_dir, manifest) = fixture_manifest();
+    let never = [
+        paths::TRAP_OLLAMA_KEY,
+        ".ollama/history",
+        ".ollama",
+        paths::TRAP_LM_STUDIO_CONVERSATIONS,
+        ".lmstudio",
+        paths::LM_STUDIO_MODELS,
+        paths::TRAP_HUGGINGFACE_TOKEN,
+        paths::HUGGINGFACE_HUB,
+        ".cache/huggingface",
     ];
     for r in repo_rules() {
         let hits = matches_in(&r, &manifest);

@@ -318,3 +318,46 @@ pub const SWIFTPM_FINGERPRINTS: &str =
     "Library/org.swift.swiftpm/security/fingerprints/swift-log.json";
 /// Carthage's download cache.
 pub const CARTHAGE_CACHE: &str = "Library/Caches/org.carthage.CarthageKit";
+
+/// Ollama's models folder: shared layers in blobs, one manifest per model.
+pub const OLLAMA_MODELS: &str = ".ollama/models";
+/// Ollama's private key, next to the models. No rule may match it.
+pub const TRAP_OLLAMA_KEY: &str = ".ollama/id_ed25519";
+/// LM Studio's models folder, one folder per publisher, then per model.
+pub const LM_STUDIO_MODELS: &str = ".lmstudio/models";
+/// The models in LM Studio's folder, as publisher/model.
+pub const LM_STUDIO_MODEL_NAMES: [&str; 2] = [
+    "lmstudio-community/Qwen2.5-7B-Instruct-GGUF",
+    "mlx-community/Llama-3.2-3B-Instruct-4bit",
+];
+/// LM Studio's settings and chats, next to the models. No rule may match them.
+pub const TRAP_LM_STUDIO_CONVERSATIONS: &str = ".lmstudio/conversations";
+/// The models folder older LM Studio versions used.
+pub const LM_STUDIO_LEGACY_MODELS: &str = ".cache/lm-studio/models";
+/// The model in LM Studio's older folder, as publisher/model.
+pub const LM_STUDIO_LEGACY_MODEL: &str = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF";
+/// The Hugging Face download cache.
+pub const HUGGINGFACE_HUB: &str = ".cache/huggingface/hub";
+/// Models in the Hugging Face cache.
+pub const HUGGINGFACE_MODELS: [&str; 2] = [
+    "models--sentence-transformers--all-MiniLM-L6-v2",
+    "models--openai--whisper-small",
+];
+/// A dataset in the Hugging Face cache.
+pub const HUGGINGFACE_DATASET: &str = "datasets--squad";
+/// The Hugging Face sign-in token. No rule may match it.
+pub const TRAP_HUGGINGFACE_TOKEN: &str = ".cache/huggingface/token";
+/// A Final Cut Pro library (review-only as a whole; caches inside may be
+/// matched by a specific rule).
+pub const FCP_LIBRARY: &str = "Movies/Holiday 2026.fcpbundle";
+/// The events inside the Final Cut library.
+pub const FCP_EVENTS: [&str; 2] = ["Day 1", "Day 2"];
+/// The Adobe media cache files folder.
+pub const ADOBE_MEDIA_CACHE_FILES: &str =
+    "Library/Application Support/Adobe/Common/Media Cache Files";
+/// The Adobe media cache database folder.
+pub const ADOBE_MEDIA_CACHE_DB: &str = "Library/Application Support/Adobe/Common/Media Cache";
+/// After Effects' disk cache root, one folder per version.
+pub const AFTER_EFFECTS_CACHE: &str = "Library/Caches/Adobe/After Effects";
+/// The After Effects versions in the fixture.
+pub const AFTER_EFFECTS_VERSIONS: [&str; 1] = ["25.0"];

@@ -29,6 +29,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "plist",
+ "scanner",
  "tempfile",
  "thiserror",
  "tracing",
@@ -442,6 +443,7 @@ dependencies = [
  "rules",
  "safety",
  "scanner",
+ "serde_json",
  "sha2",
  "tempfile",
  "thiserror",

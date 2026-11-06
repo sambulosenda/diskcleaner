@@ -8,7 +8,9 @@ import Foundation
 /// call off the main thread.
 @MainActor
 protocol CoreClient: AnyObject {
-    /// Starts a read-only scan of the home folder and returns its handle straight away.
+    /// Starts a read-only scan of the home folder and returns its handle straight away. The real core reads
+    /// again only the folders that changed since the last scan when it can be sure which those are
+    /// (`Overview.quickRescan`), and otherwise scans everything.
     func startScan(mode: Mode) async -> ScanHandle
 
     /// How far the scan has got. Throws `CoreError.UnknownScan` for a handle the core doesn't know.
@@ -23,11 +25,24 @@ protocol CoreClient: AnyObject {
     /// The Overview for a finished scan. Throws `CoreError.ScanNotFinished` while it runs.
     func overview(handle: ScanHandle) async throws -> Overview
 
+    /// What grew or shrank since the previous scan in the same mode, or `nil` if there was none (or the core
+    /// can't say). Holds no paths.
+    func scanChanges(handle: ScanHandle) async -> ScanChanges?
+
     /// Every item of a finished scan, optionally one category and/or one tier (`nil` means any).
     func listItems(handle: ScanHandle, category: Category?, tier: Tier?, sort: Sort) async throws -> [ItemSummary]
 
+    /// How much Photos, Music, TV, Mail, Messages attachments and Final Cut Pro take in a finished scan.
+    /// Shown only: Roomy never cleans inside these libraries. One row per kind, in the same order every time.
+    func libraries(handle: ScanHandle) async throws -> [LibrarySize]
+
     /// Everything the detail panel shows for one item. Throws `CoreError.UnknownItem` for an unknown id.
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail
+
+    /// The JavaScript screen: each project's `node_modules` with when the project was last worked on, and
+    /// the package managers' caches, from a finished scan. Reads file dates only. Rows carry item ids, so
+    /// they are cleaned with `previewCleanup` like any item.
+    func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview
 
     /// The dry run: checks the ticked items the way a cleanup would and says what would move to the
     /// Trash. Moves nothing. Sends item ids only, never paths.
@@ -67,6 +82,19 @@ protocol CoreClient: AnyObject {
     /// Runs the reviewed Docker clean-up. The core checks again first and refuses, removing nothing, if
     /// anything new appeared. The plan is used up.
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult
+
+    /// The dry run of one tool clean-up (`brew cleanup`, deleting unavailable simulators, or one Android SDK
+    /// package): what the tool would remove. Removes nothing. Sends a kind, never a command. Throws
+    /// `CoreError.ToolUnavailable` if the tool is missing. `sdkmanager` can take a minute.
+    func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview
+
+    /// Drops the plan a tool preview made, when the user closes the review without removing anything.
+    func discardToolCleanup(plan: ToolPlanHandle) async
+
+    /// Runs the reviewed tool clean-up. `package` is the id of one package from the review for the Android
+    /// SDK, and `nil` otherwise. The core checks again first and refuses, removing nothing, if anything
+    /// changed. The plan is used up.
+    func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult
 
     /// The app uninstaller: every app in /Applications and ~/Applications, except Apple's and Roomy, with
     /// its size. Reads only. Each call gives new app ids.
