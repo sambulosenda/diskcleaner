@@ -19,8 +19,21 @@ required-features = ["bindgen"]
 [features]
 # Only used by scripts/build-ffi.sh to generate Swift bindings; keeps the CLI out of the app library.
 bindgen = ["uniffi/cli"]
+# Test-only commands: a constructor that scans any folder instead of the real home folder, and
+# a fixture-home builder. Never enabled in the release app (see docs/command-contract.md).
+testing = ["dep:fixtures"]
 
 [dependencies]
+classifier = { path = "../classifier" }
+dirs = "6"
+fixtures = { path = "../fixtures", optional = true }
 libc = "0.2"
+rules = { path = "../rules" }
+scanner = { path = "../scanner" }
 thiserror = "2"
+tracing = "0.1"
 uniffi = "0.32"
+
+[dev-dependencies]
+fixtures = { path = "../fixtures" }
+tempfile = "3"

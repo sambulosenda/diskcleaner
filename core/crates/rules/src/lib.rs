@@ -226,6 +226,28 @@ pub fn load_dir(dir: &Path) -> (Vec<Rule>, Vec<RuleError>) {
     (rules, errors)
 }
 
+/// Like [`load_dir`], but for rule files already in memory, such as rules
+/// built into the app. Each entry is a file name (used only in error
+/// messages) and that file's text. Files are checked in the order given.
+///
+/// Applies exactly the same checks as [`load_dir`], including dropping
+/// every rule whose id is used more than once.
+pub fn load_texts(files: &[(&str, &str)]) -> (Vec<Rule>, Vec<RuleError>) {
+    let mut loaded = Vec::new();
+    let mut errors = Vec::new();
+    for (name, text) in files {
+        let file = PathBuf::from(name);
+        let (rules, errs) = parse_file(&file, text);
+        loaded.extend(rules.into_iter().map(|(pos, r)| (file.clone(), pos, r)));
+        errors.extend(errs);
+    }
+    let rules = drop_duplicate_ids(loaded, &mut errors);
+    for err in &errors {
+        tracing::warn!(error = %err, "rule rejected");
+    }
+    (rules, errors)
+}
+
 /// Parses and checks the text of one rule file. `file` is used only in
 /// error messages. Returns each good rule with its position (from 1).
 ///

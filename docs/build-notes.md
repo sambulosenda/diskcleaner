@@ -11,6 +11,10 @@ How the Rust core gets into the Xcode app, and every Xcode setting changed by ha
    - generates the Swift bindings with UniFFI in library mode into `app/Generated/`.
 3. Open `app/Roomy.xcodeproj` and build, or run `xcodebuild -scheme Roomy -destination 'platform=macOS' test` from `app/`.
 
+By default the script builds the core with the `testing` feature, which adds the test-only commands
+`RoomyCore.withHomeForTesting(home:)` and `makeFixtureHome(dir:)` that the Xcode tests use (see
+`docs/command-contract.md`). `./scripts/build-ffi.sh --release-app` leaves them out; release builds must use it.
+
 Run the script again after any change to the Rust core. `app/Generated/` is git-ignored, so Xcode fails with
 "no such module 'roomy_coreFFI'" or a missing `roomy_core.swift` until the script has run once.
 
@@ -43,3 +47,11 @@ the app's copy of the library.
   compiled into the app's library.
 - Free space comes from `statfs` (`f_bavail`), which does not count purgeable space. Finder's figure may be
   higher. This is fine for T02; T09 can revisit it.
+
+## App shell (T10)
+- New app sources live flat in `app/Roomy/` and were added to the Roomy target's Sources by hand in `project.pbxproj`;
+  new tests in `app/RoomyTests/` were added to the RoomyTests target the same way.
+- The app runs on `MockCoreClient` until T11. Launch with `-RoomyMockScenario failure` or `-RoomyMockScenario nothingFound`
+  to see the error and nothing-found states.
+- Screenshots of every state, light and dark:
+  `TEST_RUNNER_ROOMY_SCREENSHOTS_DIR=/tmp/roomy-shots xcodebuild -scheme Roomy -destination 'platform=macOS' test -only-testing:RoomyTests/ScreenshotTests`

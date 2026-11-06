@@ -11,6 +11,20 @@
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
 		A10000000000000000000003 /* RoomyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RoomyTests.swift */; };
 		A10000000000000000000004 /* roomy_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* roomy_core.swift */; };
+		A10000000000000000000040 /* CommandContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* CommandContractTests.swift */; };
+		A10000000000000000000020 /* CoreTypesUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* CoreTypesUI.swift */; };
+		A10000000000000000000021 /* CoreClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* CoreClient.swift */; };
+		A10000000000000000000022 /* MockCoreClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* MockCoreClient.swift */; };
+		A10000000000000000000023 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* AppModel.swift */; };
+		A10000000000000000000024 /* SidebarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* SidebarItem.swift */; };
+		A10000000000000000000025 /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* Formatting.swift */; };
+		A10000000000000000000026 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* OverviewView.swift */; };
+		A10000000000000000000027 /* CategoryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* CategoryStrip.swift */; };
+		A10000000000000000000028 /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* StateViews.swift */; };
+		A10000000000000000000029 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* SettingsView.swift */; };
+		A10000000000000000000030 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* AppModelTests.swift */; };
+		A10000000000000000000031 /* MockCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MockCoreClientTests.swift */; };
+		A10000000000000000000032 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* ScreenshotTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,8 +42,22 @@
 		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* RoomyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomyTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* roomy_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = roomy_core.swift; sourceTree = "<group>"; };
+		A20000000000000000000040 /* CommandContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandContractTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000010 /* Roomy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Roomy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000011 /* RoomyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RoomyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000020 /* CoreTypesUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTypesUI.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* CoreClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* MockCoreClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCoreClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		A20000000000000000000024 /* SidebarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarItem.swift; sourceTree = "<group>"; };
+		A20000000000000000000025 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
+		A20000000000000000000026 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* CategoryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStrip.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A20000000000000000000030 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000031 /* MockCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCoreClientTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000032 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +93,16 @@
 			children = (
 				A20000000000000000000001 /* RoomyApp.swift */,
 				A20000000000000000000002 /* ContentView.swift */,
+				A20000000000000000000020 /* CoreTypesUI.swift */,
+				A20000000000000000000021 /* CoreClient.swift */,
+				A20000000000000000000022 /* MockCoreClient.swift */,
+				A20000000000000000000023 /* AppModel.swift */,
+				A20000000000000000000024 /* SidebarItem.swift */,
+				A20000000000000000000025 /* Formatting.swift */,
+				A20000000000000000000026 /* OverviewView.swift */,
+				A20000000000000000000027 /* CategoryStrip.swift */,
+				A20000000000000000000028 /* StateViews.swift */,
+				A20000000000000000000029 /* SettingsView.swift */,
 			);
 			path = Roomy;
 			sourceTree = "<group>";
@@ -73,6 +111,10 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000003 /* RoomyTests.swift */,
+				A20000000000000000000040 /* CommandContractTests.swift */,
+				A20000000000000000000030 /* AppModelTests.swift */,
+				A20000000000000000000031 /* MockCoreClientTests.swift */,
+				A20000000000000000000032 /* ScreenshotTests.swift */,
 			);
 			path = RoomyTests;
 			sourceTree = "<group>";
@@ -194,6 +236,16 @@
 			files = (
 				A10000000000000000000001 /* RoomyApp.swift in Sources */,
 				A10000000000000000000002 /* ContentView.swift in Sources */,
+				A10000000000000000000020 /* CoreTypesUI.swift in Sources */,
+				A10000000000000000000021 /* CoreClient.swift in Sources */,
+				A10000000000000000000022 /* MockCoreClient.swift in Sources */,
+				A10000000000000000000023 /* AppModel.swift in Sources */,
+				A10000000000000000000024 /* SidebarItem.swift in Sources */,
+				A10000000000000000000025 /* Formatting.swift in Sources */,
+				A10000000000000000000026 /* OverviewView.swift in Sources */,
+				A10000000000000000000027 /* CategoryStrip.swift in Sources */,
+				A10000000000000000000028 /* StateViews.swift in Sources */,
+				A10000000000000000000029 /* SettingsView.swift in Sources */,
 				A10000000000000000000004 /* roomy_core.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -203,6 +255,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000003 /* RoomyTests.swift in Sources */,
+				A10000000000000000000040 /* CommandContractTests.swift in Sources */,
+				A10000000000000000000030 /* AppModelTests.swift in Sources */,
+				A10000000000000000000031 /* MockCoreClientTests.swift in Sources */,
+				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
