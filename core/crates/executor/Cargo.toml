@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+analysers = { path = "../analysers" }
 ignore = "0.4"
 libc = "0.2"
 planner = { path = "../planner" }
@@ -14,6 +15,7 @@ thiserror = "2"
 tracing = "0.1"
 
 [dev-dependencies]
+rules = { path = "../rules" }
 fixtures = { path = "../fixtures" }
 scanner = { path = "../scanner" }
 sha2 = "0.10"

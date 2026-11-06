@@ -274,6 +274,7 @@ Why the core made an item's tier more careful. Carries no path.
 | `nothing_selected` | `preview_cleanup` was called with no items |
 | `cleanup_unavailable { reason }` | The preview could not check anything, for example because the Trash could not be opened. `reason` is plain words with no path |
 | `nothing_to_put_back` | `put_back_cleanup` was given a cleanup the core no longer holds. Trying again won't help |
+| `docker_unavailable { reason }` | A Docker clean-up could not be previewed, or was refused before it ran (Docker missing or stopped, review expired, or something new appeared). Nothing was removed. Plain words, no path |
 
 ## Cleanup preview
 
@@ -481,3 +482,60 @@ that, so a shipped app can only ever scan the real home folder. This matters mor
 commands exist, because the executor checks paths are inside the home folder it was given.
 
 The T02 commands `core_version()` and `disk_summary(path)` are unchanged.
+
+## Docker
+
+The Docker screen (developer mode). The app sends a `DockerCleanupKind`, never a command line or a
+Docker id. Only the two Docker commands on the allow-list in `docs/safety/allowed-commands.md` can
+run, each after its read-only preview. Volumes are shown and never offered for removal. No command
+ever gets `-f`, `--force`, `-a` or `--all`.
+
+The core looks for `docker` in `/usr/local/bin`, `/opt/homebrew/bin`, `~/.docker/bin`,
+`/Applications/Docker.app/Contents/Resources/bin`, `/usr/bin` and `/bin`, because a Mac app's own
+`PATH` holds none of them. Every call blocks until Docker answers, so the app calls them off the main
+thread.
+
+### `docker_overview() -> DockerOverview`
+Runs the read-only `docker system df --format '{{json .}}'` (at most 20 seconds) and reads the size
+of Docker Desktop's disk image (`~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw`,
+allocated bytes, never following a symlink). Never throws: a missing, stopped or unreadable Docker
+is a `DockerStatus`.
+
+### `preview_docker_cleanup(kind: DockerCleanupKind) -> DockerCleanupPreview` throws
+Runs the kind's read-only preview (`docker image ls --filter dangling=true --format json` or
+`docker builder du`) and keeps what it listed as a single-use plan, replacing any earlier Docker
+plan. For build cache only records Docker marks reclaimable are listed. `plan` is `nil` when there is
+nothing to remove. Throws `docker_unavailable`.
+
+### `discard_docker_cleanup(plan: DockerPlanHandle)`
+Drops the waiting Docker plan if it is `plan`.
+
+### `run_docker_cleanup(plan: DockerPlanHandle) -> DockerCleanupResult` throws
+Throws `cleanup_unavailable` if `plan` is not the waiting Docker plan. Otherwise the executor
+refuses it with `docker_unavailable`, running nothing, if it is ten minutes old or more, or if the
+preview, run again just now, lists anything the user did not see. Then it runs `docker image prune`
+or `docker builder prune`, answering Docker's own prompt with `y` on stdin, waits up to 30 minutes,
+and saves the run to History (`command_runs`: command, exit status, bytes Docker says it freed, and
+Docker's full stdout and stderr, cut at 64 KB each). A run that started is recorded even if Docker
+reported a problem; `success` says which.
+
+### `DockerCleanupKind` (enum)
+`unused_images` (`docker_image_prune`), `build_cache` (`docker_builder_prune`).
+
+### `DockerStatus` (enum)
+`not_installed`, `not_running`, `unavailable { reason }`, `ready`.
+
+### `DockerUsageRow` (record)
+`count`, `active`, `size_bytes`, `reclaimable_bytes`, all `u64`. Docker rounds sizes for people, so
+these are estimates.
+
+### `DockerOverview` (record)
+`status`, `images`, `containers`, `volumes`, `build_cache` (all zero unless `ready`),
+`disk_image_bytes: u64?`.
+
+### `DockerCleanupPreview` (record)
+`plan: DockerPlanHandle?`, `kind`, `command_line` (such as `docker image prune`), `items` (each
+`id`, `size_bytes`, `age` in Docker's words), `total_bytes`, `expires_in_seconds`.
+
+### `DockerCleanupResult` (record)
+`kind`, `success`, `reclaimed_bytes: u64?`, `saved_to_history`.

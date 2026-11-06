@@ -136,3 +136,63 @@ final class MockCoreClientTests: XCTestCase {
         } catch CoreError.NothingSelected {}
     }
 }
+
+/// The Docker screen's model, against the mock. Nothing here runs Docker.
+@MainActor
+final class DockerModelTests: XCTestCase {
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<400 {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: 5_000_000)
+        }
+    }
+
+    func testLoadShowsDockersAnswer() async {
+        let model = DockerModel(client: MockCoreClient())
+        await model.load()
+        guard case .loaded(let overview) = model.phase else { return XCTFail("\(model.phase)") }
+        XCTAssertEqual(overview.status, .ready)
+        XCTAssertEqual(overview.images.reclaimableBytes, 2_740_000_000)
+    }
+
+    func testReviewThenConfirmRunsOnceAndReloads() async {
+        let mock = MockCoreClient()
+        let model = DockerModel(client: mock)
+        await model.load()
+        model.startReview(.unusedImages)
+        await waitUntil { if case .ready = model.review { return true } else { return false } }
+        guard case .ready(let preview) = model.review else { return XCTFail("\(model.review)") }
+        XCTAssertEqual(preview.items.count, 2)
+        XCTAssertTrue(mock.dockerRuns.isEmpty, "a review removes nothing")
+        model.confirm()
+        await waitUntil { if case .done = model.review { return true } else { return false } }
+        XCTAssertEqual(mock.dockerRuns, [.unusedImages])
+        await waitUntil {
+            if case .loaded(let o) = model.phase { return o.images.reclaimableBytes == 0 } else { return false }
+        }
+        guard case .loaded(let overview) = model.phase else { return XCTFail("\(model.phase)") }
+        XCTAssertEqual(overview.images.reclaimableBytes, 0)
+    }
+
+    func testClosingAReviewRunsNothing() async {
+        let mock = MockCoreClient()
+        let model = DockerModel(client: mock)
+        model.startReview(.buildCache)
+        await waitUntil { if case .ready = model.review { return true } else { return false } }
+        model.closeReview()
+        XCTAssertEqual(model.review, .closed)
+        XCTAssertTrue(mock.dockerRuns.isEmpty)
+    }
+
+    func testAStoppedDockerFailsInPlainWords() async {
+        let mock = MockCoreClient()
+        mock.dockerStatus = .notRunning
+        let model = DockerModel(client: mock)
+        await model.load()
+        guard case .loaded(let overview) = model.phase else { return XCTFail("\(model.phase)") }
+        XCTAssertEqual(overview.status, .notRunning)
+        model.startReview(.unusedImages)
+        await waitUntil { if case .failed = model.review { return true } else { return false } }
+        XCTAssertEqual(model.review, .failed("Docker isn't running. Open Docker and try again."))
+    }
+}
