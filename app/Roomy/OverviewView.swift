@@ -144,13 +144,13 @@ struct WorthReviewingRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.body.weight(.medium))
-                Text(item.explanation)
+                Text(item.explain)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             Spacer(minLength: 12)
-            Text(Format.bytes(item.bytes))
+            Text(Format.bytes(item.sizeBytes))
                 .font(.body.monospacedDigit())
             TierLabel(tier: item.tier)
                 .frame(width: 110, alignment: .trailing)
@@ -158,8 +158,8 @@ struct WorthReviewingRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.title), \(Format.bytes(item.bytes)), \(item.tier.label)")
-        .accessibilityHint(item.explanation)
+        .accessibilityLabel("\(item.title), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
+        .accessibilityHint(item.explain)
     }
 }
 
@@ -228,40 +228,5 @@ struct OverviewFooter: View {
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
-    }
-}
-
-extension Tier {
-    /// SF Symbol paired with the tier's text.
-    var symbol: String {
-        switch self {
-        case .likelySafe: return "checkmark.circle.fill"
-        case .reviewFirst: return "eye.circle.fill"
-        case .keep: return "lock.circle.fill"
-        }
-    }
-
-    /// Supporting colour. Never the only signal; no red, which is kept for real errors.
-    var tint: Color {
-        switch self {
-        case .likelySafe: return .green
-        case .reviewFirst: return .orange
-        case .keep: return .gray
-        }
-    }
-}
-
-extension Category {
-    /// SF Symbol for rows in this category.
-    var symbol: String {
-        switch self {
-        case .appsAndCaches: return "square.grid.2x2"
-        case .developer: return "hammer"
-        case .largeFiles: return "doc"
-        case .backups: return "externaldrive"
-        case .downloads: return "arrow.down.circle"
-        case .systemData: return "gearshape"
-        case .other: return "ellipsis.circle"
-        }
     }
 }

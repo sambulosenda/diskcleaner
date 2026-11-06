@@ -31,6 +31,8 @@ final class AppModel: ObservableObject {
     private let now: () -> Date
     private var scanTask: Task<Void, Never>?
     private var activeHandle: ScanHandle?
+    /// The scan whose results are showing. Kept so later screens can list its items; closed on rescan.
+    private var loadedHandle: ScanHandle?
     private var stateBeforeScan: ScanState = .neverScanned
 
     /// - Parameters:
@@ -45,7 +47,7 @@ final class AppModel: ObservableObject {
         self.defaults = defaults
         self.pollInterval = pollInterval
         self.now = now
-        self.mode = Mode(rawValue: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
+        self.mode = Mode(storageKey: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
     }
 
     var isScanning: Bool {
@@ -62,7 +64,7 @@ final class AppModel: ObservableObject {
         guard !query.isEmpty else { return overview.topItems }
         return overview.topItems.filter {
             $0.title.localizedCaseInsensitiveContains(query)
-                || $0.explanation.localizedCaseInsensitiveContains(query)
+                || $0.explain.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -70,7 +72,7 @@ final class AppModel: ObservableObject {
     func startScan() {
         guard !isScanning else { return }
         stateBeforeScan = scanState
-        scanState = .scanning(ScanProgress(bytesSeen: 0, itemsSeen: 0, phase: .measuring))
+        scanState = .scanning(ScanProgress(bytesSeen: 0, itemsSeen: 0, phase: .scanning))
         scanTask = Task { [weak self] in
             await self?.runScan()
         }
@@ -82,7 +84,10 @@ final class AppModel: ObservableObject {
         scanTask?.cancel()
         scanTask = nil
         if let handle = activeHandle {
-            Task { await client.cancelScan(handle) }
+            Task {
+                await client.cancelScan(handle: handle)
+                await client.closeScan(handle: handle)
+            }
         }
         activeHandle = nil
         scanState = stateBeforeScan
@@ -103,36 +108,69 @@ final class AppModel: ObservableObject {
     #endif
 
     private func runScan() async {
+        let handle = await client.startScan(mode: mode)
+        guard !Task.isCancelled else { return await client.closeScan(handle: handle) }
+        activeHandle = handle
         do {
-            let handle = try await client.startScan(mode: mode)
-            guard !Task.isCancelled else { return await client.cancelScan(handle) }
-            activeHandle = handle
             while true {
-                let progress = try await client.scanProgress(handle)
+                let progress = try await client.scanProgress(handle: handle)
                 guard !Task.isCancelled else { return }
-                if progress.phase == .done { break }
-                scanState = .scanning(progress)
-                try await Task.sleep(nanoseconds: pollInterval)
+                switch progress.phase {
+                case .scanning, .classifying:
+                    scanState = .scanning(progress)
+                    try await Task.sleep(nanoseconds: pollInterval)
+                    continue
+                case .finished:
+                    break
+                case .cancelled:
+                    // Only `cancelScan()` cancels, and it has already restored the earlier state.
+                    return
+                case .failed(let reason):
+                    finish(handle, with: .failed(reason))
+                    return
+                }
+                break
             }
-            let overview = try await client.overview(handle)
+            let overview = try await client.overview(handle: handle)
             guard !Task.isCancelled else { return }
             activeHandle = nil
+            if let old = loadedHandle {
+                Task { await client.closeScan(handle: old) }
+            }
+            loadedHandle = handle
             scanState = .loaded(overview, scannedAt: now())
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
-            activeHandle = nil
-            scanState = .failed(Self.message(for: error))
+            finish(handle, with: .failed(Self.message(for: error)))
         }
     }
 
+    /// Ends a scan that produced no results, and frees it in the core.
+    private func finish(_ handle: ScanHandle, with state: ScanState) {
+        activeHandle = nil
+        scanState = state
+        Task { await client.closeScan(handle: handle) }
+    }
+
     private func modeDidChange() {
-        defaults.set(mode.rawValue, forKey: Self.modeKey)
+        defaults.set(mode.storageKey, forKey: Self.modeKey)
         if mode == .simple, selection?.isDeveloperOnly == true {
             selection = .overview
         }
     }
 
-    private static func message(for error: Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? "Something went wrong while scanning."
+    /// Plain words for a core error. Never shows the error's debug text, which is not meant for people.
+    static func message(for error: Error) -> String {
+        guard let coreError = error as? CoreError else { return "Something went wrong while scanning." }
+        switch coreError {
+        case .ScanFailed(let reason):
+            return reason
+        case .UnknownScan, .ScanNotFinished, .ScanCancelled:
+            return "Roomy lost track of this scan. Please scan again."
+        case .HomeNotFound:
+            return "Roomy couldn't find your home folder."
+        case .InvalidPath, .Io, .RulesInvalid, .UnknownItem:
+            return "Something went wrong while scanning."
+        }
     }
 }

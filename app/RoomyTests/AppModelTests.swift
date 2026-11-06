@@ -120,6 +120,12 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(Tier.allCases.map(\.label), ["Likely safe", "Review first", "Keep"])
     }
 
+    func testCoreErrorsBecomePlainWords() {
+        XCTAssertEqual(AppModel.message(for: CoreError.ScanFailed(reason: "Roomy could not read your home folder.")),
+                       "Roomy could not read your home folder.")
+        XCTAssertFalse(AppModel.message(for: CoreError.UnknownScan).contains("UnknownScan"))
+    }
+
     func testStripSegmentsCoverTheDisk() {
         let segments = CategoryStrip.segments(for: MockData.overview(for: .normal))
         let total = segments.reduce(CGFloat(0)) { $0 + $1.fraction }
@@ -133,6 +139,7 @@ final class AppModelTests: XCTestCase {
         for entry in overview.categories {
             XCTAssertTrue(summary.contains(entry.category.title), entry.category.title)
         }
+        XCTAssertTrue(summary.contains("Everything else"))
         XCTAssertTrue(summary.contains("Free space"))
     }
 }

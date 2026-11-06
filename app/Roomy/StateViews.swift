@@ -52,9 +52,9 @@ struct ScanningView: View {
 
     private var phaseText: String {
         switch progress.phase {
-        case .measuring: return "Measuring folders…"
-        case .sorting: return "Sorting what was found…"
-        case .done: return "Finishing…"
+        case .scanning: return "Measuring folders…"
+        case .classifying: return "Sorting what was found…"
+        case .finished, .cancelled, .failed: return "Finishing…"
         }
     }
 }

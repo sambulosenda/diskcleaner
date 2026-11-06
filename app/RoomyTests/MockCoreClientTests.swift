@@ -1,103 +1,114 @@
 import XCTest
 @testable import Roomy
 
-/// The mock must keep the same promises the real core will (T09), so T11 can swap it out safely.
+/// The mock must keep the promises the real core makes in `docs/command-contract.md`,
+/// so T11 can swap it for `RoomyCore` without the UI changing behaviour.
 @MainActor
 final class MockCoreClientTests: XCTestCase {
+    private func total(_ items: [ItemSummary]) -> UInt64 {
+        items.reduce(UInt64(0)) { $0 + $1.sizeBytes }
+    }
+
     func testLikelySafeBytesIsTheExactSumOfLikelySafeItems() {
         let overview = MockData.overview(for: .normal)
-        let expected = MockData.items.filter { $0.tier == .likelySafe }.reduce(UInt64(0)) { $0 + $1.bytes }
-        XCTAssertEqual(overview.likelySafeBytes, expected)
+        XCTAssertEqual(overview.likelySafeBytes, total(MockData.items.filter { $0.tier == .likelySafe }))
         XCTAssertEqual(overview.likelySafeBytes, 34_000_000_000, "The wireframe headline is 34 GB")
     }
 
-    func testCategoryLikelySafeTotalsAddUpAndFitInsideTheirCategory() {
+    func testCategoryTotalsFollowTheContract() {
         let overview = MockData.overview(for: .normal)
-        let sum = overview.categories.reduce(UInt64(0)) { $0 + $1.likelySafeBytes }
-        XCTAssertEqual(sum, overview.likelySafeBytes)
+        XCTAssertEqual(overview.categories.reduce(UInt64(0)) { $0 + $1.likelySafeBytes }, overview.likelySafeBytes)
+        XCTAssertEqual(overview.categories.map(\.bytes), overview.categories.map(\.bytes).sorted(by: >),
+                       "categories come largest first")
         for entry in overview.categories {
+            let inCategory = MockData.items.filter { $0.category == entry.category }
+            XCTAssertEqual(entry.bytes, total(inCategory), entry.category.title)
+            XCTAssertEqual(entry.itemCount, UInt64(inCategory.count), entry.category.title)
             XCTAssertLessThanOrEqual(entry.likelySafeBytes, entry.bytes, entry.category.title)
         }
     }
 
-    func testDiskNumbersAddUp() {
+    func testDiskNumbersFit() {
         let overview = MockData.overview(for: .normal)
-        let used = overview.categories.reduce(UInt64(0)) { $0 + $1.bytes }
-        XCTAssertEqual(used + overview.diskFree, overview.diskTotal)
+        let categorised = overview.categories.reduce(UInt64(0)) { $0 + $1.bytes }
+        XCTAssertLessThanOrEqual(categorised, overview.scannedBytes)
+        XCTAssertLessThanOrEqual(overview.scannedBytes + overview.diskFree, overview.diskTotal)
     }
 
-    func testTopItemsAreFiveToEightBiggestFirst() {
+    func testTopItemsAreFiveToEightBiggestFirstAndNeverKeep() {
         let top = MockData.overview(for: .normal).topItems
         XCTAssertTrue((5...8).contains(top.count), "got \(top.count)")
-        XCTAssertEqual(top.map(\.bytes), top.map(\.bytes).sorted(by: >))
+        XCTAssertEqual(top.map(\.sizeBytes), top.map(\.sizeBytes).sorted(by: >))
+        XCTAssertFalse(top.contains { $0.tier == .keep })
         XCTAssertEqual(Set(top.map(\.id)).count, top.count, "ids must be unique")
     }
 
     func testNothingFoundHasNoItemsAndNothingToFree() {
         let overview = MockData.overview(for: .nothingFound)
         XCTAssertTrue(overview.topItems.isEmpty)
+        XCTAssertTrue(overview.categories.isEmpty)
         XCTAssertEqual(overview.likelySafeBytes, 0)
     }
 
-    func testScanRunsToDoneThenGivesTheOverview() async throws {
+    func testScanRunsToFinishedThenGivesTheOverview() async throws {
         let client = MockCoreClient(totalSteps: 4)
-        let handle = try await client.startScan(mode: .simple)
-        var phases: [ScanPhase] = []
-        for _ in 0..<4 { phases.append(try await client.scanProgress(handle).phase) }
-        XCTAssertEqual(phases.last, .done)
-        let overview = try await client.overview(handle)
+        let handle = await client.startScan(mode: .simple)
+        var phase = ScanPhase.scanning
+        for _ in 0..<10 where !phase.hasEnded {
+            phase = try await client.scanProgress(handle: handle).phase
+        }
+        XCTAssertEqual(phase, .finished)
+        let overview = try await client.overview(handle: handle)
         XCTAssertEqual(overview, MockData.overview(for: .normal))
     }
 
-    func testOverviewBeforeTheScanFinishesIsRefused() async throws {
+    func testOverviewBeforeTheScanFinishesIsRefused() async {
         let client = MockCoreClient(totalSteps: 4)
-        let handle = try await client.startScan(mode: .simple)
+        let handle = await client.startScan(mode: .simple)
         do {
-            _ = try await client.overview(handle)
-            XCTFail("Expected scanNotFinished")
+            _ = try await client.overview(handle: handle)
+            XCTFail("Expected ScanNotFinished")
         } catch {
-            XCTAssertEqual(error as? CoreClientError, .scanNotFinished)
+            guard case .ScanNotFinished = error as? CoreError else { return XCTFail("got \(error)") }
         }
     }
 
-    func testCancelledScanStopsReporting() async throws {
+    func testCancelledScanReportsCancelled() async throws {
         let client = MockCoreClient(totalSteps: 4)
-        let handle = try await client.startScan(mode: .simple)
-        await client.cancelScan(handle)
+        let handle = await client.startScan(mode: .simple)
+        await client.cancelScan(handle: handle)
+        let progress = try await client.scanProgress(handle: handle)
+        XCTAssertEqual(progress.phase, .cancelled)
+    }
+
+    func testClosedHandleIsUnknown() async {
+        let client = MockCoreClient(totalSteps: 4)
+        let handle = await client.startScan(mode: .simple)
+        await client.closeScan(handle: handle)
         do {
-            _ = try await client.scanProgress(handle)
-            XCTFail("Expected cancelled")
+            _ = try await client.scanProgress(handle: handle)
+            XCTFail("Expected UnknownScan")
         } catch {
-            XCTAssertEqual(error as? CoreClientError, .cancelled)
+            guard case .UnknownScan = error as? CoreError else { return XCTFail("got \(error)") }
         }
     }
 
-    func testUnknownHandleIsRefused() async {
-        let client = MockCoreClient()
-        do {
-            _ = try await client.scanProgress(ScanHandle(id: 999))
-            XCTFail("Expected unknownScan")
-        } catch {
-            XCTAssertEqual(error as? CoreClientError, .unknownScan)
-        }
-    }
-
-    func testFailureScenarioThrowsPartWay() async throws {
+    func testFailureScenarioEndsWithFailedPhase() async throws {
         let client = MockCoreClient(scenario: .failure, totalSteps: 4)
-        let handle = try await client.startScan(mode: .simple)
-        _ = try await client.scanProgress(handle)
-        do {
-            _ = try await client.scanProgress(handle)
-            XCTFail("Expected scanFailed")
-        } catch {
-            guard case .scanFailed = error as? CoreClientError else { return XCTFail("got \(error)") }
+        let handle = await client.startScan(mode: .simple)
+        var phase = ScanPhase.scanning
+        for _ in 0..<10 where !phase.hasEnded {
+            phase = try await client.scanProgress(handle: handle).phase
         }
+        guard case .failed(let reason) = phase else { return XCTFail("got \(phase)") }
+        XCTAssertFalse(reason.isEmpty)
+        XCTAssertFalse(reason.contains("/"), "reasons never hold a path")
     }
 
     func testItemSummariesCarryNoPaths() {
         for item in MockData.items {
             XCTAssertFalse(item.title.contains("/"), item.id)
-            XCTAssertFalse(item.explanation.contains("/"), item.id)
+            XCTAssertFalse(item.explain.contains("/"), item.id)
         }
     }
 }

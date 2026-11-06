@@ -7,7 +7,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Picker("Mode:", selection: $model.mode) {
-                ForEach(Mode.allCases) { mode in
+                ForEach(Mode.allCases, id: \.self) { mode in
                     Text(mode.label).tag(mode)
                 }
             }

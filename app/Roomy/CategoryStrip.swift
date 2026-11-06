@@ -37,18 +37,29 @@ struct CategoryStrip: View {
         let isFreeSpace: Bool
     }
 
-    /// Categories in order, then free space. Zero-sized categories are left out.
+    /// Categories in the core's order, then the rest of the used space, then free space.
+    /// Zero-sized parts are left out, so the segments always cover the disk exactly once.
     static func segments(for overview: Overview) -> [Segment] {
         guard overview.diskTotal > 0 else { return [] }
         let total = Double(overview.diskTotal)
         var result = overview.categories.filter { $0.bytes > 0 }.map { entry in
             Segment(
-                id: entry.category.rawValue,
+                id: entry.category.title,
                 color: entry.category.color,
                 fraction: CGFloat(Double(entry.bytes) / total),
                 likelySafeFraction: CGFloat(min(Double(entry.likelySafeBytes) / Double(entry.bytes), 1)),
                 isFreeSpace: false
             )
+        }
+        let rest = CategoryLegend.everythingElseBytes(in: overview)
+        if rest > 0 {
+            result.append(Segment(
+                id: "everything-else",
+                color: .secondary,
+                fraction: CGFloat(Double(rest) / total),
+                likelySafeFraction: 0,
+                isFreeSpace: false
+            ))
         }
         if overview.diskFree > 0 {
             result.append(Segment(
@@ -94,6 +105,10 @@ struct CategoryLegend: View {
                         detail: Self.detail(for: entry)
                     )
                 }
+                if Self.everythingElseBytes(in: overview) > 0 {
+                    LegendEntry(color: Color.secondary.opacity(0.4), title: "Everything else",
+                                detail: Format.bytes(Self.everythingElseBytes(in: overview)))
+                }
                 LegendEntry(color: Color.secondary.opacity(0.25), title: "Free space", detail: Format.bytes(overview.diskFree), outlined: true)
             }
             if overview.likelySafeBytes > 0 {
@@ -103,6 +118,13 @@ struct CategoryLegend: View {
             }
         }
         .accessibilityHidden(true) // The strip above reads the same information as one summary.
+    }
+
+    /// Used space that no category accounts for: apps, the system and anything the rules don't describe.
+    static func everythingElseBytes(in overview: Overview) -> UInt64 {
+        let used = overview.diskTotal > overview.diskFree ? overview.diskTotal - overview.diskFree : 0
+        let sorted = overview.categories.reduce(UInt64(0)) { $0 &+ $1.bytes }
+        return used > sorted ? used - sorted : 0
     }
 
     static func detail(for entry: CategoryTotal) -> String {
@@ -118,7 +140,9 @@ struct CategoryLegend: View {
                 ? "\(entry.category.title) \(Format.bytes(entry.bytes)), \(Format.bytes(entry.likelySafeBytes)) can likely be freed"
                 : "\(entry.category.title) \(Format.bytes(entry.bytes))"
         }
-        return (parts + ["Free space \(Format.bytes(overview.diskFree))"]).joined(separator: "; ")
+        let rest = everythingElseBytes(in: overview)
+        let tail = (rest > 0 ? ["Everything else \(Format.bytes(rest))"] : []) + ["Free space \(Format.bytes(overview.diskFree))"]
+        return (parts + tail).joined(separator: "; ")
     }
 }
 
@@ -145,21 +169,6 @@ private struct LegendEntry: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-        }
-    }
-}
-
-extension Category {
-    /// Strip colour. The legend always names the category, so colour is never the only signal.
-    var color: Color {
-        switch self {
-        case .appsAndCaches: return .blue
-        case .developer: return .indigo
-        case .largeFiles: return .orange
-        case .backups: return .purple
-        case .downloads: return .teal
-        case .systemData: return .gray
-        case .other: return .brown
         }
     }
 }

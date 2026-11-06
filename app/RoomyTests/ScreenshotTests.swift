@@ -22,7 +22,7 @@ final class ScreenshotTests: XCTestCase {
         let normal = MockData.overview(for: .normal)
         let states: [(String, Mode, AppModel.ScanState)] = [
             ("1-empty", .simple, .neverScanned),
-            ("2-scanning", .simple, .scanning(ScanProgress(bytesSeen: 187_000_000_000, itemsSeen: 412_370, phase: .measuring))),
+            ("2-scanning", .simple, .scanning(ScanProgress(bytesSeen: 187_000_000_000, itemsSeen: 412_370, phase: .scanning))),
             ("3-overview-simple", .simple, .loaded(normal, scannedAt: scannedAt)),
             ("4-overview-developer", .developer, .loaded(normal, scannedAt: scannedAt)),
             ("5-nothing-found", .simple, .loaded(MockData.overview(for: .nothingFound), scannedAt: scannedAt)),
