@@ -16,6 +16,8 @@ Rules, from CLAUDE.md safety rules 1 and 6 and docs/tasks/T12-ci.md:
   `ci/allowed-commands-readonly.txt`. The program must be a string literal.
 * Swift in `app/` is UI only, so it must not contain `trashItem`,
   `removeItem`, `moveItem`, `unlink`, `rmdir`, `Process(` or `NSTask`.
+  The one exception: a test file in `app/RoomyTests/` may make a call
+  listed for that exact file in `ci/allowed-swift-test-calls.txt`.
 * Anywhere in the repo (code, scripts, workflows): no `sh -c`, `bash -c`
   or `zsh -c`, and no `Command::new` that starts a shell, not even in the
   executor.
@@ -38,6 +40,8 @@ from pathlib import Path
 EXECUTOR_DIR = "core/crates/executor/"
 ANALYSERS_DIR = "core/crates/analysers/"
 ALLOW_FILE = "ci/allowed-commands-readonly.txt"
+SWIFT_TEST_ALLOW_FILE = "ci/allowed-swift-test-calls.txt"
+SWIFT_TEST_DIR = "app/RoomyTests/"
 
 # This CI folder is not scanned: its scripts and tests must spell out the
 # patterns they look for. `ci/**` is on the protected list, so changes there
@@ -64,7 +68,7 @@ COMMAND_NEW_LITERAL = re.compile(r'Command::new\s*\(\s*"([^"\\]*)"\s*\)')
 SWIFT_FORBIDDEN = [
     (re.compile(r"trashItem"), "moves a file to the Trash"),
     (re.compile(r"removeItem"), "deletes a file"),
-    (re.compile(r"moveItem"), "moves a file"),
+    (re.compile(r"\bmoveItem"), "moves a file"),
     (re.compile(r"\bunlink"), "deletes a file"),
     (re.compile(r"\brmdir"), "deletes a folder"),
     (re.compile(r"\bProcess\s*\("), "starts a program"),
@@ -112,6 +116,31 @@ def load_allow_list(root: Path) -> set[tuple[str, str]]:
     return allowed
 
 
+def load_swift_test_allow_list(root: Path) -> set[tuple[str, str]]:
+    """Read `ci/allowed-swift-test-calls.txt` as (file, call) pairs.
+
+    Each non-comment line is `<file under app/RoomyTests/> <call>`, where
+    `<call>` is exactly the text the check matched (for example `Process(`).
+    Only test files can be listed, so app code can never be exempted.
+    """
+    allowed: set[tuple[str, str]] = set()
+    path = root / SWIFT_TEST_ALLOW_FILE
+    if not path.is_file():
+        return allowed
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) != 2 or not parts[0].startswith(SWIFT_TEST_DIR) or not parts[0].endswith(".swift"):
+            raise SystemExit(
+                f"safety grep: {SWIFT_TEST_ALLOW_FILE}:{number}: expected "
+                f"'{SWIFT_TEST_DIR}<file>.swift <call>', got: {raw!r}"
+            )
+        allowed.add((parts[0], parts[1]))
+    return allowed
+
+
 def iter_files(root: Path):
     """Yield (repo-relative path, absolute path) for every file git tracks.
 
@@ -139,11 +168,16 @@ def line_of(text: str, offset: int) -> tuple[int, str]:
     return number, text[start : end if end != -1 else len(text)]
 
 
-def scan_patterns(rel: str, text: str, patterns) -> list[Violation]:
-    """Report every match of every (regex, reason) pair in `text`."""
+def scan_patterns(rel: str, text: str, patterns, allowed_calls: frozenset[str] = frozenset()) -> list[Violation]:
+    """Report every match of every (regex, reason) pair in `text`.
+
+    A match whose exact text is in `allowed_calls` is not reported.
+    """
     found = []
     for regex, reason in patterns:
         for match in regex.finditer(text):
+            if match.group(0) in allowed_calls:
+                continue
             number, line = line_of(text, match.start())
             found.append(Violation(rel, number, line, f"`{match.group(0)}` {reason}"))
     return found
@@ -180,6 +214,7 @@ def scan_commands(rel: str, text: str, allowed: set[tuple[str, str]]) -> list[Vi
 def scan(root: Path) -> list[Violation]:
     """Run every check over the repo at `root`."""
     allowed = load_allow_list(root)
+    swift_test_allowed = load_swift_test_allow_list(root)
     found: list[Violation] = []
     for rel, path in iter_files(root):
         suffix = path.suffix
@@ -195,7 +230,8 @@ def scan(root: Path) -> list[Violation]:
             if not rel.startswith(EXECUTOR_DIR):
                 found += scan_patterns(rel, text, RUST_FORBIDDEN)
         elif suffix == ".swift" and rel.startswith("app/"):
-            found += scan_patterns(rel, text, SWIFT_FORBIDDEN)
+            calls = frozenset(call for (file, call) in swift_test_allowed if file == rel)
+            found += scan_patterns(rel, text, SWIFT_FORBIDDEN, calls)
     return found
 
 

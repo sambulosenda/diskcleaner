@@ -90,8 +90,11 @@ final class ScreenshotTests: XCTestCase {
     }
 
     /// Captures one window with the system `screencapture` tool. True if a usable PNG was written.
+    ///
+    /// `screencapture` overwrites `url`. An older file left there is not deleted first (the safety
+    /// grep allows no file deletion in the app or its tests); it is ignored by the date check below.
     private static func screencapture(windowNumber: Int, to url: URL) -> Bool {
-        try? FileManager.default.removeItem(at: url)
+        let started = Date().addingTimeInterval(-1)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         process.arguments = ["-x", "-o", "-l", String(windowNumber), url.path]
@@ -101,8 +104,10 @@ final class ScreenshotTests: XCTestCase {
         } catch {
             return false
         }
-        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-        return process.terminationStatus == 0 && size > 10_000
+        let attributes = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
+        let size = attributes[.size] as? Int ?? 0
+        let written = (attributes[.modificationDate] as? Date).map { $0 >= started } ?? false
+        return process.terminationStatus == 0 && written && size > 10_000
     }
 
     private enum CaptureError: Error { case noView, noBitmap, noPNG }

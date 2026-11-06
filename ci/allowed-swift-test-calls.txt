@@ -1,0 +1,12 @@
+# Calls that Swift *test* files may make although the app may not (task T12).
+#
+# One entry per line: <file under app/RoomyTests/> <call>
+# <call> is exactly the text the safety grep matched, e.g. `Process(`.
+# Only files under app/RoomyTests/ can be listed; app code is never exempt.
+#
+# This file is protected: changing it needs the `sam-approved` label.
+
+# T10 screenshot test: runs /usr/sbin/screencapture to save PNGs of the
+# window, only when ROOMY_SCREENSHOTS_DIR is set. It never runs in normal
+# test runs or in the shipped app.
+app/RoomyTests/ScreenshotTests.swift Process(

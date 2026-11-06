@@ -108,6 +108,21 @@ class SafetyGrepTests(unittest.TestCase):
             with self.subTest(code=code):
                 self.assertFlags("app/Roomy/ContentView.swift", code)
 
+    def test_remove_item_is_not_also_reported_as_move_item(self) -> None:
+        self.repo.write("app/Roomy/A.swift", "fm.removeItem(at: u)")
+        self.assertEqual(len(self.repo.reasons()), 1)
+
+    def test_listed_swift_test_call_passes_only_in_that_file(self) -> None:
+        self.repo.write("ci/allowed-swift-test-calls.txt", "app/RoomyTests/Shots.swift Process(\n")
+        self.assertClean("app/RoomyTests/Shots.swift", "let p = Process()")
+        self.assertFlags("app/RoomyTests/Shots.swift", "fm.removeItem(at: u)")
+        self.assertFlags("app/RoomyTests/Other.swift", "let p = Process()")
+
+    def test_swift_allow_list_cannot_name_app_code(self) -> None:
+        self.repo.write("ci/allowed-swift-test-calls.txt", "app/Roomy/ContentView.swift Process(\n")
+        with self.assertRaises(SystemExit):
+            safety_grep.scan(self.repo.root)
+
     def test_malformed_allow_list_fails(self) -> None:
         self.repo.write("ci/allowed-commands-readonly.txt", "core/crates/scanner/src/lib.rs ls\n")
         with self.assertRaises(SystemExit):
