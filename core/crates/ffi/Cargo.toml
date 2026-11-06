@@ -5,4 +5,22 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
+[lib]
+# Not "ffi": a library called libffi.a would clash with the system libffi when linking.
+name = "roomy_ffi"
+# staticlib is what the app links; cdylib lets uniffi-bindgen read the interface in library mode.
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+# Only used by scripts/build-ffi.sh to generate Swift bindings; keeps the CLI out of the app library.
+bindgen = ["uniffi/cli"]
+
 [dependencies]
+libc = "0.2"
+thiserror = "2"
+uniffi = "0.32"

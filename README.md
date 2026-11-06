@@ -23,7 +23,9 @@ cargo clippy --workspace -- -D warnings
 ```
 
 ## Build and test the app
+Build the Rust library and Swift bindings first (see `docs/build-notes.md`):
 ```sh
+./scripts/build-ffi.sh
 cd app
 xcodebuild -scheme Roomy -destination 'platform=macOS' test
 ```
