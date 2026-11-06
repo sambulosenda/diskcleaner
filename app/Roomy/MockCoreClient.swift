@@ -30,12 +30,11 @@ final class MockCoreClient: CoreClient {
         self.totalSteps = max(totalSteps, 2)
     }
 
-    /// The scenario named by the `-RoomyMockScenario <name>` launch argument, or `nil` if there is none.
+    /// The mock for the `-RoomyMockScenario <name>` launch argument, or `nil` if the argument is absent.
+    /// A name that isn't a scenario still gives the mock (`.normal`), so a typo never starts a real scan.
     static func fromLaunchArguments(_ defaults: UserDefaults = .standard) -> MockCoreClient? {
-        guard let name = defaults.string(forKey: "RoomyMockScenario"), let scenario = Scenario(rawValue: name) else {
-            return nil
-        }
-        return MockCoreClient(scenario: scenario)
+        guard let name = defaults.string(forKey: "RoomyMockScenario") else { return nil }
+        return MockCoreClient(scenario: Scenario(rawValue: name) ?? .normal)
     }
 
     func startScan(mode: Mode) async -> ScanHandle {

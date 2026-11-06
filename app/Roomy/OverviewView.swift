@@ -232,7 +232,7 @@ struct UnmeasuredNote: View {
 
     var body: some View {
         if unreadableCount == 0 {
-            Text("Every folder was measured.")
+            Text("Roomy could open every folder.")
         } else {
             HStack(spacing: 6) {
                 Text(Self.text(for: unreadableCount))
@@ -253,9 +253,9 @@ struct FullDiskAccessExplanation: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Some folders weren't measured")
                 .font(.headline)
-            Text("macOS keeps some folders private, such as Mail, Messages and Safari data. Roomy can't measure them unless you give it Full Disk Access.")
+            Text("Roomy couldn't open some folders. Most often that's because macOS keeps them private, such as Mail, Messages and Safari data.")
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Full Disk Access lets Roomy measure those folders too. Roomy only reads sizes, and nothing leaves this Mac. Saying no is fine: the rest of the results are still right.")
+            Text("Full Disk Access lets Roomy measure the folders macOS protects. Roomy only reads sizes, and nothing leaves this Mac. Saying no is fine: the rest of the results are still right.")
                 .fixedSize(horizontal: false, vertical: true)
             Text("To turn it on, open System Settings, go to Privacy & Security, then Full Disk Access, and switch on Roomy (or add it with the + button). Then scan again.")
                 .fixedSize(horizontal: false, vertical: true)
