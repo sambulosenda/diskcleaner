@@ -159,3 +159,10 @@ fn check_root(root: &Path) -> Result<std::fs::Metadata, ScanError> {
     }
     Ok(meta)
 }
+
+/// DELIBERATELY BAD (T12 demo, reverted in the next commit): the scanner
+/// must never delete. CI's safety grep must fail on this.
+#[allow(dead_code)]
+fn t12_bad_demo(path: &std::path::Path) {
+    let _ = std::fs::remove_file(path);
+}
