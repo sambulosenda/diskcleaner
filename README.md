@@ -1,4 +1,4 @@
-# Mac storage cleaner
+# Roomy (Mac storage cleaner)
 
 A native macOS app that shows what is filling your disk, explains every item in plain words, and frees space safely. Read `CLAUDE.md` before changing anything, and see `docs/PRD.md` for the product spec.
 
@@ -25,5 +25,5 @@ cargo clippy --workspace -- -D warnings
 ## Build and test the app
 ```sh
 cd app
-xcodebuild -scheme CODENAME -destination 'platform=macOS' test
+xcodebuild -scheme Roomy -destination 'platform=macOS' test
 ```
