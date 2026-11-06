@@ -3,9 +3,10 @@ import SwiftUI
 /// The main window: sidebar, content and toolbar.
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
         } detail: {
@@ -82,8 +83,10 @@ struct MainToolbar: ToolbarContent {
             .accessibilityLabel("Scan")
             .accessibilityHint("Measures what is filling your Mac. Nothing is removed.")
         }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItem(placement: .automatic) {
             ModeIndicator(mode: model.mode)
+                .fixedSize()
+                .padding(.horizontal, 4)
         }
     }
 }

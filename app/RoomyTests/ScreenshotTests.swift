@@ -71,7 +71,8 @@ final class ScreenshotTests: XCTestCase {
         window.orderFrontRegardless()
         defer { window.close() }
 
-        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
+        window.displayIfNeeded()
 
         guard let frameView = window.contentView?.superview ?? window.contentView else {
             throw CaptureError.noView

@@ -47,7 +47,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     var symbol: String {
         switch self {
         case .overview: return "internaldrive"
-        case .backups: return "externaldrive.badge.timemachine"
+        case .backups: return "externaldrive"
         case .downloads: return "arrow.down.circle"
         case .largeFiles: return "doc"
         case .appsAndCaches: return "square.grid.2x2"

@@ -257,7 +257,7 @@ extension Category {
         case .appsAndCaches: return "square.grid.2x2"
         case .developer: return "hammer"
         case .largeFiles: return "doc"
-        case .backups: return "externaldrive.badge.timemachine"
+        case .backups: return "externaldrive"
         case .downloads: return "arrow.down.circle"
         case .systemData: return "gearshape"
         case .other: return "ellipsis.circle"
