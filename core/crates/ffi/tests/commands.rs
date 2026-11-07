@@ -423,8 +423,19 @@ fn scans_can_run_at_the_same_time() {
     for h in &handles {
         assert_eq!(wait(&s.core, *h), ScanPhase::Finished);
     }
-    assert_eq!(
-        all_items(&s.core, handles[0]),
-        all_items(&s.core, handles[2])
-    );
+    // Each scan saves itself to History (`Library/Application Support/Roomy`)
+    // when it finishes, so a scan still walking Library may see that file
+    // part-written. Only that catch-all's size can differ; everything else
+    // must match exactly.
+    let comparable = |h: ScanHandle| {
+        let mut items = all_items(&s.core, h);
+        for item in &mut items {
+            if item.title == "Other items in Library" {
+                item.size_bytes = 0;
+            }
+        }
+        items.sort_by(|a, b| a.id.cmp(&b.id));
+        items
+    };
+    assert_eq!(comparable(handles[0]), comparable(handles[2]));
 }
