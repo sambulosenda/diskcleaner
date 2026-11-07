@@ -18,67 +18,59 @@ struct OverviewScreen: View {
     }
 }
 
-/// The results of a finished scan.
+/// The results of a finished scan: one answer, the disk as one bar, what's ready to clean, what's
+/// worth a look, and a footer. Everything else sits behind a link or a disclosure, so the screen reads
+/// in a few seconds. Nothing is ticked here: the buttons open the item list, where the user chooses.
 struct OverviewContent: View {
     @EnvironmentObject private var model: AppModel
     let overview: Overview
     let scannedAt: Date
+    @State private var showingChanges = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 OverviewHeadline(overview: overview)
-                VStack(alignment: .leading, spacing: 12) {
-                    CategoryStrip(overview: overview)
-                    CategoryLegend(overview: overview)
+                DiskBar(overview: overview)
+                if overview.likelySafeBytes > 0 {
+                    ReadyToCleanCard(overview: overview)
                 }
-                WorthReviewingList(items: model.worthReviewing(in: overview), searchText: model.searchText)
-                if let changes = model.scanChanges {
-                    ChangesSinceLastScan(changes: changes)
-                }
-                ReviewAndCleanButton()
+                WorthALookList(overview: overview, items: model.worthReviewing(in: overview),
+                               searchText: model.searchText)
                 if model.shouldOfferAccess(for: overview) {
                     UnscannedAreasBox(overview: overview)
                 }
-                Divider()
-                OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,
-                               quickRescan: overview.quickRescan)
+                VStack(alignment: .leading, spacing: 16) {
+                    Divider()
+                    OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,
+                                   quickRescan: overview.quickRescan,
+                                   hasChanges: model.scanChanges != nil, showingChanges: $showingChanges)
+                    if showingChanges, let changes = model.scanChanges {
+                        ChangesSinceLastScan(changes: changes)
+                    }
+                }
             }
-            .padding(28)
+            .padding(.horizontal, 36)
+            .padding(.vertical, 32)
             .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .sheet(isPresented: Binding(
-            get: { model.cleanupState != .closed },
-            set: { if !$0 { model.closeCleanupReview() } }
-        )) {
-            CleanupReviewSheet()
-                .environmentObject(model)
         }
     }
 }
 
-/// "You can likely free 34 GB", what more is worth reviewing, and free space now and after cleaning.
+/// "You can likely free 34 GB", then free space now and after cleaning on one quiet line.
 struct OverviewHeadline: View {
     let overview: Overview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(Self.headline(for: overview))
-                    .font(.largeTitle.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
-                if let line = Self.reviewLine(for: overview) {
-                    Text(line)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            HStack(spacing: 40) {
-                FreeSpaceFigure(caption: "Free now", bytes: overview.diskFree)
-                FreeSpaceFigure(caption: "Free after cleaning", bytes: freeAfter)
-                    .help("Free space once every Likely safe item has gone. Review first items aren't counted.")
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(Self.headline(for: overview))
+                .font(.largeTitle.weight(.bold))
+                .accessibilityAddTraits(.isHeader)
+            Text(Self.freeLine(for: overview))
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .help("After cleaning counts only Likely safe items. Items to check first aren't counted.")
         }
     }
 
@@ -88,135 +80,230 @@ struct OverviewHeadline: View {
             : "Nothing is clearly safe to remove right now"
     }
 
-    /// The Review first total, so the headline doesn't undersell what could be freed. Never added to
-    /// the headline itself: those items need a person to look first.
-    static func reviewLine(for overview: Overview) -> String? {
-        guard overview.reviewFirstBytes > 0 else { return nil }
-        let size = Format.bytes(overview.reviewFirstBytes)
-        return overview.likelySafeBytes > 0
-            ? "Up to \(size) more once you\u{2019}ve checked the items marked Review first."
-            : "\(size) is marked Review first. Check those items before you clean them."
+    /// "20.4 GB free now · 24.4 GB after cleaning", or just the free space when nothing is likely safe.
+    static func freeLine(for overview: Overview) -> String {
+        let now = "\(Format.bytes(overview.diskFree)) free now"
+        guard overview.likelySafeBytes > 0 else { return now }
+        return "\(now) · \(Format.bytes(freeAfter(overview))) after cleaning"
     }
 
     /// Free space if every likely safe item were removed. Never more than the disk.
-    private var freeAfter: UInt64 {
+    static func freeAfter(_ overview: Overview) -> UInt64 {
         let (sum, overflow) = overview.diskFree.addingReportingOverflow(overview.likelySafeBytes)
         return overflow ? overview.diskTotal : min(sum, overview.diskTotal)
     }
 }
 
-/// One labelled number, such as "Free now 61 GB".
-struct FreeSpaceFigure: View {
-    let caption: String
-    let bytes: UInt64
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(caption)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Text(Format.bytes(bytes))
-                .font(.title2.weight(.medium).monospacedDigit())
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// The 5 to 8 biggest recommendations. Nothing is ticked for the user.
-struct WorthReviewingList: View {
-    @EnvironmentObject private var model: AppModel
-    let items: [ItemSummary]
-    let searchText: String
+/// The disk as one thin bar, the three biggest parts named underneath, and the full breakdown behind
+/// a disclosure.
+struct DiskBar: View {
+    let overview: Overview
+    @State private var showingBreakdown = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Worth reviewing")
-                    .font(.title3.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button("See everything") { model.selection = .cleanup }
-                    .buttonStyle(.link)
-                    .accessibilityHint("Opens the list of everything Roomy found.")
+            CategoryStrip(overview: overview)
+            HStack(spacing: 18) {
+                ForEach(Self.labelled(overview)) { part in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(part.kind == .outsideHome ? Color.secondary.opacity(0.4) : part.color)
+                            .frame(width: 8, height: 8)
+                            .accessibilityHidden(true)
+                        Text("\(part.title) \(Format.bytes(part.bytes))")
+                    }
+                    .help(part.help ?? "")
+                }
+                Spacer(minLength: 12)
+                Button(showingBreakdown ? "Hide breakdown" : "Show breakdown") {
+                    withAnimation(.easeInOut(duration: 0.2)) { showingBreakdown.toggle() }
+                }
+                .buttonStyle(.link)
             }
-            if items.isEmpty {
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            if showingBreakdown {
+                CategoryLegend(overview: overview)
+                    .padding(.top, 6)
+            }
+        }
+    }
+
+    /// The three biggest parts of used space, biggest first.
+    static func labelled(_ overview: Overview) -> [DiskPart] {
+        Array(DiskPart.parts(for: overview).filter { $0.kind != .free }.sorted { $0.bytes > $1.bytes }.prefix(3))
+    }
+}
+
+/// "Ready to clean": the Likely safe total by category, and one button that opens those items. Nothing
+/// is ticked for the user: the list opens showing only Likely safe items, and they choose there.
+struct ReadyToCleanCard: View {
+    @EnvironmentObject private var model: AppModel
+    let overview: Overview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Ready to clean \u{00B7} \(Format.bytes(overview.likelySafeBytes))")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("These come back by themselves when they\u{2019}re needed. You choose what goes, and it moves to the Trash.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                Button("Review and clean\u{2026}") { model.showItems(tier: .likelySafe) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .accessibilityHint("Opens the Likely safe items. Nothing is chosen for you.")
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 10)], spacing: 10) {
+                ForEach(Self.tiles(overview), id: \.category) { entry in
+                    HStack(spacing: 10) {
+                        CategoryIcon(category: entry.category)
+                        Text(entry.category.title)
+                        Spacer(minLength: 8)
+                        Text(Format.bytes(entry.likelySafeBytes))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+        .padding(20)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color.secondary.opacity(0.08)))
+    }
+
+    /// Categories with Likely safe space, most first.
+    static func tiles(_ overview: Overview) -> [CategoryTotal] {
+        overview.categories.filter { $0.likelySafeBytes > 0 }.sorted { $0.likelySafeBytes > $1.likelySafeBytes }
+    }
+}
+
+/// Rows that share a title, such as several projects' `node_modules`, shown as one row.
+struct ItemGroup: Identifiable, Equatable {
+    let items: [ItemSummary]
+
+    var id: String { items[0].id }
+    var title: String { items[0].title }
+    var category: Category { items[0].category }
+    var bytes: UInt64 { items.reduce(0) { $0 &+ $1.sizeBytes } }
+    /// "· shop" for one item with a name, "· 3 items" for a group.
+    var detail: String? {
+        items.count > 1 ? "\(items.count) items" : items[0].place
+    }
+
+    /// Groups items by title, in order of their biggest member, biggest group first.
+    static func groups(_ items: [ItemSummary]) -> [ItemGroup] {
+        var order: [String] = []
+        var byTitle: [String: [ItemSummary]] = [:]
+        for item in items {
+            if byTitle[item.title] == nil { order.append(item.title) }
+            byTitle[item.title, default: []].append(item)
+        }
+        return order.compactMap { byTitle[$0].map(ItemGroup.init) }.sorted { $0.bytes > $1.bytes }
+    }
+}
+
+/// "Worth a look": the biggest Review first items as plain one-line rows. Each opens the item list,
+/// showing only Review first items, with that item selected. Nothing is ticked.
+struct WorthALookList: View {
+    @EnvironmentObject private var model: AppModel
+    let overview: Overview
+    let items: [ItemSummary]
+    let searchText: String
+    /// How many rows to show.
+    static let rowLimit = 4
+
+    var body: some View {
+        let groups = Array(ItemGroup.groups(items.filter { $0.tier == .reviewFirst }).prefix(Self.rowLimit))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("Worth a look")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                if overview.reviewFirstBytes > 0 {
+                    Text("+\(Format.bytes(overview.reviewFirstBytes)) to check first")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Show all") { model.showItems(tier: .reviewFirst) }
+                    .buttonStyle(.link)
+                    .accessibilityHint("Opens every item to check first.")
+            }
+            if groups.isEmpty {
                 Text(emptyText)
                     .foregroundStyle(.secondary)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(items) { item in
-                        WorthReviewingRow(item: item)
-                        if item.id != items.last?.id {
-                            Divider().padding(.leading, 80)
+                    ForEach(groups) { group in
+                        WorthALookRow(group: group)
+                        if group.id != groups.last?.id {
+                            Divider().padding(.leading, 48)
                         }
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(Color(nsColor: .separatorColor))
-                )
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: .separatorColor)))
             }
         }
     }
 
     private var emptyText: String {
-        searchText.isEmpty ? "Nothing here takes much space." : "No items match \u{201C}\(searchText)\u{201D}."
+        searchText.isEmpty ? "Nothing else here takes much space." : "No items match \u{201C}\(searchText)\u{201D}."
     }
 }
 
-/// Checkbox, icon, title, one-line explanation, size and tier label.
-///
-/// The Overview never shows `keep` items, but the checkbox is left out for them all the same, as in
-/// `ItemRow`. Ticking changes nothing on disk; it only chooses the row for the cleanup review.
-struct WorthReviewingRow: View {
+/// Icon, title, distinguishing name or count, size and a chevron. The explanation is the tooltip and
+/// the VoiceOver hint, so the row stays one line.
+struct WorthALookRow: View {
     @EnvironmentObject private var model: AppModel
-    let item: ItemSummary
+    let group: ItemGroup
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            checkbox
-                .frame(width: 20)
-            CategoryIcon(category: item.category)
-            VStack(alignment: .leading, spacing: 2) {
-                ItemTitle(item: item)
-                Text(item.explain)
-                    .font(.callout)
+        Button {
+            model.showItems(tier: .reviewFirst, select: group.id)
+        } label: {
+            HStack(spacing: 12) {
+                CategoryIcon(category: group.category)
+                HStack(spacing: 4) {
+                    Text(group.title)
+                    if let detail = group.detail {
+                        Text("\u{00B7} \(detail)")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                Spacer(minLength: 12)
+                Text(Format.bytes(group.bytes))
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
-            Spacer(minLength: 12)
-            Text(Format.bytes(item.sizeBytes))
-                .font(.body.monospacedDigit())
-            TierLabel(tier: item.tier)
-                .frame(width: 110, alignment: .trailing)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(item.accessibleTitle), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
-        .accessibilityHint(item.explain)
+        .buttonStyle(.plain)
+        .help(group.items[0].explain)
+        .accessibilityLabel(accessibleLabel)
+        .accessibilityHint(group.items[0].explain)
     }
 
-    @ViewBuilder
-    private var checkbox: some View {
-        if item.tier == .keep {
-            Color.clear
-                .frame(width: 16, height: 16)
-                .accessibilityHidden(true)
-        } else {
-            Toggle("Choose \(item.accessibleTitle)", isOn: Binding(
-                get: { model.isChecked(item) },
-                set: { model.setChecked($0, for: item) }
-            ))
-            .toggleStyle(.checkbox)
-            .labelsHidden()
-            .help("Choose this to review it for cleanup.")
-        }
+    private var accessibleLabel: String {
+        let name = group.detail.map { "\(group.title), \($0)" } ?? group.title
+        return "\(name), \(Format.bytes(group.bytes)), check first"
     }
 }
 
@@ -285,46 +372,25 @@ struct TierLabel: View {
     }
 }
 
-/// Opens the cleanup review for the ticked rows. Nothing is ticked for the user, and the review is a
-/// dry run: nothing moves until the user confirms there.
-struct ReviewAndCleanButton: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Button("Review and clean\u{2026}") { model.reviewCleanup() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(model.checkedItemIDs.isEmpty)
-                .accessibilityHint("Checks what would move to the Trash. Nothing is moved.")
-            Text(Self.caption(count: model.checkedItemIDs.count, bytes: model.checkedBytes))
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    /// What is chosen so far, or how to choose.
-    static func caption(count: Int, bytes: UInt64) -> String {
-        guard count > 0 else {
-            return "Tick the items you want to clean. Nothing is removed until you confirm."
-        }
-        let noun = count == 1 ? "item" : "items"
-        return "\(count) \(noun) chosen, \(Format.bytes(bytes)). Nothing is removed until you confirm."
-    }
-}
-
-/// Last scan time, and how many folders couldn't be measured.
+/// One line: what changed since the last scan (opens below), last scan time, and folders not measured.
 struct OverviewFooter: View {
     let scannedAt: Date
     let unreadableCount: UInt64
     var quickRescan = false
+    var hasChanges = false
+    @Binding var showingChanges: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Last scan: \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
-            if quickRescan {
-                Text("Roomy measured again only the folders that changed since the scan before.")
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            if hasChanges {
+                Button(showingChanges ? "Hide changes since your last scan" : "What changed since your last scan") {
+                    withAnimation(.easeInOut(duration: 0.2)) { showingChanges.toggle() }
+                }
+                .buttonStyle(.link)
             }
+            Spacer(minLength: 12)
+            Text("Scanned \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
+                .help(quickRescan ? "Roomy measured again only the folders that changed since the scan before." : "")
             UnmeasuredNote(unreadableCount: unreadableCount)
         }
         .font(.footnote)

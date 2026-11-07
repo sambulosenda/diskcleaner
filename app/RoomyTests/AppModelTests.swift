@@ -187,18 +187,39 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(parts.last?.kind, .free)
     }
 
-    func testHeadlineMentionsReviewFirstWithoutAddingItIn() {
+    func testFreeLineCountsOnlyLikelySafe() {
         let overview = MockData.overview(for: .normal)
-        XCTAssertTrue(OverviewHeadline.headline(for: overview).contains(Format.bytes(overview.likelySafeBytes)))
-        let line = OverviewHeadline.reviewLine(for: overview)
-        XCTAssertEqual(overview.reviewFirstBytes > 0, line != nil)
-        if let line { XCTAssertTrue(line.contains(Format.bytes(overview.reviewFirstBytes))) }
+        let line = OverviewHeadline.freeLine(for: overview)
+        XCTAssertTrue(line.hasPrefix("\(Format.bytes(overview.diskFree)) free now"))
+        XCTAssertTrue(line.contains(Format.bytes(OverviewHeadline.freeAfter(overview))))
+        XCTAssertEqual(OverviewHeadline.freeAfter(overview), overview.diskFree + overview.likelySafeBytes)
     }
 
-    func testReviewAndCleanCaptionNeverImpliesAnythingIsChosen() {
-        XCTAssertTrue(ReviewAndCleanButton.caption(count: 0, bytes: 0).hasPrefix("Tick"))
-        XCTAssertTrue(ReviewAndCleanButton.caption(count: 1, bytes: 5).hasPrefix("1 item chosen"))
+    func testLookAlikeRowsBecomeOneGroup() {
+        let groups = ItemGroup.groups(MockData.javascriptProjectItems + [
+            ItemSummary(id: "emu", title: "Android emulator", explain: "", sizeBytes: 9_000_000_000,
+                        tier: .reviewFirst, category: .developerTools),
+        ])
+        XCTAssertEqual(groups.map(\.title), ["Android emulator", "Project packages (node_modules)"])
+        XCTAssertEqual(groups[1].items.count, 4)
+        XCTAssertEqual(groups[1].detail, "4 items")
+        XCTAssertEqual(groups[1].bytes, MockData.javascriptProjectItems.reduce(0) { $0 + $1.sizeBytes })
+        XCTAssertNil(groups[0].detail)
     }
+
+    func testOverviewButtonsOpenTheListWithoutTickingAnything() async {
+        let model = await scannedModel()
+        let id = model.overview?.topItems.first { $0.tier == .reviewFirst }?.id
+        model.showItems(tier: .reviewFirst, select: id)
+        XCTAssertEqual(model.selection, .cleanup)
+        XCTAssertEqual(model.tierFilter, .reviewFirst)
+        XCTAssertEqual(model.selectedItemID, id)
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+        model.showItems(tier: .likelySafe)
+        XCTAssertEqual(model.tierFilter, .likelySafe)
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
     // MARK: - Category screens (T11)
 
     private func scannedModel(_ mode: Mode = .simple) async -> AppModel {
