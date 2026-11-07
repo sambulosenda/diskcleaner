@@ -18,7 +18,7 @@ use classifier::ClassifiedItem;
 
 use crate::run::unix_seconds;
 use crate::types::{ItemSummary, Mode};
-use crate::views::{display_path, summary, Finished};
+use crate::views::{display_path, Finished};
 
 /// Rules whose items are one project's `node_modules`.
 const NODE_MODULES_RULE_PREFIX: &str = "js.node_modules";
@@ -125,7 +125,7 @@ pub(crate) fn overview(f: &Finished) -> JavaScriptOverview {
         if is_node_modules(item) {
             projects.push(project(f, item));
         } else {
-            caches.push(summary(item));
+            caches.push(f.summary_of(item));
         }
     }
     JavaScriptOverview {
@@ -162,7 +162,7 @@ fn project(f: &Finished, item: &ClassifiedItem) -> JsProject {
         None => analysis::ProjectActivity::default(),
     };
     JsProject {
-        item: summary(item),
+        item: f.summary_of(item),
         name,
         folder,
         last_activity_unix_seconds: activity.last_activity.map(unix_seconds),

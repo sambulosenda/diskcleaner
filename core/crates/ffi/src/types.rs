@@ -151,6 +151,12 @@ pub struct ItemSummary {
     pub tier: Tier,
     /// What kind of item it is.
     pub category: Category,
+    /// Which one it is, when one rule finds many items with the same title:
+    /// for example the project folder's name for a `node_modules` folder, or
+    /// the emulator's name. A single folder or file name, never a path.
+    /// Developer mode only; `None` in Simple mode and for one-of-a-kind items.
+    #[uniffi(default = None)]
+    pub place: Option<String>,
 }
 
 /// What the Overview screen shows.
@@ -158,6 +164,10 @@ pub struct ItemSummary {
 pub struct Overview {
     /// Exact sum of the sizes of every `likely_safe` item (F2).
     pub likely_safe_bytes: u64,
+    /// Exact sum of the sizes of every `review_first` item. Shown beside the
+    /// headline as what more could be freed after the user has looked.
+    #[uniffi(default = 0)]
+    pub review_first_bytes: u64,
     /// Allocated bytes in the whole home folder.
     pub scanned_bytes: u64,
     /// Size of the volume holding the home folder.

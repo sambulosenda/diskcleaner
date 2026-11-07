@@ -359,6 +359,7 @@ impl RoomyCore {
         let disk = read_disk_summary(&f.home)?;
         Ok(Overview {
             likely_safe_bytes: f.likely_safe_bytes(),
+            review_first_bytes: f.review_first_bytes(),
             scanned_bytes: f.scanned_bytes,
             disk_total: disk.total_bytes,
             disk_free: disk.free_bytes,
@@ -851,6 +852,7 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         items,
         loose,
     )
+    .with_places(crate::place::place_sources(rules))
     .with_libraries(
         analysers::libraries::library_sizes(&scan)
             .iter()

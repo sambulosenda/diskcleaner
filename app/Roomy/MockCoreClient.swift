@@ -829,16 +829,16 @@ enum MockData {
     static let javascriptProjectItems: [ItemSummary] = [
         item("js-shop", "Project packages (node_modules)",
              "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
-             1_840_000_000, .reviewFirst, .build),
+             1_840_000_000, .reviewFirst, .build, place: "shop"),
         item("js-blog", "Project packages (node_modules)",
              "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
-             912_000_000, .reviewFirst, .build),
+             912_000_000, .reviewFirst, .build, place: "blog"),
         item("js-landing", "Project packages (node_modules)",
              "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
-             640_000_000, .reviewFirst, .build),
+             640_000_000, .reviewFirst, .build, place: "landing"),
         item("js-cli", "Project packages (node_modules)",
              "The packages one JavaScript project has downloaded. The project lists them, so they can be fetched again.",
-             210_000_000, .reviewFirst, .build),
+             210_000_000, .reviewFirst, .build, place: "cli"),
     ]
 
     /// The JavaScript screen for a Developer mode scan. Dates are counted back from `now`.
@@ -915,6 +915,7 @@ enum MockData {
         let found = Self.found(for: scenario)
         return Overview(
             likelySafeBytes: sum(found.filter { $0.tier == .likelySafe }),
+            reviewFirstBytes: sum(found.filter { $0.tier == .reviewFirst }),
             scannedBytes: scannedBytes,
             diskTotal: diskTotal,
             diskFree: diskFree,
@@ -948,8 +949,9 @@ enum MockData {
 
     private static func item(
         _ id: String, _ title: String, _ explain: String,
-        _ bytes: UInt64, _ tier: Tier, _ category: Category
+        _ bytes: UInt64, _ tier: Tier, _ category: Category, place: String? = nil
     ) -> ItemSummary {
-        ItemSummary(id: id, title: title, explain: explain, sizeBytes: bytes, tier: tier, category: category)
+        ItemSummary(id: id, title: title, explain: explain, sizeBytes: bytes, tier: tier, category: category,
+                    place: place)
     }
 }

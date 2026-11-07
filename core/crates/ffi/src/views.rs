@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use classifier::ClassifiedItem;
 
+use crate::place::{place, PlaceFrom};
 use crate::types::{
     Category, CategoryTotal, Caution, ItemDetail, ItemSummary, LibrarySize, Mode, PrivateArea,
     Sort, Tier, UnreadableArea,
@@ -64,6 +65,9 @@ pub struct Finished {
     pub libraries: Vec<LibrarySize>,
     /// What the Large files screen lists (E2).
     pub(crate) loose: crate::files::Loose,
+    /// Rule id to where its items get the name that tells them apart. See
+    /// [`crate::place`].
+    pub(crate) places: HashMap<String, PlaceFrom>,
 }
 
 impl Finished {
@@ -98,7 +102,14 @@ impl Finished {
             changes: None,
             libraries: Vec::new(),
             loose,
+            places: HashMap::new(),
         }
+    }
+
+    /// Adds where each rule's items get the name that tells them apart.
+    pub fn with_places(mut self, places: HashMap<String, PlaceFrom>) -> Self {
+        self.places = places;
+        self
     }
 
     /// Adds the library sizes measured from the same scan.
@@ -113,6 +124,27 @@ impl Finished {
             .iter()
             .filter(|i| Tier::from(i.tier) == Tier::LikelySafe)
             .fold(0u64, |sum, i| sum.saturating_add(i.size_bytes))
+    }
+
+    /// Exact sum of the sizes of every `review_first` item.
+    pub fn review_first_bytes(&self) -> u64 {
+        self.items
+            .iter()
+            .filter(|i| Tier::from(i.tier) == Tier::ReviewFirst)
+            .fold(0u64, |sum, i| sum.saturating_add(i.size_bytes))
+    }
+
+    /// The list row for an item, with the name that tells it apart from
+    /// items with the same title in Developer mode. Never holds a path.
+    pub fn summary_of(&self, item: &ClassifiedItem) -> ItemSummary {
+        let mut row = summary(item);
+        if self.mode == Mode::Developer {
+            row.place = self
+                .places
+                .get(&item.rule_id)
+                .and_then(|&from| place(&self.home, &item.path, from));
+        }
+        row
     }
 
     /// One total per category that has items, largest first, ties in
@@ -147,7 +179,10 @@ impl Finished {
             .filter(|i| Tier::from(i.tier) != Tier::Keep)
             .collect();
         sort_items(&mut top, Sort::LargestFirst);
-        top.into_iter().take(TOP_ITEMS).map(summary).collect()
+        top.into_iter()
+            .take(TOP_ITEMS)
+            .map(|item| self.summary_of(item))
+            .collect()
     }
 
     /// Items filtered by category and tier (`None` means any), in `sort`
@@ -165,7 +200,7 @@ impl Finished {
             .filter(|i| tier.is_none_or(|t| Tier::from(i.tier) == t))
             .collect();
         sort_items(&mut list, sort);
-        list.into_iter().map(summary).collect()
+        list.into_iter().map(|item| self.summary_of(item)).collect()
     }
 
     /// The classified item with this id, if the scan has one.
@@ -217,6 +252,7 @@ pub(crate) fn summary(item: &ClassifiedItem) -> ItemSummary {
         size_bytes: item.size_bytes,
         tier: item.tier.into(),
         category: item.category.into(),
+        place: None,
     }
 }
 
