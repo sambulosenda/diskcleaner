@@ -1,6 +1,6 @@
 # Roomy app icon
 
-`roomy-icon.svg` is the source for the app icon (the "empty room" design).
+`roomy-icon.svg` is the source for the app icon (the "lifting off the drive" design: blocks rising out of a drive, for space being freed).
 It is drawn on Apple's 1024 × 1024 macOS icon grid: the rounded square is
 824 × 824 with a 100 px margin, which leaves room for the drop shadow.
 
