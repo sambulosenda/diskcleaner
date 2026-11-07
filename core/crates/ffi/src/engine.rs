@@ -26,9 +26,10 @@ use scanner::{RescanError, ScanError, ScanOptions, ScanResult};
 use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
-    AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview, CleanupResult,
-    FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LargeFiles, LibrarySize, Mode, Overview,
-    PlanHandle, PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    AndroidOverview, AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview,
+    CleanupResult, FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LargeFiles, LibrarySize,
+    Mode, Overview, PlanHandle, PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress,
+    Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -104,6 +105,8 @@ pub struct RoomyCore {
     /// Test-only: the folders to look for apps in, instead of
     /// `/Applications` and `~/Applications`.
     app_folders: Mutex<Option<Vec<PathBuf>>>,
+    /// The Android screen's latest overview.
+    android: Mutex<crate::android::AndroidState>,
 }
 
 /// Test-only changes to the extra checks, set by Rust tests only.
@@ -181,6 +184,7 @@ impl RoomyCore {
             home,
             apps: Mutex::new(crate::uninstall::AppsState::default()),
             app_folders: Mutex::new(None),
+            android: Mutex::new(crate::android::AndroidState::default()),
         }))
     }
 
@@ -527,6 +531,44 @@ impl RoomyCore {
             &self.home,
             &app_id,
             &part_ids,
+            id,
+            &guards,
+            std::time::SystemTime::now(),
+        )?;
+        *lock(&self.pending_plan) = prepared.plan;
+        Ok(prepared.preview)
+    }
+
+    /// The Android screen: every Android SDK part (emulator system images,
+    /// platforms, build tools, NDKs), every emulator and every Gradle
+    /// download in the home folder, each measured just now and marked with
+    /// whether any Android project in the home folder (or, for a system
+    /// image, any emulator) uses it. Read only: reads folder listings,
+    /// metadata, `source.properties`, emulator `config.ini` files and Gradle
+    /// build files. Can take some seconds. Each call gives new item ids.
+    pub fn android_overview(&self, mode: Mode) -> AndroidOverview {
+        crate::android::overview(&mut lock(&self.android), &self.home, mode)
+    }
+
+    /// The Android screen's dry run: checks the ticked items of the latest
+    /// `android_overview` exactly as a cleanup would, and says what would
+    /// move to the Trash. Moves nothing. The plan it keeps is carried out by
+    /// `run_cleanup` and can be put back with `put_back_cleanup`, like any
+    /// cleanup. Replaces any earlier plan.
+    ///
+    /// Throws `unknown_item` for an id that is not from the latest overview
+    /// and `nothing_selected` for no ids.
+    pub fn preview_android_cleanup(
+        &self,
+        item_ids: Vec<String>,
+    ) -> Result<CleanupPreview, CoreError> {
+        *lock(&self.pending_plan) = None;
+        let id = self.next_plan_id.fetch_add(1, Ordering::Relaxed);
+        let guards = self.guards();
+        let prepared = crate::android::prepare(
+            &lock(&self.android),
+            &self.home,
+            &item_ids,
             id,
             &guards,
             std::time::SystemTime::now(),

@@ -625,6 +625,70 @@ part "<app>: <part>". Throws `unknown_app`, `unknown_item`, `nothing_selected` o
 `item_id`, `title`, `explain`, `size_bytes: u64`, `preselected: Bool`, `sure: Bool`,
 `path: String?` (Developer mode only).
 
+## Android
+
+Shows the Android SDK parts, emulators and Gradle downloads in the home folder, how big each is,
+and whether any Android project Roomy found uses it. Cleanup reuses the cleanup machinery: the
+dry run makes the same single-use plan, `run_cleanup` carries it out, and `put_back_cleanup` and
+History work as for any cleanup. Trash only. No `sdkmanager` command is run (that is D9).
+
+Rules:
+
+1. Swift sends item ids, never paths. The core reads only the default places: the SDK at
+   `~/Library/Android/sdk` (`system-images/*/*/*`, `platforms/*`, `build-tools/*`, `ndk/*`, each
+   with a `source.properties`), emulators at `~/.android/avd/*.avd` (with a `config.ini`), and
+   Gradle at `~/.gradle/wrapper/dists/*` and `~/.gradle/caches`. Nothing reached through a
+   symlink, and nothing the safety rules would refuse, is offered.
+2. Projects are found by walking the home folder (at most 8 folders deep and 60,000 folders,
+   one volume, no symlinks), skipping `Library`, `Applications`, `Pictures`, `Music`, `Movies`,
+   `Public`, hidden folders, packages and dependency or build folders (`node_modules`, `build`,
+   `Pods` and so on). A folder holding `settings.gradle(.kts)` or `build.gradle(.kts)` whose
+   build files mention `com.android` or `android {` is a project. For a React Native or Flutter
+   `android` folder, the project takes the name of the folder around it.
+3. Usage comes from the project's Gradle files, version catalogs and `gradle.properties`
+   (`compileSdk`, `compileSdkVersion`, `compileSdkPreview`, `buildToolsVersion`, `ndkVersion`,
+   following references such as `rootProject.ext.x` and `libs.versions.x` one step) and its
+   `gradle-wrapper.properties`. System images are matched to emulators by `image.sysdir.1`.
+4. Doubt goes towards "used": a value Roomy can't read makes every unnamed part of that kind
+   `not_sure`; a project that names no build tools (or builds C/C++ without naming an NDK) marks
+   the newest installed one `probably_used`. `not_used` means no project or emulator Roomy found
+   uses it, and when no project is found the overview says so in `note`.
+5. Nothing is ever ticked for the user. Every item is chosen on its own, so emulators
+   (review-only) can be offered. Each item is skipped by the executor while Android Studio, Gradle
+   or the emulator (whichever uses it) is running, or if running programs can't be listed. All the
+   other cleanup checks apply unchanged, including the recent-change window and folders you keep.
+6. Only the `.avd` folder of an emulator moves; its small `.ini` file stays, so Android Studio
+   lists it as broken and offers to remove it.
+7. Paths are given in Developer mode only. The screen itself is Developer mode only.
+
+### `android_overview(mode: Mode) -> AndroidOverview`
+Every part, measured just now, grouped by kind and newest first, plus the projects found. Reads
+folder listings, metadata and small text files only. New ids on each call. Can take some seconds.
+
+### `preview_android_cleanup(item_ids: [String]) -> CleanupPreview` throws
+The dry run for the ticked items of the latest overview. Like `preview_cleanup`; History names
+each item "Android: <title>". Throws `unknown_item` (an id from an older overview) or
+`nothing_selected`.
+
+### `AndroidOverview` (record)
+`sdk_found`, `parts: [AndroidPart]`, `projects: [AndroidProject]`, `total_bytes`, `unused_bytes`
+(the `not_used` parts), and `note` (plain words, or `None`).
+
+### `AndroidPart` (record)
+`item_id`, `kind`, `title`, `detail`, `explain`, `size_bytes`, `usage`, `usage_text` (plain words;
+empty for an emulator), `last_used_unix_seconds` (emulators only) and `path` (Developer mode only).
+
+### `AndroidKind` (enum)
+`system_image`, `emulator`, `platform`, `build_tools`, `ndk`, `gradle_version`, `gradle_cache`.
+
+### `AndroidUsage` (enum)
+`used { by }`, `probably_used { by }`, `not_sure { by }`, `not_used`, `not_applicable` (emulators
+and the Gradle cache).
+
+### `AndroidProject` (record)
+`name`, `path` (Developer mode only) and `last_activity_unix_seconds` (when its build files or top
+folder last changed).
+
 ## JavaScript screen
 
 The Developer mode JavaScript screen (PRD D2). Read only: rows come from the finished scan (the

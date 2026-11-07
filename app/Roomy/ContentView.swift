@@ -79,6 +79,8 @@ struct DetailView: View {
                 JavaScriptScreen()
             } else if item == .apps {
                 AppsScreen()
+            } else if item == .android {
+                AndroidScreen()
             } else if item == .largeFiles {
                 LargeFilesScreen()
             } else if item.itemFilter != nil {

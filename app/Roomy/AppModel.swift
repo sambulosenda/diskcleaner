@@ -99,6 +99,16 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
+    /// What the Android screen shows.
+    enum AndroidState: Equatable {
+        /// Not looked yet.
+        case idle
+        /// Asking the core what the Android SDK, emulators and Gradle hold.
+        case loading
+        /// What the core found.
+        case loaded(AndroidOverview)
+    }
+
     /// What the JavaScript screen shows.
     enum JavaScriptState: Equatable {
         /// Not on the screen, or no scan has finished.
@@ -233,6 +243,10 @@ final class AppModel: ObservableObject {
     /// The parts of the chosen app that are ticked. The core says which to tick to begin with; data the
     /// app keeps for itself, and anything matched only by name, is never ticked for the user.
     @Published private(set) var checkedPartIDs: Set<String> = []
+    /// The Android screen's parts, emulators and Gradle downloads.
+    @Published private(set) var androidState: AndroidState = .idle
+    /// The ticked rows on the Android screen. Nothing is ticked for the user, even what no project uses.
+    @Published private(set) var checkedAndroidIDs: Set<String> = []
     /// What grew or shrank between the previous scan and the one showing, if there was a previous one.
     @Published private(set) var scanChanges: ScanChanges?
     /// Set once something has moved after the current scan started, so its sizes are out of date.
@@ -255,6 +269,7 @@ final class AppModel: ObservableObject {
     private var javascriptTask: Task<Void, Never>?
     private var filesTask: Task<Void, Never>?
     private var appReviewTask: Task<Void, Never>?
+    private var androidTask: Task<Void, Never>?
     /// A put back started from History, with no sheet open.
     private var putBackTask: Task<Void, Never>?
     /// `needsRescan` as it was when the running scan started, restored if that scan is stopped.
@@ -488,6 +503,7 @@ final class AppModel: ObservableObject {
     func closeCleanupReview() {
         guard !cleanupState.isBusy else { return }
         if cleanupState.showsOutcome, selection == .apps { reloadAppReview() }
+        if cleanupState.showsOutcome, selection == .android { loadAndroid() }
         cleanupTask?.cancel()
         cleanupTask = nil
         if case .ready(let preview) = cleanupState, let plan = preview.plan {
@@ -662,6 +678,86 @@ final class AppModel: ObservableObject {
     func waitForApps() async {
         await appsTask?.value
         await appReviewTask?.value
+    }
+
+    // MARK: - Android
+
+    /// Asks the core what the Android SDK, emulators and Gradle hold, and which projects use each part.
+    /// Forgets the ticks, since the core's ids are new each time. Reads only.
+    func loadAndroid() {
+        androidTask?.cancel()
+        checkedAndroidIDs = []
+        androidState = .loading
+        let client = self.client
+        let mode = self.mode
+        androidTask = Task { [weak self] in
+            let overview = await client.androidOverview(mode: mode)
+            guard !Task.isCancelled, let self else { return }
+            self.androidState = .loaded(overview)
+        }
+    }
+
+    func isAndroidChecked(_ part: AndroidPart) -> Bool { checkedAndroidIDs.contains(part.itemId) }
+
+    func setAndroidChecked(_ checked: Bool, for part: AndroidPart) {
+        if checked { checkedAndroidIDs.insert(part.itemId) } else { checkedAndroidIDs.remove(part.itemId) }
+    }
+
+    /// The ticked Android rows' total size.
+    var checkedAndroidBytes: UInt64 {
+        guard case .loaded(let overview) = androidState else { return 0 }
+        return overview.parts.filter { checkedAndroidIDs.contains($0.itemId) }.reduce(0) { $0 + $1.sizeBytes }
+    }
+
+    /// The Android rows matching the search field.
+    var visibleAndroidParts: [AndroidPart] {
+        guard case .loaded(let overview) = androidState else { return [] }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return overview.parts }
+        return overview.parts.filter {
+            $0.title.localizedCaseInsensitiveContains(query)
+                || ($0.detail ?? "").localizedCaseInsensitiveContains(query)
+                || $0.usageText.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    /// Opens the cleanup review for the ticked Android rows. Nothing moves until the user confirms in the
+    /// review, which then works exactly like any cleanup: to the Trash, with put back and History.
+    func reviewAndroidCleanup() {
+        guard case .loaded(let overview) = androidState, !checkedAndroidIDs.isEmpty, cleanupState == .closed else {
+            return
+        }
+        let ids = overview.parts.map(\.itemId).filter { checkedAndroidIDs.contains($0) }
+        let client = self.client
+        let kept = protectedFolders
+        cleanupState = .checking
+        cleanupTask = Task { [weak self] in
+            do {
+                _ = try await client.setProtectedFolders(kept)
+                let preview = try await client.previewAndroidCleanup(itemIds: ids)
+                guard !Task.isCancelled, let self else {
+                    if let plan = preview.plan { await client.discardCleanup(plan: plan) }
+                    return
+                }
+                self.cleanupState = .ready(preview)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.cleanupState = .failed(Self.androidMessage(for: error))
+            }
+        }
+    }
+
+    /// Plain words for an error from the Android review.
+    static func androidMessage(for error: Error) -> String {
+        if case .UnknownItem = error as? CoreError {
+            return "Some of these are no longer where Roomy last looked. Please look again."
+        }
+        return cleanupMessage(for: error)
+    }
+
+    /// Waits for the Android screen to load. Used by tests.
+    func waitForAndroid() async {
+        await androidTask?.value
     }
 
     // MARK: - Folders to keep
@@ -1011,6 +1107,9 @@ final class AppModel: ObservableObject {
         if selection == .apps, appsState == .idle {
             loadApps()
         }
+        if selection == .android, androidState == .idle {
+            loadAndroid()
+        }
     }
 
     private func modeDidChange() {
@@ -1022,6 +1121,13 @@ final class AppModel: ObservableObject {
         // Scan again so what shows always matches the mode.
         // The uninstaller's review shows paths only in Developer mode.
         if selectedAppID != nil { reloadAppReview() }
+        // The Android screen shows paths only in Developer mode, and only exists there.
+        if mode == .developer, androidState != .idle { loadAndroid() }
+        if mode == .simple, androidState != .idle {
+            androidTask?.cancel()
+            androidState = .idle
+            checkedAndroidIDs = []
+        }
         if overview != nil {
             selectedItemID = nil
             startScan()

@@ -115,4 +115,12 @@ protocol CoreClient: AnyObject {
     /// The uninstaller's dry run: checks the ticked parts of the last review the way a cleanup would and
     /// says what would move to the Trash. Moves nothing. Its plan runs with `runCleanup`, like any cleanup.
     func previewUninstall(appId: String, partIds: [String]) async throws -> CleanupPreview
+
+    /// The Android screen: SDK parts, emulators and Gradle downloads, each with its size and whether any
+    /// Android project (or emulator) uses it. Reads only; can take some seconds. Each call gives new ids.
+    func androidOverview(mode: Mode) async -> AndroidOverview
+
+    /// The Android screen's dry run: checks the ticked rows the way a cleanup would and says what would
+    /// move to the Trash. Moves nothing. Its plan runs with `runCleanup`, like any cleanup.
+    func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview
 }

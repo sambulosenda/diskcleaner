@@ -19,6 +19,7 @@
 //! protected folders (`set_protected_folders`, which can only stop things
 //! being cleaned) and the test-only commands behind the `testing` feature.
 
+mod android;
 mod backup;
 mod changes;
 mod cleanup;
@@ -61,12 +62,13 @@ pub use tools::{
     ToolCleanupKind, ToolCleanupPreview, ToolCleanupResult, ToolPlanHandle, ToolPreviewItem,
 };
 pub use types::{
-    Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryChange, CategoryTotal,
-    Caution, ChangeKind, CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview,
-    CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup, FileRow,
-    FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState, ItemChange, ItemDetail,
-    ItemSummary, LargeFiles, LibraryKind, LibrarySize, Mode, Overview, PlanHandle, PrivateArea,
-    PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    Action, AndroidKind, AndroidOverview, AndroidPart, AndroidProject, AndroidUsage, AppLocation,
+    AppPart, AppReview, AppSummary, Category, CategoryChange, CategoryTotal, Caution, ChangeKind,
+    CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview, CleanupPreviewItem, CleanupResult,
+    CleanupResultItem, Confidence, DeviceBackup, FileRow, FullDiskAccess, HistoryEntry,
+    HistoryItem, HistoryItemState, ItemChange, ItemDetail, ItemSummary, LargeFiles, LibraryKind,
+    LibrarySize, Mode, Overview, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle,
+    ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");
