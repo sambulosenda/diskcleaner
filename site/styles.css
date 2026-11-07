@@ -268,8 +268,8 @@ code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
 .story { padding: 80px 0 120px; }
 .story-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 72px; align-items: start; }
 .story-visual { position: sticky; top: 16vh; height: 68vh; display: grid; align-items: center; }
-.chapters { list-style: none; margin: 0; padding: 0; }
-.chapter { min-height: 64vh; display: grid; align-content: center; gap: 14px; opacity: 0.28; transition: opacity 0.5s var(--ease); }
+.chapters { list-style: none; margin: 0; padding: 8vh 0 18vh; }
+.chapter { min-height: 46vh; display: grid; align-content: center; gap: 14px; opacity: 0.28; transition: opacity 0.5s var(--ease); }
 .chapter.on { opacity: 1; }
 .chapter h3 { font-size: clamp(2rem, 3.6vw, 3rem); letter-spacing: -0.04em; font-weight: 760; }
 .chapter p { color: var(--muted); font-size: var(--step-1); max-width: 40ch; }
@@ -920,3 +920,41 @@ button.dock-app:focus-visible { outline: 2px solid #fff; border-radius: 12px; }
 }
 
 .mac.flat { transform: none; will-change: auto; }
+
+/* ==== Light theme rhythm: the developer and download sections stay dark, like ink bands ==== */
+.band-dark {
+  --bg: #050e0d; --bg-2: #081614; --surface: #0b1a18; --surface-2: #10231f;
+  --ink: #ecf7f3; --muted: #92b1aa; --faint: #5f7b75;
+  --line: rgba(255, 255, 255, 0.08); --line-2: rgba(255, 255, 255, 0.16);
+  --accent: #3fd3b0; --accent-2: #6ab4ff; --accent-ink: #04221d;
+  --glow-a: rgba(63, 211, 176, 0.32); --glow-b: rgba(76, 150, 255, 0.26);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 30px 70px -24px rgba(0, 0, 0, 0.8);
+  background: var(--bg); color: var(--ink); color-scheme: dark;
+}
+.devs.band-dark { background: radial-gradient(60% 40% at 80% 0%, rgba(63, 211, 176, 0.10), transparent 70%), #050e0d; }
+:root:not([data-theme="dark"]) .band-dark { border-radius: clamp(24px, 3vw, 44px); margin-inline: clamp(8px, 1.4vw, 20px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .band-dark { border-radius: 0; margin-inline: 0; } }
+
+/* Light theme: a crisper story card and stronger glows */
+:root:not([data-theme="dark"]) .disk { background: var(--surface); border-color: rgba(11, 28, 26, 0.08); }
+:root:not([data-theme="dark"]) .disk::before { opacity: 0.35; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .disk { background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, var(--mint)), var(--surface)); } :root:not([data-theme="light"]) .disk::before { opacity: 0.6; } }
+
+/* ==== Signature moment: as the Mac scrolls away, the Likely safe items fly into the Dock Trash ==== */
+.fx-layer { position: absolute; inset: 0; z-index: 7; pointer-events: none; overflow: hidden; }
+.fx-chip {
+  position: absolute; left: 0; top: 0; display: inline-flex; gap: 8px; align-items: center; white-space: nowrap;
+  padding: 7px 12px; border-radius: 10px; font: 600 13px/1 var(--sf); color: #1d1d1f;
+  background: rgba(255, 255, 255, 0.92); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); opacity: 0; will-change: transform, opacity;
+}
+.fx-chip i { width: 9px; height: 9px; border-radius: 3px; background: var(--chip, #30d158); }
+.fx-chip b { font-weight: 500; color: #6e6e73; }
+.fx-freed {
+  position: absolute; z-index: 8; pointer-events: none; padding: 6px 12px; border-radius: 999px;
+  font: 700 13px/1 var(--sf); color: #fff; background: #30d158; box-shadow: 0 8px 20px rgba(48, 209, 88, 0.45);
+  opacity: 0; transform: translate(-50%, 6px); transition: opacity 0.3s, transform 0.3s var(--ease); white-space: nowrap;
+}
+.fx-freed.on { opacity: 1; transform: translate(-50%, 0); }
+#dock-trash.fx-full .trash-paper { opacity: 1; }
+#dock-trash.fx-bump { animation: bump 0.35s var(--ease); }
+@keyframes bump { 40% { transform: translateY(-8px) scale(1.12); } }

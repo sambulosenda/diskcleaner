@@ -947,8 +947,58 @@ document.documentElement.classList.add("js");
     }, { passive: true });
   }
 
+
+  // Signature moment: as the Mac scrolls up and away, the Likely safe items lift out of the
+  // window and drop into the Dock Trash, and a "57.6 GB freed" tag pops over it. Purely visual:
+  // the demo's own Trash and Put back state is not touched. Scrolling back up reverses it.
+  function wireTrashFx() {
+    var desk = $("desktop"), trash = $("dock-trash");
+    if (!desk || !trash || reduceMotion) return;
+    var picks = ITEMS.filter(function (i) { return i.tier === "safe"; }).sort(function (a, b) { return b.gb - a.gb; }).slice(0, 7);
+    var layer = el("div", { class: "fx-layer", "aria-hidden": "true" });
+    var chips = picks.map(function (i, n) {
+      var c = el("span", { class: "fx-chip" }, [el("i"), el("span", { text: i.title }), el("b", { text: fmt(i.gb) })]);
+      c.style.setProperty("--chip", (CATS[i.cat] || CATS.system).color);
+      layer.appendChild(c);
+      return { node: c, sx: 0.2 + 0.6 * ((n * 0.37) % 1), sy: 0.42 + 0.3 * ((n * 0.61) % 1) };
+    });
+    var freed = el("div", { class: "fx-freed", "aria-hidden": "true", text: fmt(sum(ITEMS.filter(function (i) { return i.tier === "safe"; }))) + " freed" });
+    desk.appendChild(layer);
+    desk.appendChild(freed);
+    var wasFull = false, ticking = false;
+    function frame() {
+      ticking = false;
+      var vh = window.innerHeight, d = desk.getBoundingClientRect();
+      // 0 while the Mac's bottom edge is low on screen, 1 once it has risen to 45% of the viewport.
+      var p = clamp01((vh * 0.92 - d.bottom) / (vh * 0.47));
+      var t = trash.getBoundingClientRect();
+      var tx = t.left - d.left + t.width / 2, ty = t.top - d.top + t.height * 0.35;
+      chips.forEach(function (c, n) {
+        var k = clamp01((p - n * 0.07) / 0.5);
+        var w = c.node.offsetWidth, h = c.node.offsetHeight;
+        var x0 = c.sx * d.width - w / 2, y0 = c.sy * d.height;
+        var x = x0 + (tx - w / 2 - x0) * k, y = y0 + (ty - h / 2 - y0) * (k * k) - Math.sin(Math.PI * k) * 70;
+        var s = 1 - 0.8 * k * k;
+        c.node.style.opacity = k <= 0 || k >= 1 ? "0" : String(Math.min(1, k * 6) * (1 - Math.pow(k, 6)));
+        c.node.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) scale(" + s.toFixed(3) + ")";
+      });
+      var full = p > 0.92;
+      trash.classList.toggle("fx-full", full);
+      freed.style.left = tx + "px";
+      freed.style.top = (t.top - d.top - 34) + "px";
+      freed.classList.toggle("on", full);
+      if (full && !wasFull) { trash.classList.remove("fx-bump"); void trash.offsetWidth; trash.classList.add("fx-bump"); }
+      wasFull = full;
+    }
+    function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    frame();
+  }
+
   function wireSite() {
     wireHeader();
+    wireTrashFx();
     wireReveals();
     wireScrollEffects();
     wireTour();
