@@ -173,12 +173,19 @@ final class AppModel: ObservableObject {
     static let accessOnboardingKey = "roomy.onboarding.fullDiskAccessDone"
     /// Where the folders the user asked Roomy to keep are stored.
     static let protectedFoldersKey = "roomy.protectedFolders"
+    /// Whether Roomy measures the home folder when it opens. On unless the user turned it off.
+    static let scanOnOpenKey = "roomy.scanOnOpen"
 
     @Published private(set) var scanState: ScanState = .neverScanned
     @Published var selection: SidebarItem? = .overview {
         didSet { if selection != oldValue { selectionDidChange() } }
     }
     @Published var searchText = ""
+    /// Whether Roomy scans when it opens, so the Overview and the menu bar panel aren't empty. A scan
+    /// only measures; nothing is removed. Saved in settings.
+    @Published var scanOnOpen: Bool {
+        didSet { defaults.set(scanOnOpen, forKey: Self.scanOnOpenKey) }
+    }
     @Published var mode: Mode {
         didSet { if mode != oldValue { modeDidChange() } }
     }
@@ -297,6 +304,7 @@ final class AppModel: ObservableObject {
         self.pollInterval = pollInterval
         self.now = now
         self.mode = Mode(storageKey: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
+        self.scanOnOpen = defaults.object(forKey: Self.scanOnOpenKey) as? Bool ?? true
         self.protectedFolders = defaults.stringArray(forKey: Self.protectedFoldersKey) ?? []
     }
 
@@ -448,15 +456,35 @@ final class AppModel: ObservableObject {
     /// Called once when the window first appears. Asks the core about Full Disk Access and, on first
     /// launch only, opens the Full Disk Access screen if access is off. If it is already on, or the core
     /// can't tell, the screen is never shown by itself.
+    ///
+    /// Then, unless the Full Disk Access screen is waiting for the user, starts the opening scan (see
+    /// `scanIfOpening`).
     func windowDidAppear() async {
         await refreshFullDiskAccess()
-        guard !defaults.bool(forKey: Self.accessOnboardingKey) else { return }
-        if fullDiskAccess == .notGranted {
-            showsAccessOnboarding = true
-        } else {
+        if !defaults.bool(forKey: Self.accessOnboardingKey) {
+            if fullDiskAccess == .notGranted {
+                // The screen offers its own scan; nothing starts until the user chooses there.
+                showsAccessOnboarding = true
+                return
+            }
             defaults.set(true, forKey: Self.accessOnboardingKey)
         }
+        scanIfOpening()
     }
+
+    /// Starts a scan if none has run since Roomy opened and the user hasn't turned "Scan when Roomy
+    /// opens" off. Also called when the menu bar panel opens. A scan only measures; it never removes
+    /// anything, and never starts while the Full Disk Access screen is waiting.
+    func scanIfOpening() {
+        guard scanOnOpen, scanState == .neverScanned, !showsAccessOnboarding else { return }
+        // The test host's own window uses the real core: never let it measure the real home folder.
+        if Self.isTestHost && client is RustCoreClient { return }
+        startScan()
+    }
+
+    /// True when the app is only hosting the test target.
+    private static let isTestHost =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     /// Asks the core again whether Full Disk Access is on. Reads a few folder listings only.
     func refreshFullDiskAccess() async {

@@ -154,6 +154,8 @@ final class MenuBarPanelModel: ObservableObject {
     /// Loads the items for the finished scan, if they aren't loaded yet, and checks the open groups
     /// again, since an app may have opened or closed since the panel was last open.
     func panelDidOpen(model: AppModel) async {
+        // Roomy may have opened without its window: scan now so the panel isn't empty. Only measures.
+        model.scanIfOpening()
         guard case let .loaded(_, scannedAt) = model.scanState else {
             itemsState = .idle
             loadedScan = nil

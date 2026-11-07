@@ -84,6 +84,8 @@ final class ScreenshotTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
         // The Full Disk Access screen has been seen, so it never opens over a screenshot by itself.
         defaults.set(true, forKey: AppModel.accessOnboardingKey)
+        // No scan starts by itself, so each screenshot shows the state it asks for.
+        defaults.set(false, forKey: AppModel.scanOnOpenKey)
         let client = MockCoreClient()
         client.access = access
         let model = AppModel(client: client, defaults: defaults, pollInterval: 0)
