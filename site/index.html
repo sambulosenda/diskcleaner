@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roomy for Mac</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Roomy shows what is filling your Mac, says what each item is in plain words, and moves only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.">
+<meta name="theme-color" content="#10897e">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="icon.svg" alt="" width="34" height="34">Roomy</a>
+    <nav class="site-nav" aria-label="Main">
+      <a class="nav-link" href="#demo">Try it</a>
+      <a class="nav-link" href="#developers">For developers</a>
+      <a class="nav-link" href="#safety">Safety</a>
+      <a class="btn btn-primary btn-small" href="#download">Get Roomy</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap hero-copy">
+      <p class="eyebrow">Storage for Mac, explained</p>
+      <h1>Make <span class="room">room</span> on your Mac.</h1>
+      <p class="lede">Roomy shows what is filling your disk, says what each thing is in plain words, and moves only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#demo">Try it on an example Mac</a>
+        <a class="btn btn-ghost" href="#download">Get Roomy</a>
+      </div>
+      <p class="hero-note">The demo below uses example files. It never looks at your Mac.</p>
+    </div>
+  </section>
+
+  <section class="demo" id="demo" aria-label="Roomy demo">
+    <div class="wrap">
+      <ol class="steps" id="steps">
+        <li data-step="scan">Scan</li>
+        <li data-step="read">Read what each item is</li>
+        <li data-step="choose">Tick what goes</li>
+        <li data-step="trash">Trash, with Put back</li>
+      </ol>
+
+      <div class="window" id="window">
+        <div class="titlebar">
+          <div class="lights" aria-hidden="true"><span></span><span></span><span></span></div>
+          <span>Roomy</span>
+          <span class="example-tag">Example Mac · 512 GB</span>
+        </div>
+        <div class="window-body">
+          <nav class="sidebar" id="sidebar" aria-label="Demo categories"></nav>
+          <div class="main" id="main">
+            <div class="disk-head">
+              <div><span class="free" id="free-label">16.4 GB free</span> <span class="of">of 512 GB</span></div>
+              <span class="of" id="disk-note">Macintosh HD</span>
+            </div>
+            <div class="diskbar" id="diskbar" role="img" aria-label="Disk usage by category"></div>
+            <div class="legend" id="legend"></div>
+            <div id="stage"></div>
+          </div>
+        </div>
+        <div class="bottombar" id="bottombar" hidden>
+          <span class="chosen" id="chosen"><strong>0 chosen</strong></span>
+          <div class="actions">
+            <button class="btn btn-ghost btn-small" id="quick-select" type="button">Tick all Likely safe</button>
+            <button class="btn btn-primary btn-small" id="review-btn" type="button" disabled>Review</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="developers">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Developer mode</p>
+        <h2>Every toolchain in one place.</h2>
+        <p>Developers lose the most space to build files, simulators and caches. Roomy knows where each tool keeps them, which projects still use them, and the command that clears them properly.</p>
+      </div>
+      <div class="tools">
+        <div class="tool"><span class="dot" style="background: var(--seg-xcode)"></span><h3>Xcode</h3><p>DerivedData, archives, device support and simulators for iOS versions you no longer have.</p><p><code>xcrun simctl delete unavailable</code></p></div>
+        <div class="tool"><span class="dot" style="background: var(--seg-android)"></span><h3>Android</h3><p>System images by API level, emulators and NDKs, checked against the Gradle files of your projects.</p><p><code>sdkmanager --uninstall</code></p></div>
+        <div class="tool"><span class="dot" style="background: var(--seg-js)"></span><h3>JavaScript</h3><p><code>node_modules</code> in every project with the date you last worked on it, plus npm, pnpm, Yarn and Bun caches.</p></div>
+        <div class="tool"><span class="dot" style="background: var(--seg-docker)"></span><h3>Docker</h3><p>Images, stopped containers and build cache, previewed before anything runs. Volumes are never removed.</p><p><code>docker builder prune</code></p></div>
+        <div class="tool"><span class="dot" style="background: var(--seg-ai)"></span><h3>Local AI models</h3><p>Ollama, LM Studio and the Hugging Face cache, per model with size and last use. Always Review first, since models take hours to download again.</p></div>
+        <div class="tool"><span class="dot" style="background: var(--seg-files)"></span><h3>Rust, Python, Go, Homebrew</h3><p>Old <code>target</code> folders, virtual environments, module caches and old Homebrew versions.</p><p><code>brew cleanup</code></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Built in</p>
+        <h2>Small things that save time.</h2>
+        <p>Try each one here with example files.</p>
+      </div>
+      <div class="features">
+
+        <article class="feature">
+          <h3>Find anything with <kbd>⌘K</kbd></h3>
+          <p>Jump to a screen, start a scan or review what is ready to free, all from the keyboard.</p>
+          <div class="mini">
+            <input type="text" id="palette-input" aria-label="Search actions" placeholder="Try “docker” or “uninstall”" autocomplete="off">
+            <ul class="palette-results" id="palette-results"></ul>
+          </div>
+        </article>
+
+        <article class="feature">
+          <h3>A menu bar panel</h3>
+          <p>See free space at a glance and get a gentle note when your disk runs low.</p>
+          <div class="mini menubar-mock">
+            <div class="mini-row"><span>Macintosh HD</span><span class="r">16.4 GB free</span></div>
+            <div class="gauge" aria-hidden="true"><span></span></div>
+            <div><span class="r">You can likely free</span><div class="big">54.4 GB</div></div>
+            <div class="mini-row"><span class="l"><span>Xcode DerivedData</span></span><span class="r">18.4 GB · changed 3 days ago</span></div>
+            <div class="mini-row"><span class="l"><span>Unavailable simulators</span></span><span class="r">9.6 GB</span></div>
+            <button class="btn btn-primary btn-small" type="button" data-toast="In the app, this opens the review in Roomy.">Review in Roomy…</button>
+          </div>
+        </article>
+
+        <article class="feature">
+          <h3>Leaves alone what you are using</h3>
+          <p>Items in use, changed recently, holding unsaved git work or inside folders you keep are skipped and say why.</p>
+          <div class="mini">
+            <div class="mini-row"><span class="l"><span>node_modules in roomy-site</span></span><span class="pill keep">Changed 2 hours ago</span></div>
+            <div class="mini-row"><span class="l"><span>DerivedData for Photos Plus</span></span><span class="pill keep">Open in Xcode</span></div>
+            <div class="mini-row"><span class="l"><span>Agent worktree feature-login</span></span><span class="pill keep">Unsaved git work</span></div>
+            <div class="mini-row"><span class="l"><span>~/Clients</span></span><span class="pill keep">A folder you keep</span></div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <h3>Duplicates and large files</h3>
+          <p>The 500 largest files with the date you last opened them, and copies of the same file. You pick the copy to keep.</p>
+          <div class="mini" id="dupes">
+            <div class="mini-row"><span class="l"><input type="checkbox" id="dupe-a" checked><label for="dupe-a">Desktop/Screen Recording.mov</label></span><span class="r">1.7 GB</span></div>
+            <div class="mini-row"><span class="l"><input type="checkbox" id="dupe-b"><label for="dupe-b">Movies/Screen Recording.mov</label></span><span class="r">1.7 GB</span></div>
+            <p class="r" id="dupe-note">Keeping Movies/Screen Recording.mov.</p>
+          </div>
+        </article>
+
+        <article class="feature">
+          <h3>What System Data really is</h3>
+          <p>macOS lumps a lot into one grey bar. Roomy breaks it down into Time Machine snapshots, caches, logs and more, so you know what you are looking at.</p>
+          <div class="mini">
+            <div class="mini-row"><span>Local Time Machine snapshots</span><span class="r">22.1 GB</span></div>
+            <div class="mini-row"><span>App caches</span><span class="r">8.7 GB</span></div>
+            <div class="mini-row"><span>iPhone backups</span><span class="r">14.3 GB</span></div>
+            <div class="mini-row"><span>Logs</span><span class="r">1.2 GB</span></div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <h3>Uninstall apps fully</h3>
+          <p>See an app's caches, preferences and support files next to the app itself, then move them to the Trash together.</p>
+          <div class="mini">
+            <div class="mini-row"><span>Figma caches</span><span class="r">2.4 GB</span></div>
+            <div class="mini-row"><span>Figma support files</span><span class="r">310 MB</span></div>
+            <div class="mini-row"><span>Figma preferences</span><span class="r">48 KB</span></div>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="safety">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Safety</p>
+        <h2>Nothing goes without your say.</h2>
+        <p>Roomy is careful by design. It would rather leave something behind than remove a file you needed.</p>
+      </div>
+      <ol class="safety">
+        <li><h3>Scan</h3><p>Roomy reads your disk. Scanning never changes a file.</p></li>
+        <li><h3>Explain</h3><p>Every item gets a plain description and a label: Likely safe, Review first, or Keep.</p></li>
+        <li><h3>You choose</h3><p>Nothing is ticked for you. Review first items are never ticked in bulk.</p></li>
+        <li><h3>Check again</h3><p>Just before acting, Roomy checks each item again and skips anything that has changed.</p></li>
+        <li><h3>Trash, with Put back</h3><p>Items go to the Trash, not straight off your disk. Put back returns the last clean-up.</p></li>
+      </ol>
+      <ul class="never">
+        <li>No automatic clean-ups. Ever.</li>
+        <li>No AI agent deciding what is safe.</li>
+        <li>Docker volumes are never removed.</li>
+        <li>Your photos, documents and messages are never marked Likely safe.</li>
+        <li>No alarming totals or scare warnings.</li>
+        <li>Native Mac app. Signed, notarised, and updates itself.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="download">
+    <div class="wrap">
+      <!-- Placeholder: pricing and licensing are not decided yet (Paddle or Lemon Squeezy, free tier).
+           Replace this card with the real download link and prices once they are settled. -->
+      <div class="download-card">
+        <img src="icon.svg" alt="Roomy app icon" width="112" height="112">
+        <div class="copy">
+          <p class="eyebrow">Coming soon</p>
+          <h2>Roomy is in testing.</h2>
+          <p>Scanning will always be free. Pricing and the download link will be here soon.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" type="button" disabled>Download for Mac</button>
+            <a class="btn btn-ghost" href="#demo">Try the demo</a>
+          </div>
+          <p class="reqs">macOS 13 Ventura or later · Apple silicon and Intel</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="faq">
+    <div class="wrap">
+      <div class="section-head"><h2>Questions</h2></div>
+      <div class="faq">
+        <details><summary>Will Roomy delete something I need?</summary><p>Roomy only moves items you tick, and it moves them to the Trash so you can get them back. Your own photos, documents and messages are never labelled Likely safe, and anything in use or changed recently is skipped.</p></details>
+        <details><summary>Does Roomy send my file names anywhere?</summary><p>No. Scanning and labelling happen on your Mac. Roomy does not use an AI service to decide what is safe.</p></details>
+        <details><summary>Why does Roomy ask for Full Disk Access?</summary><p>Some of the biggest items, like iPhone backups and Mail downloads, sit in folders macOS protects. Roomy explains why before asking, and works without it too, with fewer results.</p></details>
+        <details><summary>I am not a developer. Is it for me?</summary><p>Yes. Simple mode shows everyday things like large downloads, old installers, iPhone backups and duplicates, in plain words. Developer mode is there when you want it.</p></details>
+        <details><summary>Which Macs does it run on?</summary><p>Any Mac with macOS 13 Ventura or later, on Apple silicon or Intel.</p></details>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>Roomy · Made by Sam Senda</span>
+    <span>Sizes in the demo are examples.</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="demo.js"></script>
+</body>
+</html>
