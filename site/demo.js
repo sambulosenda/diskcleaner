@@ -179,6 +179,7 @@
     if (state.phase === "scanning") return;
     state.phase = "scanning";
     renderSteps();
+    renderFooter();
     stage.textContent = "";
     var bar = el("span");
     var pathEl = el("div", { class: "scan-path" });
@@ -274,16 +275,31 @@
         el("div", { class: "sheet-actions" }, [cancel, go])
       ])
     ]);
-    function close() { backdrop.remove(); $("review-btn").focus(); }
+    // Keep keyboard focus inside the sheet while it is open, and let Escape close it.
+    function onKey(e) {
+      if (e.key === "Escape") { e.preventDefault(); close(); }
+      else if (e.key === "Tab") {
+        e.preventDefault();
+        (document.activeElement === go ? cancel : go).focus();
+      }
+    }
+    function close() {
+      document.removeEventListener("keydown", onKey);
+      backdrop.remove();
+      $("review-btn").focus();
+    }
     cancel.addEventListener("click", close);
-    backdrop.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+    document.addEventListener("keydown", onKey);
     go.addEventListener("click", function () {
+      document.removeEventListener("keydown", onKey);
       state.lastFreed = sumGb(c);
       state.trashed = {};
       c.forEach(function (i) { state.trashed[i.id] = true; state.checked[i.id] = false; });
       state.phase = "done";
       backdrop.remove();
       render();
+      var undo = stage.querySelector(".done-banner button");
+      if (undo) undo.focus();
     });
     $("window").appendChild(backdrop);
     go.focus();
@@ -417,14 +433,26 @@
     var res = $("palette-results");
     res.textContent = "";
     var hits = ACTIONS.filter(function (a) { return !q || a.label.toLowerCase().indexOf(q) !== -1; }).slice(0, 5);
-    if (!hits.length) { res.appendChild(el("li", { text: "No actions match." })); return; }
+    if (!hits.length) { delete res.dataset.first; res.appendChild(el("li", { text: "No actions match." })); return; }
     hits.forEach(function (a) { res.appendChild(el("li", null, [el("span", { text: a.label }), a.key ? el("kbd", { text: a.key }) : el("kbd", { text: "↩" })])); });
     res.dataset.first = ACTIONS.indexOf(hits[0]);
   }
   function runPalette() {
-    var a = ACTIONS[Number($("palette-results").dataset.first)];
+    var first = $("palette-results").dataset.first;
+    var a = first === undefined ? null : ACTIONS[Number(first)];
     if (!a) return;
-    if (a.cat) {
+    if (a.label === "Scan now") {
+      state.touched = true;
+      openWindow(false);
+      if (state.phase === "done") state.phase = "results";
+      startScan();
+      $("desktop").scrollIntoView({ block: "center" });
+      toast("Scanning the example Mac above.");
+    } else if (a.label === "Review Likely safe items") {
+      $("desktop").scrollIntoView({ block: "center" });
+      $("pop-review").click();
+      toast("Likely safe items are in the window above. Tick the ones you want to go.");
+    } else if (a.cat) {
       state.cat = a.cat;
       openWindow(false);
       if (state.phase === "idle") { render(); startScan(); } else { if (state.phase === "done") state.phase = "results"; render(); }
