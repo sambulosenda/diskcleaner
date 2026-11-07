@@ -26,6 +26,8 @@ struct OverviewContent: View {
     let overview: Overview
     let scannedAt: Date
     @State private var showingChanges = false
+    /// The widest the Overview's column grows, padding included.
+    static let columnWidth: CGFloat = 1080
 
     var body: some View {
         ScrollView {
@@ -37,13 +39,11 @@ struct OverviewContent: View {
                 }
                 WorthALookList(overview: overview, items: model.worthReviewing(in: overview),
                                searchText: model.searchText)
-                if model.shouldOfferAccess(for: overview) {
-                    UnscannedAreasBox(overview: overview)
-                }
                 VStack(alignment: .leading, spacing: 16) {
                     Divider()
                     OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,
                                    quickRescan: overview.quickRescan,
+                                   unscanned: model.shouldOfferAccess(for: overview) ? overview : nil,
                                    hasChanges: model.scanChanges != nil, showingChanges: $showingChanges)
                     if showingChanges, let changes = model.scanChanges {
                         ChangesSinceLastScan(changes: changes)
@@ -52,8 +52,9 @@ struct OverviewContent: View {
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 32)
-            .frame(maxWidth: 900, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // One readable column, centred, so a wide window gets even margins instead of an empty right side.
+            .frame(maxWidth: Self.columnWidth)
+            .frame(maxWidth: .infinity)
         }
     }
 }
@@ -377,6 +378,9 @@ struct OverviewFooter: View {
     let scannedAt: Date
     let unreadableCount: UInt64
     var quickRescan = false
+    /// When set, "Why?" lists the private areas Roomy couldn't read, with a way to turn on Full Disk
+    /// Access, instead of a card on the Overview.
+    var unscanned: Overview?
     var hasChanges = false
     @Binding var showingChanges: Bool
 
@@ -390,17 +394,20 @@ struct OverviewFooter: View {
             }
             Spacer(minLength: 12)
             Text("Scanned \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
+                .foregroundStyle(.secondary)
                 .help(quickRescan ? "Roomy measured again only the folders that changed since the scan before." : "")
-            UnmeasuredNote(unreadableCount: unreadableCount)
+            UnmeasuredNote(unreadableCount: unreadableCount, unscanned: unscanned)
         }
         .font(.footnote)
-        .foregroundStyle(.secondary)
     }
 }
 
 /// "212 folders not measured", with a link that explains Full Disk Access and opens System Settings.
 struct UnmeasuredNote: View {
+    @EnvironmentObject private var model: AppModel
     let unreadableCount: UInt64
+    /// When set, the popover lists the areas Roomy couldn't read and offers Full Disk Access.
+    var unscanned: Overview? = nil
     @State private var showingExplanation = false
 
     /// "1 folder not measured" or "212 folders not measured".
@@ -411,14 +418,22 @@ struct UnmeasuredNote: View {
     var body: some View {
         if unreadableCount == 0 {
             Text("Roomy could open every folder.")
+                .foregroundStyle(.secondary)
         } else {
             HStack(spacing: 6) {
                 Text(Self.text(for: unreadableCount))
+                    .foregroundStyle(.secondary)
                 Button("Why?") { showingExplanation = true }
                     .buttonStyle(.link)
                     .accessibilityLabel("Why some folders weren't measured")
                     .popover(isPresented: $showingExplanation, arrowEdge: .bottom) {
-                        FullDiskAccessExplanation()
+                        if let unscanned {
+                            UnscannedAreasBox(overview: unscanned, inPopover: true)
+                                .environmentObject(model)
+                                .frame(width: 400)
+                        } else {
+                            FullDiskAccessExplanation()
+                        }
                     }
             }
         }
