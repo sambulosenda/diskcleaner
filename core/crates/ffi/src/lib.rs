@@ -25,6 +25,7 @@ mod cleanup;
 mod docker;
 mod embedded_rules;
 mod engine;
+mod files;
 mod folders;
 mod javascript;
 mod low_space;
@@ -62,10 +63,10 @@ pub use tools::{
 pub use types::{
     Action, AppLocation, AppPart, AppReview, AppSummary, Category, CategoryChange, CategoryTotal,
     Caution, ChangeKind, CleanupCheck, CleanupChoice, CleanupHandle, CleanupPreview,
-    CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup, FullDiskAccess,
-    HistoryEntry, HistoryItem, HistoryItemState, ItemChange, ItemDetail, ItemSummary, LibraryKind,
-    LibrarySize, Mode, Overview, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle,
-    ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    CleanupPreviewItem, CleanupResult, CleanupResultItem, Confidence, DeviceBackup, FileRow,
+    FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState, ItemChange, ItemDetail,
+    ItemSummary, LargeFiles, LibraryKind, LibrarySize, Mode, Overview, PlanHandle, PrivateArea,
+    PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

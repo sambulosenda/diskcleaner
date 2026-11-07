@@ -428,3 +428,31 @@ fn marks_folders_that_hold_git() {
     with_git.sort();
     assert_eq!(with_git, want);
 }
+
+#[test]
+fn keeps_largest_files_only_from_folders_allowed() {
+    let home = home();
+    // Only files directly in Downloads, or below it, may be kept by path.
+    let allow = scanner::RecordFiles(std::sync::Arc::new(|rel: &Path| {
+        rel.starts_with(paths::DOWNLOADS)
+    }));
+    let opts = ScanOptions {
+        largest_in: Some(allow),
+        ..ScanOptions::default()
+    };
+    let limited = scan(&home.root, opts, |_| {}).unwrap();
+    let everything = scan_home(&home.root);
+    assert!(!limited.largest_files.is_empty());
+    let downloads = home.root.join(paths::DOWNLOADS);
+    assert!(limited
+        .largest_files
+        .iter()
+        .all(|f| f.path.starts_with(&downloads)));
+    // Files elsewhere were kept without the option.
+    assert!(everything
+        .largest_files
+        .iter()
+        .any(|f| !f.path.starts_with(&downloads)));
+    // Sizes are the same either way: the option only changes the list.
+    assert_eq!(limited.total_bytes(), everything.total_bytes());
+}

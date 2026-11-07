@@ -373,7 +373,7 @@ app calls it when the user closes the review without cleaning up.
 ### `CleanupChoice` (record)
 | Field | Type | Meaning |
 |---|---|---|
-| `item_id` | `ItemId` | An id from `list_items` or `overview` |
+| `item_id` | `ItemId` | An id from `list_items` or `overview`, or a row id from `large_files` |
 | `chosen_alone` | `bool` | Whether the user ticked this item on its own, not as part of a group. Items that are, or hold, review-only things (an iPhone backup, an `.env` file) move only when this is `true`. Ticking a row's checkbox is `true` |
 
 ### `CleanupCheck` (enum)
@@ -502,6 +502,51 @@ All of these only read. They run in `preview_cleanup` and again in `run_cleanup`
 
 ### `HistoryItemState` (enum)
 `moved`, `not_moved { reason }`, `put_back`, `stayed_in_trash { reason }`.
+
+## Large files and old Downloads (E2)
+
+What the Large files screen lists. Read once, when the scan finishes; nothing here changes a file.
+Rows are not rule items: they are not in `list_items`, the Overview or its totals. Their ids go to
+`preview_cleanup` like any item id, and are then cleaned, put back and kept in History the same way.
+
+Rules:
+
+1. Nothing is ever ticked for the user, and every row is Review first. Rows in Downloads, Desktop
+   and Documents move only when `chosen_alone` is `true` (they are review only in `docs/safety/`).
+2. Trash only, never regenerable: a row never allows permanent delete.
+3. Large files are the 500 largest plain files in home, leaving out `~/Library`, hidden folders,
+   `~/Applications`, anything inside a package (`.app`, `.photoslibrary`, `.fcpbundle` and the
+   others in `analysers::files`), the Music and TV apps' media folders and `node_modules`. Anything
+   a rule explains, or inside such an item, is on its own screen and left out here. So are files
+   with more than one hard link (removing one name frees nothing), anything that changed since the
+   scan, and anything the safety rules would refuse.
+4. Old Downloads are the files and folders directly in `~/Downloads`, with the same exclusions, not
+   opened for 90 days (or, with no record of being opened, not changed for 90 days). A folder that
+   could not be read in full is left out.
+5. "Last opened" is macOS's own record (`com.apple.lastuseddate#PS`, what Finder shows). A file
+   opened only from Terminal may have none; that is `null`, not "never".
+
+### `large_files(handle: ScanHandle) -> LargeFiles` throws
+The rows for a finished scan, each list largest first. Throws the same scan errors as `list_items`.
+
+### `LargeFiles` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `large_files` | `[FileRow]` | Up to 500 of the largest files, largest first |
+| `old_downloads` | `[FileRow]` | Old things in Downloads, largest first. A file can also be in `large_files`, with the same id |
+| `old_after_days` | `u32` | How many days count as old (90) |
+
+### `FileRow` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `item_id` | `String` | Send back in a `CleanupChoice` |
+| `name` | `String` | The file's or folder's own name |
+| `place` | `String` | The folder in home it is in, such as `Movies`, or `Home folder` |
+| `size_bytes` | `u64` | Space on disk |
+| `is_folder` | `bool` | `true` for a folder in Downloads |
+| `last_opened_unix_seconds` | `i64?` | When macOS last recorded it being opened; `null` when there is no record |
+| `modified_unix_seconds` | `i64` | When it last changed |
+| `path` | `String?` | `~/...` in Developer mode only; `null` in simple mode |
 
 ## Low-space alerts
 

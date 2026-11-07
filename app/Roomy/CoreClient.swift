@@ -44,6 +44,10 @@ protocol CoreClient: AnyObject {
     /// they are cleaned with `previewCleanup` like any item.
     func javascriptProjects(handle: ScanHandle) async throws -> JavaScriptOverview
 
+    /// The Large files screen's rows for a finished scan: up to 500 of the largest files and the old
+    /// Downloads, largest first. Paths only in Developer mode. Row ids go to `previewCleanup` like item ids.
+    func largeFiles(handle: ScanHandle) async throws -> LargeFiles
+
     /// The dry run: checks the ticked items the way a cleanup would and says what would move to the
     /// Trash. Moves nothing. Sends item ids only, never paths.
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview

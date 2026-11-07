@@ -55,7 +55,7 @@ final class RustCoreClientTests: XCTestCase {
 
     func testSimpleModeShowsNoPathAnywhere() async throws {
         let (model, overview) = try await scanned(.simple)
-        model.selection = .largeFiles
+        model.selection = .cleanup
         await model.waitForItems()
         guard case .loaded(let items) = model.listState else { return XCTFail("\(model.listState)") }
         XCTAssertEqual(items.count, Int(overview.categories.reduce(0) { $0 + $1.itemCount }))
@@ -137,6 +137,7 @@ private final class FailingCore: CoreClient {
     }
     func itemDetail(handle: ScanHandle, itemId: String) async throws -> ItemDetail { throw CoreError.HomeNotFound }
     func libraries(handle: ScanHandle) async throws -> [LibrarySize] { throw CoreError.HomeNotFound }
+    func largeFiles(handle: ScanHandle) async throws -> LargeFiles { throw CoreError.HomeNotFound }
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
         throw CoreError.HomeNotFound
     }

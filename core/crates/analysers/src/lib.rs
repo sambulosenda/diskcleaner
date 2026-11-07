@@ -2,6 +2,7 @@
 
 pub mod apps;
 pub mod docker;
+pub mod files;
 pub mod ios_backup;
 pub mod js;
 pub mod libraries;

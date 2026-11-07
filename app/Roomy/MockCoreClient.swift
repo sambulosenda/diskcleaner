@@ -139,6 +139,12 @@ final class MockCoreClient: CoreClient {
         return MockData.detail(for: item, mode: modes[handle] ?? .simple)
     }
 
+    /// The Large files screen's rows. Nothing here reads the disk.
+    func largeFiles(handle: ScanHandle) async throws -> LargeFiles {
+        _ = try await overview(handle: handle)
+        return MockData.largeFiles(for: scenario, mode: modes[handle] ?? .simple)
+    }
+
     /// Follows the core's rules: `keep` items never move, and Review first items move only when
     /// chosen on their own. Nothing here touches the disk.
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
@@ -147,6 +153,15 @@ final class MockCoreClient: CoreClient {
         var seen: Set<String> = []
         var rows: [CleanupPreviewItem] = []
         for choice in choices where seen.insert(choice.itemId).inserted {
+            let mode = modes[handle] ?? .simple
+            if let file = MockData.fileRow(choice.itemId, for: scenario, mode: mode) {
+                // Large files are Review first: they move only when chosen on their own.
+                let check: CleanupCheck = choice.chosenAlone
+                    ? .willMove : .wontMove(reason: "This is something you need to choose yourself.")
+                rows.append(CleanupPreviewItem(itemId: file.itemId, title: file.name, sizeBytes: file.sizeBytes,
+                                               check: check, path: file.path, deviceBackup: nil))
+                continue
+            }
             guard let item = MockData.lookup(choice.itemId, in: scenario) else { throw CoreError.UnknownItem }
             let check: CleanupCheck
             switch item.tier {
@@ -598,6 +613,43 @@ enum MockData {
              "Your photos. Shown so you know where the space goes.",
              22_000_000_000, .keep, .userData),
     ]
+
+    /// The Large files screen's rows: big files of the user's own, and old things in Downloads. The
+    /// screen recording is in both lists, with one id, as the core does for a file in both.
+    static func largeFiles(for scenario: MockCoreClient.Scenario, mode: Mode) -> LargeFiles {
+        guard scenario != .nothingFound else { return LargeFiles(largeFiles: [], oldDownloads: [], oldAfterDays: 90) }
+        let rows = fileRows(mode: mode)
+        return LargeFiles(
+            largeFiles: rows.filter { $0.itemId != "file-3" },
+            oldDownloads: rows.filter { $0.place == "Downloads" },
+            oldAfterDays: 90
+        )
+    }
+
+    /// One Large files row by id, if the scenario has it.
+    static func fileRow(_ id: String, for scenario: MockCoreClient.Scenario, mode: Mode) -> FileRow? {
+        guard scenario != .nothingFound else { return nil }
+        return fileRows(mode: mode).first { $0.itemId == id }
+    }
+
+    /// 1 March 2025 and 10 June 2026, 12:00 UTC.
+    private static let march2025: Int64 = 1_740_830_400
+    private static let june2026: Int64 = 1_781_092_800
+
+    private static func fileRows(mode: Mode) -> [FileRow] {
+        func row(_ id: String, _ name: String, _ place: String, _ bytes: UInt64, folder: Bool = false,
+                 opened: Int64?, changed: Int64) -> FileRow {
+            FileRow(itemId: id, name: name, place: place, sizeBytes: bytes, isFolder: folder,
+                    lastOpenedUnixSeconds: opened, modifiedUnixSeconds: changed,
+                    path: mode == .developer ? "~/\(place)/\(name)" : nil)
+        }
+        return [
+            row("file-0", "Wedding film final.mov", "Movies", 9_400_000_000, opened: june2026, changed: march2025),
+            row("file-1", "Screen recording.mov", "Downloads", 4_700_000_000, opened: march2025, changed: march2025),
+            row("file-2", "Ubuntu 22.04.iso", "Documents", 3_100_000_000, opened: nil, changed: march2025),
+            row("file-3", "Old photos", "Downloads", 1_200_000_000, folder: true, opened: nil, changed: march2025),
+        ]
+    }
 
     /// Every item a scenario's scan finds.
     static func found(for scenario: MockCoreClient.Scenario) -> [ItemSummary] {

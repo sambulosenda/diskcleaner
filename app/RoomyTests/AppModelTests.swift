@@ -203,13 +203,13 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(caches.isEmpty)
         XCTAssertTrue(caches.allSatisfy { [.cache, .appData].contains($0.category) })
         XCTAssertEqual(caches.map(\.sizeBytes), caches.map(\.sizeBytes).sorted(by: >))
-        let everything = await items(on: .largeFiles, in: model)
+        let everything = await items(on: .cleanup, in: model)
         XCTAssertEqual(everything.count, MockData.items.count)
     }
 
     func testOverviewAndPlaceholdersAreNotLists() async {
         let model = await scannedModel()
-        for screen in [SidebarItem.overview, .cleanup, .history, .android, .javascript] {
+        for screen in [SidebarItem.overview, .largeFiles, .history, .android, .javascript] {
             model.selection = screen
             XCTAssertEqual(model.listState, .idle, "\(screen)")
         }
@@ -224,7 +224,7 @@ final class AppModelTests: XCTestCase {
 
     func testTierFilterAndSortGoToTheCore() async {
         let model = await scannedModel()
-        model.selection = .largeFiles
+        model.selection = .cleanup
         model.tierFilter = .keep
         model.sort = .smallestFirst
         await model.waitForItems()
@@ -249,7 +249,7 @@ final class AppModelTests: XCTestCase {
 
     func testSimpleModeDetailsHaveNoPath() async {
         let model = await scannedModel(.simple)
-        for item in await items(on: .largeFiles, in: model) {
+        for item in await items(on: .cleanup, in: model) {
             model.selectedItemID = item.id
             await model.waitForItems()
             guard case .loaded(let detail) = model.detailState else { return XCTFail("\(model.detailState)") }
@@ -259,7 +259,7 @@ final class AppModelTests: XCTestCase {
 
     func testNothingIsTickedAndKeepItemsCannotBe() async {
         let model = await scannedModel()
-        let everything = await items(on: .largeFiles, in: model)
+        let everything = await items(on: .cleanup, in: model)
         XCTAssertTrue(model.checkedItemIDs.isEmpty, "nothing is preselected, Review first above all")
         let keep = try? XCTUnwrap(everything.first { $0.tier == .keep })
         let review = try? XCTUnwrap(everything.first { $0.tier == .reviewFirst })
@@ -275,7 +275,7 @@ final class AppModelTests: XCTestCase {
 
     func testANewScanClearsTicksAndSelection() async {
         let model = await scannedModel()
-        let everything = await items(on: .largeFiles, in: model)
+        let everything = await items(on: .cleanup, in: model)
         let first = everything.first { $0.tier != .keep }!
         model.setChecked(true, for: first)
         model.selectedItemID = first.id
@@ -420,7 +420,7 @@ final class AppModelTests: XCTestCase {
 
     func testReviewChecksTheTickedRowsAndMovesNothing() async {
         let model = await scannedModel()
-        let all = await items(on: .largeFiles, in: model)
+        let all = await items(on: .cleanup, in: model)
         guard let derived = all.first(where: { $0.id == "xcode-derived-data" }),
               let backup = all.first(where: { $0.id == "iphone-backup" }) else {
             return XCTFail("mock items missing")
@@ -444,7 +444,7 @@ final class AppModelTests: XCTestCase {
 
     func testClosingTheReviewDiscardsItsPlan() async throws {
         let model = await scannedModel()
-        let all = await items(on: .largeFiles, in: model)
+        let all = await items(on: .cleanup, in: model)
         let first = try XCTUnwrap(all.first { $0.tier == .likelySafe })
         model.setChecked(true, for: first)
         model.reviewCleanup()
@@ -469,7 +469,7 @@ final class AppModelTests: XCTestCase {
 
     func testANewScanClosesTheReviewAndClearsTicks() async throws {
         let model = await scannedModel()
-        let all = await items(on: .largeFiles, in: model)
+        let all = await items(on: .cleanup, in: model)
         model.setChecked(true, for: try XCTUnwrap(all.first { $0.tier == .likelySafe }))
         model.reviewCleanup()
         await model.waitForCleanupCheck()
@@ -504,7 +504,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(relaunched.protectedFolders, [folder])
         relaunched.startScan()
         await relaunched.waitForScan()
-        let all = await items(on: .largeFiles, in: relaunched)
+        let all = await items(on: .cleanup, in: relaunched)
         let row = try XCTUnwrap(all.first { $0.tier == .likelySafe })
         relaunched.setChecked(true, for: row)
         relaunched.reviewCleanup()
@@ -528,7 +528,7 @@ final class AppModelTests: XCTestCase {
     /// A model with a finished scan, one likely safe row ticked and the review ready.
     private func reviewedModel() async throws -> (AppModel, ItemSummary) {
         let model = await scannedModel()
-        let all = await items(on: .largeFiles, in: model)
+        let all = await items(on: .cleanup, in: model)
         let first = try XCTUnwrap(all.first { $0.tier == .likelySafe })
         model.setChecked(true, for: first)
         model.reviewCleanup()
@@ -892,5 +892,96 @@ final class AppModelTests: XCTestCase {
             XCTAssertFalse(LibraryText.howToFree(kind).lowercased().contains("junk"))
         }
         XCTAssertTrue(LibraryActions.messagesAttachmentsFolder.path.hasSuffix("/Library/Messages/Attachments"))
+    }
+
+    // MARK: - Large files and old Downloads
+
+    private func filesModel(_ mode: Mode = .simple) async -> (AppModel, LargeFiles) {
+        let model = await scannedModel(mode)
+        model.selection = .largeFiles
+        await model.waitForFiles()
+        guard case .loaded(let files) = model.filesState else {
+            XCTFail("\(model.filesState)")
+            return (model, LargeFiles(largeFiles: [], oldDownloads: [], oldAfterDays: 0))
+        }
+        return (model, files)
+    }
+
+    func testLargeFilesListLargestFirstWithNothingTicked() async {
+        let (model, files) = await filesModel()
+        XCTAssertFalse(files.largeFiles.isEmpty)
+        XCTAssertTrue(model.checkedItemIDs.isEmpty, "size is never a reason to tick something")
+        XCTAssertEqual(model.listState, .idle, "Large files is not a rule item list")
+        let sizes = model.visibleFiles.map(\.sizeBytes)
+        XCTAssertEqual(sizes, sizes.sorted(by: >))
+        XCTAssertEqual(model.visibleFiles.map(\.itemId), files.largeFiles.map(\.itemId))
+    }
+
+    func testOldDownloadsAndOrderByLastOpened() async {
+        let (model, files) = await filesModel()
+        model.filesList = .oldDownloads
+        XCTAssertEqual(Set(model.visibleFiles.map(\.itemId)), Set(files.oldDownloads.map(\.itemId)))
+        model.filesList = .largest
+        model.fileOrder = .openedLongestAgo
+        let when = model.visibleFiles.map { $0.lastOpenedUnixSeconds ?? $0.modifiedUnixSeconds }
+        XCTAssertEqual(when, when.sorted())
+    }
+
+    func testSearchNarrowsTheFiles() async {
+        let (model, _) = await filesModel()
+        model.searchText = "wedding"
+        XCTAssertEqual(model.visibleFiles.map(\.name), ["Wedding film final.mov"])
+    }
+
+    func testAFileInBothListsIsTickedInBoth() async throws {
+        let (model, files) = await filesModel()
+        let shared = try XCTUnwrap(files.oldDownloads.first { row in files.largeFiles.contains { $0.itemId == row.itemId } })
+        model.setChecked(true, for: shared)
+        model.filesList = .largest
+        XCTAssertTrue(model.visibleFiles.contains { $0.itemId == shared.itemId && model.isChecked($0) })
+        XCTAssertEqual(model.checkedBytes, shared.sizeBytes)
+        model.setChecked(false, for: shared)
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
+    func testTickedFilesGoToTheUsualTrashReviewAndCanBePutBack() async throws {
+        let (model, files) = await filesModel()
+        let file = try XCTUnwrap(files.largeFiles.first)
+        model.setChecked(true, for: file)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(preview.items.map(\.itemId), [file.itemId])
+        XCTAssertEqual(preview.items.first?.check, .willMove)
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        guard case .done(let result) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(result.bytesMoved, file.sizeBytes)
+        XCTAssertEqual(model.history.first?.items.first?.title, file.name)
+        model.putBack()
+        await model.waitForCleanupCheck()
+        guard case .putBack = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+    }
+
+    func testSimpleModeFilesHaveNoPath() async {
+        let (model, files) = await filesModel(.simple)
+        for row in files.largeFiles + files.oldDownloads {
+            XCTAssertNil(row.path)
+            XCTAssertFalse(LargeFilesText.location(row).contains("~/"))
+        }
+        _ = model
+    }
+
+    func testLastOpenedWordsSayWhenThereIsNoRecord() {
+        let utc = TimeZone(identifier: "UTC")!
+        let locale = Locale(identifier: "en_GB")
+        let opened = FileRow(itemId: "f", name: "a.mov", place: "Movies", sizeBytes: 1, isFolder: false,
+                             lastOpenedUnixSeconds: 1_740_830_400, modifiedUnixSeconds: 0, path: nil)
+        XCTAssertEqual(LargeFilesText.lastOpened(opened, locale: locale, timeZone: utc), "Last opened 1 Mar 2025")
+        let unknown = FileRow(itemId: "g", name: "b.mov", place: "Home folder", sizeBytes: 1, isFolder: false,
+                              lastOpenedUnixSeconds: nil, modifiedUnixSeconds: 1_740_830_400, path: nil)
+        XCTAssertEqual(LargeFilesText.lastOpened(unknown, locale: locale, timeZone: utc), "Changed 1 Mar 2025")
+        XCTAssertEqual(LargeFilesText.location(unknown), "In your home folder")
+        XCTAssertEqual(LargeFilesText.location(opened), "In Movies")
     }
 }

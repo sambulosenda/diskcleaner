@@ -111,6 +111,18 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
+    /// What the Large files screen shows.
+    enum FilesState: Equatable {
+        /// No scan has finished, or the screen hasn't been opened since.
+        case idle
+        /// Asking the core for the files.
+        case loading
+        /// The large files and old Downloads, largest first.
+        case loaded(LargeFiles)
+        /// The core could not list them. The text is ready to show.
+        case failed(String)
+    }
+
     /// How the JavaScript screen orders its projects.
     enum JavaScriptSort: String, CaseIterable {
         /// Largest `node_modules` first.
@@ -124,6 +136,26 @@ final class AppModel: ObservableObject {
             case .leastRecent: return "Not worked on longest"
             }
         }
+    }
+
+    /// Which list the Large files screen shows.
+    enum FilesList: String, CaseIterable, Identifiable {
+        /// Up to 500 of the largest files.
+        case largest
+        /// Files and folders in Downloads not opened for a while.
+        case oldDownloads
+
+        var id: String { rawValue }
+    }
+
+    /// The order of the Large files screen's rows.
+    enum FileOrder: String, CaseIterable, Identifiable {
+        /// Largest first.
+        case largestFirst
+        /// Opened longest ago first. Rows with no record of being opened use when they last changed.
+        case openedLongestAgo
+
+        var id: String { rawValue }
     }
 
     static let modeKey = "roomy.mode"
@@ -182,6 +214,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var protectedFolders: [String] = []
     /// Why the last change to the kept folders didn't work, shown in Settings.
     @Published private(set) var protectedFoldersMessage: String?
+    /// The Large files screen's large files and old Downloads.
+    @Published private(set) var filesState: FilesState = .idle
+    /// Which list the Large files screen shows.
+    @Published var filesList: FilesList = .largest
+    /// The order of the Large files screen's rows. Sorting happens here; the core gives them largest first.
+    @Published var fileOrder: FileOrder = .largestFirst
     /// The app uninstaller's list of apps.
     @Published private(set) var javascriptState: JavaScriptState = .idle
     @Published var javascriptSort: JavaScriptSort = .largestFirst
@@ -215,6 +253,7 @@ final class AppModel: ObservableObject {
     private var cleanupTask: Task<Void, Never>?
     private var appsTask: Task<Void, Never>?
     private var javascriptTask: Task<Void, Never>?
+    private var filesTask: Task<Void, Never>?
     private var appReviewTask: Task<Void, Never>?
     /// A put back started from History, with no sheet open.
     private var putBackTask: Task<Void, Never>?
@@ -295,6 +334,74 @@ final class AppModel: ObservableObject {
             checkedItemIDs.remove(item.id)
             checkedSizes[item.id] = nil
         }
+    }
+
+    /// Whether a Large files row is ticked.
+    func isChecked(_ row: FileRow) -> Bool {
+        checkedItemIDs.contains(row.itemId)
+    }
+
+    /// Ticks or unticks a Large files row. Nothing is ever ticked for the user. Ticking changes nothing
+    /// on disk. A file in both lists has one id, so it is ticked in both.
+    func setChecked(_ checked: Bool, for row: FileRow) {
+        if checked {
+            checkedItemIDs.insert(row.itemId)
+            checkedSizes[row.itemId] = row.sizeBytes
+        } else {
+            checkedItemIDs.remove(row.itemId)
+            checkedSizes[row.itemId] = nil
+        }
+    }
+
+    /// The Large files screen's rows: the chosen list, in the chosen order, narrowed by the search.
+    var visibleFiles: [FileRow] {
+        guard case .loaded(let files) = filesState else { return [] }
+        let rows = filesList == .largest ? files.largeFiles : files.oldDownloads
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matching = query.isEmpty ? rows : rows.filter {
+            $0.name.localizedCaseInsensitiveContains(query) || $0.place.localizedCaseInsensitiveContains(query)
+        }
+        return matching.sorted(by: Self.fileOrder(fileOrder))
+    }
+
+    /// The order for Large files rows. Ties are broken by id, so the order never jumps about.
+    static func fileOrder(_ order: FileOrder) -> (FileRow, FileRow) -> Bool {
+        switch order {
+        case .largestFirst:
+            return { $0.sizeBytes != $1.sizeBytes ? $0.sizeBytes > $1.sizeBytes : $0.itemId < $1.itemId }
+        case .openedLongestAgo:
+            return {
+                let a = $0.lastOpenedUnixSeconds ?? $0.modifiedUnixSeconds
+                let b = $1.lastOpenedUnixSeconds ?? $1.modifiedUnixSeconds
+                return a != b ? a < b : $0.itemId < $1.itemId
+            }
+        }
+    }
+
+    /// Asks the core for the Large files screen's rows, if that screen is showing and a scan finished.
+    private func reloadFiles() {
+        filesTask?.cancel()
+        guard selection == .largeFiles, let handle = loadedHandle, overview != nil else {
+            filesState = .idle
+            return
+        }
+        filesState = .loading
+        let client = self.client
+        filesTask = Task { [weak self] in
+            do {
+                let files = try await client.largeFiles(handle: handle)
+                guard !Task.isCancelled, let self else { return }
+                self.filesState = .loaded(files)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError), let self else { return }
+                self.filesState = .failed(Self.message(for: error))
+            }
+        }
+    }
+
+    /// Waits for the Large files screen's rows to load. Used by tests.
+    func waitForFiles() async {
+        await filesTask?.value
     }
 
     /// The scan's size of every ticked row, added up.
@@ -799,6 +906,7 @@ final class AppModel: ObservableObject {
         selectedItemID = nil
         reloadItems()
         reloadJavaScript()
+        reloadFiles()
     }
 
     /// Asks the core for the current category screen's items.
@@ -896,6 +1004,7 @@ final class AppModel: ObservableObject {
         tierFilter = nil
         reloadItems()
         reloadJavaScript()
+        reloadFiles()
         if selection == .history {
             Task { [weak self] in await self?.reloadHistory() }
         }
