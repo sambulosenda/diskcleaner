@@ -157,6 +157,11 @@ pub struct ItemSummary {
     /// Developer mode only; `None` in Simple mode and for one-of-a-kind items.
     #[uniffi(default = None)]
     pub place: Option<String>,
+    /// Roughly when it last changed: the newest modification time of the
+    /// item or anything inside it the scan saw, in seconds since 1970 (UTC).
+    /// Shown only, as "Changed 3 days ago"; never decides what is safe.
+    #[uniffi(default = None)]
+    pub last_changed_unix_seconds: Option<i64>,
 }
 
 /// What the Overview screen shows.

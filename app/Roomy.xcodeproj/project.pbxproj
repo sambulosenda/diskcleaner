@@ -47,7 +47,9 @@
 		A10000000000000000000064 /* UpdaterControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000064 /* UpdaterControllerTests.swift */; };
 		A100000000000000000000E0 /* LowSpaceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E0 /* LowSpaceMonitor.swift */; };
 		A100000000000000000000E1 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E1 /* MenuBarView.swift */; };
+		A100000000000000000000E3 /* MenuBarPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E3 /* MenuBarPanel.swift */; };
 		A100000000000000000000E2 /* LowSpaceMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E2 /* LowSpaceMonitorTests.swift */; };
+		A100000000000000000000E4 /* MenuBarPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E4 /* MenuBarPanelTests.swift */; };
 		A1000000000000005D47A002 /* SystemDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000005D47A002 /* SystemDataTests.swift */; };
 		A100000000000000000000C1 /* CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C1 /* CommandPalette.swift */; };
 		A100000000000000000000C2 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C2 /* CommandPaletteView.swift */; };
@@ -108,7 +110,9 @@
 		A20000000000000000000064 /* UpdaterControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterControllerTests.swift; sourceTree = "<group>"; };
 		A200000000000000000000E0 /* LowSpaceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitor.swift; sourceTree = "<group>"; };
 		A200000000000000000000E1 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		A200000000000000000000E3 /* MenuBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPanel.swift; sourceTree = "<group>"; };
 		A200000000000000000000E2 /* LowSpaceMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitorTests.swift; sourceTree = "<group>"; };
+		A200000000000000000000E4 /* MenuBarPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPanelTests.swift; sourceTree = "<group>"; };
 		A2000000000000005D47A002 /* SystemDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemDataTests.swift; sourceTree = "<group>"; };
 		A200000000000000000000C1 /* CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPalette.swift; sourceTree = "<group>"; };
 		A200000000000000000000C2 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
@@ -177,6 +181,7 @@
 				A20000000000000000000061 /* UpdaterController.swift */,
 				A200000000000000000000E0 /* LowSpaceMonitor.swift */,
 				A200000000000000000000E1 /* MenuBarView.swift */,
+				A200000000000000000000E3 /* MenuBarPanel.swift */,
 				A200000000000000000000C2 /* CommandPaletteView.swift */,
 				A200000000000000000000C1 /* CommandPalette.swift */,
 				A2000000000000000000A55E /* Assets.xcassets */,
@@ -197,6 +202,7 @@
 				A20000000000000000000032 /* ScreenshotTests.swift */,
 				A20000000000000000000064 /* UpdaterControllerTests.swift */,
 				A200000000000000000000E2 /* LowSpaceMonitorTests.swift */,
+				A200000000000000000000E4 /* MenuBarPanelTests.swift */,
 				A2000000000000005D47A002 /* SystemDataTests.swift */,
 				A200000000000000000000C3 /* CommandPaletteTests.swift */,
 			);
@@ -355,6 +361,7 @@
 				A10000000000000000000061 /* UpdaterController.swift in Sources */,
 				A100000000000000000000E0 /* LowSpaceMonitor.swift in Sources */,
 				A100000000000000000000E1 /* MenuBarView.swift in Sources */,
+				A100000000000000000000E3 /* MenuBarPanel.swift in Sources */,
 				A100000000000000000000C2 /* CommandPaletteView.swift in Sources */,
 				A100000000000000000000C1 /* CommandPalette.swift in Sources */,
 				A10000000000000000000004 /* roomy_core.swift in Sources */,
@@ -373,6 +380,7 @@
 				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,
 				A10000000000000000000064 /* UpdaterControllerTests.swift in Sources */,
 				A100000000000000000000E2 /* LowSpaceMonitorTests.swift in Sources */,
+				A100000000000000000000E4 /* MenuBarPanelTests.swift in Sources */,
 				A1000000000000005D47A002 /* SystemDataTests.swift in Sources */,
 				A100000000000000000000C3 /* CommandPaletteTests.swift in Sources */,
 			);

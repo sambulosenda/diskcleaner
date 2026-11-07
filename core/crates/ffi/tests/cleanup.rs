@@ -405,3 +405,80 @@ fn history_holds_no_paths() {
         "the History file holds a path"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Checking items for the menu bar panel
+// ---------------------------------------------------------------------------
+
+#[test]
+fn check_items_says_what_the_preview_says_and_moves_nothing() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let likely = items(&s.core, h, Tier::LikelySafe);
+    let ids: Vec<String> = likely.iter().map(|i| i.id.clone()).collect();
+    let before = snapshot(&s.root);
+
+    let checked = s.core.check_items(h, ids).unwrap();
+
+    assert_eq!(snapshot(&s.root), before, "checking changed something");
+    let preview = s.core.preview_cleanup(h, chosen(&likely)).unwrap();
+    assert_eq!(checked, preview.items);
+}
+
+#[test]
+fn check_items_leaves_the_waiting_plan_alone() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let likely = items(&s.core, h, Tier::LikelySafe);
+    let plan = s
+        .core
+        .preview_cleanup(h, chosen(&likely))
+        .unwrap()
+        .plan
+        .unwrap();
+
+    let ids: Vec<String> = likely.iter().map(|i| i.id.clone()).collect();
+    s.core.check_items(h, ids).unwrap();
+
+    // The review the main window holds can still be carried out.
+    assert!(s.core.run_cleanup(plan).is_ok());
+}
+
+#[test]
+fn check_items_locks_an_item_whose_app_is_open() {
+    let s = setup(true);
+    s.core
+        .set_running_programs_for_testing(Some(vec![PathBuf::from(
+            "/Applications/Android Studio.app/Contents/MacOS/studio",
+        )]));
+    let h = finished_scan(&s.core, Mode::Developer);
+    let mut all = items(&s.core, h, Tier::LikelySafe);
+    all.extend(items(&s.core, h, Tier::ReviewFirst));
+    let ids: Vec<String> = all.iter().map(|i| i.id.clone()).collect();
+
+    let checked = s.core.check_items(h, ids).unwrap();
+
+    assert!(
+        checked.iter().any(|i| matches!(
+            &i.check,
+            CleanupCheck::WontMove { reason } if reason.contains("Android Studio is open")
+        )),
+        "{checked:?}"
+    );
+    // Others still pass.
+    assert!(checked.iter().any(|i| i.check == CleanupCheck::WillMove));
+}
+
+#[test]
+fn check_items_with_nothing_or_an_unknown_id_is_an_error() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    assert!(matches!(
+        s.core.check_items(h, vec![]),
+        Err(CoreError::NothingSelected)
+    ));
+    assert!(matches!(
+        s.core.check_items(h, vec!["0".repeat(32)]),
+        Err(CoreError::UnknownItem)
+    ));
+}

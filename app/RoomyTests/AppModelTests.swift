@@ -361,6 +361,29 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(again.showsAccessOnboarding)
     }
 
+    func testOpeningRoomyStartsAScanOnce() async {
+        let (model, _) = makeModel(access: .granted)
+        XCTAssertTrue(model.scanOnOpen, "on by default")
+        await model.windowDidAppear()
+        XCTAssertTrue(model.isScanning)
+        await model.waitForScan()
+        guard case .loaded = model.scanState else { return XCTFail("\(model.scanState)") }
+        // Opening the menu bar panel later doesn't scan again.
+        model.scanIfOpening()
+        XCTAssertFalse(model.isScanning)
+    }
+
+    func testNoScanOnOpenWhenTurnedOff() async {
+        let (model, client) = makeModel(access: .granted)
+        model.scanOnOpen = false
+        let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        XCTAssertFalse(next.scanOnOpen, "the choice is saved")
+        await next.windowDidAppear()
+        next.scanIfOpening()
+        XCTAssertFalse(next.isScanning)
+        XCTAssertEqual(next.scanState, .neverScanned)
+    }
+
     func testTheAccessScreenWhenTheCoreCantTellIsNotShown() async {
         let (model, _) = makeModel(access: .unknown)
         await model.windowDidAppear()

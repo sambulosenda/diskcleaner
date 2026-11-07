@@ -301,6 +301,10 @@ fn folder_item(ctx: &Ctx<'_, '_>, frame: &Frame, c: &Compiled<'_>) -> Option<Fou
             caution,
         ),
     })
+    .map(|mut found| {
+        found.item.last_changed = newest_inside(ctx.scan, frame.id);
+        found
+    })
 }
 
 /// Builds the item for a recorded file that rule `c` matched. `parent` is
@@ -376,7 +380,29 @@ fn build(
         kind,
         size_bytes,
         modified,
+        // The item's own time; a folder's callers widen it to what is inside.
+        last_changed: modified,
         path,
         lowered: caution.lowered,
     }
+}
+
+/// The newest modification time of folder `id`, its sub-folders and the
+/// files the scan recorded in them. `None` if the scan has no time for any.
+fn newest_inside(scan: &ScanResult, id: usize) -> Option<std::time::SystemTime> {
+    let mut newest = None;
+    let mut stack = vec![id];
+    while let Some(next) = stack.pop() {
+        let Some(dir) = scan.dirs.get(next) else {
+            continue;
+        };
+        let times = std::iter::once(dir.modified).chain(dir.files.iter().map(|f| f.modified));
+        for time in times.flatten() {
+            if newest.is_none_or(|n| time > n) {
+                newest = Some(time);
+            }
+        }
+        stack.extend(dir.children.iter().copied());
+    }
+    newest
 }

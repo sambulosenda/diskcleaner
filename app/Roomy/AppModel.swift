@@ -173,12 +173,19 @@ final class AppModel: ObservableObject {
     static let accessOnboardingKey = "roomy.onboarding.fullDiskAccessDone"
     /// Where the folders the user asked Roomy to keep are stored.
     static let protectedFoldersKey = "roomy.protectedFolders"
+    /// Whether Roomy measures the home folder when it opens. On unless the user turned it off.
+    static let scanOnOpenKey = "roomy.scanOnOpen"
 
     @Published private(set) var scanState: ScanState = .neverScanned
     @Published var selection: SidebarItem? = .overview {
         didSet { if selection != oldValue { selectionDidChange() } }
     }
     @Published var searchText = ""
+    /// Whether Roomy scans when it opens, so the Overview and the menu bar panel aren't empty. A scan
+    /// only measures; nothing is removed. Saved in settings.
+    @Published var scanOnOpen: Bool {
+        didSet { defaults.set(scanOnOpen, forKey: Self.scanOnOpenKey) }
+    }
     @Published var mode: Mode {
         didSet { if mode != oldValue { modeDidChange() } }
     }
@@ -297,6 +304,7 @@ final class AppModel: ObservableObject {
         self.pollInterval = pollInterval
         self.now = now
         self.mode = Mode(storageKey: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
+        self.scanOnOpen = defaults.object(forKey: Self.scanOnOpenKey) as? Bool ?? true
         self.protectedFolders = defaults.stringArray(forKey: Self.protectedFoldersKey) ?? []
     }
 
@@ -323,6 +331,23 @@ final class AppModel: ObservableObject {
     func scannedItems() async -> [ItemSummary] {
         guard let handle = loadedHandle, overview != nil else { return [] }
         return (try? await client.listItems(handle: handle, category: nil, tier: nil, sort: .largestFirst)) ?? []
+    }
+
+    /// For the menu bar panel's locked rows: asks the core whether each item would move if reviewed now,
+    /// and why not (an app is open, it changed recently, a folder you keep). Moves nothing and keeps no
+    /// plan, so a review open in the main window is left alone. The core hears the kept folders first,
+    /// as before a review.
+    func checkItems(_ ids: [String]) async throws -> [CleanupPreviewItem] {
+        guard let handle = loadedHandle, overview != nil, !ids.isEmpty else { return [] }
+        _ = try await client.setProtectedFolders(protectedFolders)
+        return try await client.checkItems(handle: handle, itemIds: ids)
+    }
+
+    /// The menu bar panel's "Review" button: shows the Overview and opens the usual cleanup review for
+    /// the ticked rows. The review is a dry run; nothing moves until the user confirms there.
+    func reviewFromMenuBar() {
+        selection = .overview
+        reviewCleanup()
     }
 
     /// The Overview's "Worth reviewing" rows, narrowed by the toolbar search.
@@ -431,15 +456,35 @@ final class AppModel: ObservableObject {
     /// Called once when the window first appears. Asks the core about Full Disk Access and, on first
     /// launch only, opens the Full Disk Access screen if access is off. If it is already on, or the core
     /// can't tell, the screen is never shown by itself.
+    ///
+    /// Then, unless the Full Disk Access screen is waiting for the user, starts the opening scan (see
+    /// `scanIfOpening`).
     func windowDidAppear() async {
         await refreshFullDiskAccess()
-        guard !defaults.bool(forKey: Self.accessOnboardingKey) else { return }
-        if fullDiskAccess == .notGranted {
-            showsAccessOnboarding = true
-        } else {
+        if !defaults.bool(forKey: Self.accessOnboardingKey) {
+            if fullDiskAccess == .notGranted {
+                // The screen offers its own scan; nothing starts until the user chooses there.
+                showsAccessOnboarding = true
+                return
+            }
             defaults.set(true, forKey: Self.accessOnboardingKey)
         }
+        scanIfOpening()
     }
+
+    /// Starts a scan if none has run since Roomy opened and the user hasn't turned "Scan when Roomy
+    /// opens" off. Also called when the menu bar panel opens. A scan only measures; it never removes
+    /// anything, and never starts while the Full Disk Access screen is waiting.
+    func scanIfOpening() {
+        guard scanOnOpen, scanState == .neverScanned, !showsAccessOnboarding else { return }
+        // The test host's own window uses the real core: never let it measure the real home folder.
+        if Self.isTestHost && client is RustCoreClient { return }
+        startScan()
+    }
+
+    /// True when the app is only hosting the test target.
+    private static let isTestHost =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     /// Asks the core again whether Full Disk Access is on. Reads a few folder listings only.
     func refreshFullDiskAccess() async {

@@ -25,6 +25,13 @@ struct SettingsView: View {
             FullDiskAccessSetting()
                 .padding(.top, 8)
 
+            Toggle("Scan when Roomy opens", isOn: $model.scanOnOpen)
+                .padding(.top, 8)
+            Text("Measures your home folder so Roomy and the menu bar show what you can free. Nothing is removed.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             Divider().padding(.vertical, 8)
 
             LowSpaceSettingsSection(monitor: lowSpace)

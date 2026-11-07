@@ -253,7 +253,15 @@ pub(crate) fn summary(item: &ClassifiedItem) -> ItemSummary {
         tier: item.tier.into(),
         category: item.category.into(),
         place: None,
+        last_changed_unix_seconds: item.last_changed.and_then(unix_seconds),
     }
+}
+
+/// Seconds since 1970 for `time`, or `None` if it is before 1970 or too far
+/// ahead to fit.
+fn unix_seconds(time: std::time::SystemTime) -> Option<i64> {
+    let secs = time.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+    i64::try_from(secs).ok()
 }
 
 /// Sorts items in place. Ties are always broken by id.
