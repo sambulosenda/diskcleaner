@@ -872,3 +872,40 @@ impl From<&analysers::libraries::LibrarySize> for LibrarySize {
         }
     }
 }
+
+/// One row of the Large files screen (E2): a file, or for old Downloads a
+/// file or folder directly in Downloads. Never ticked for the user, and
+/// always Review first.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct FileRow {
+    /// Send this back in a [`CleanupChoice`] to review it for cleanup.
+    pub item_id: String,
+    /// The file's or folder's own name, such as `Holiday.mov`.
+    pub name: String,
+    /// The folder in home it is in, such as `Movies`, or `Home folder`.
+    pub place: String,
+    /// Space it takes on disk.
+    pub size_bytes: u64,
+    /// `true` for a folder in Downloads.
+    pub is_folder: bool,
+    /// When macOS last recorded it being opened, in seconds since 1970.
+    /// `None` when there is no record, which is not the same as never.
+    pub last_opened_unix_seconds: Option<i64>,
+    /// When it last changed, in seconds since 1970.
+    pub modified_unix_seconds: i64,
+    /// Where it is, starting `~`. Developer mode only; `None` in simple mode.
+    pub path: Option<String>,
+}
+
+/// What the Large files screen lists for a finished scan.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct LargeFiles {
+    /// Up to 500 of the largest files, largest first.
+    pub large_files: Vec<FileRow>,
+    /// Files and folders directly in Downloads not opened (or, with no
+    /// record of being opened, not changed) for `old_after_days`, largest
+    /// first. A file can be in both lists, with the same id.
+    pub old_downloads: Vec<FileRow>,
+    /// How many days count as old.
+    pub old_after_days: u32,
+}

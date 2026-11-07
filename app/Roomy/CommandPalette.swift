@@ -173,7 +173,7 @@ extension SidebarItem {
         case .backups: return ["iphone", "ipad"]
         case .libraries: return ["photos", "mail", "music", "messages", "attachments", "final cut", "tv"]
         case .downloads: return ["installers", "dmg"]
-        case .largeFiles: return ["everything", "all items", "big"]
+        case .largeFiles: return ["big", "old downloads", "last opened"]
         case .appsAndCaches: return ["cache", "app data"]
         case .systemData: return ["logs", "system"]
         case .projects: return ["build", "node_modules", "target"]
@@ -183,20 +183,20 @@ extension SidebarItem {
         case .docker: return ["images", "containers"]
         case .tools: return ["brew", "homebrew", "simulators", "sdkmanager", "android sdk"]
         case .apps: return ["uninstall", "delete app", "leftovers"]
-        case .cleanup: return ["trash", "free space"]
+        case .cleanup: return ["everything", "all items", "trash", "free space"]
         case .history: return ["past cleanups", "put back", "undo"]
         }
     }
 
     /// The screen that lists items of `category` in `mode`: the first sidebar screen showing that
-    /// category, or Large files, which shows everything.
+    /// category, or Cleanup, which shows everything.
     static func screen(for category: Category, mode: Mode) -> SidebarItem {
         for screen in sections(for: mode).flatMap({ $0 }) {
             if case .categories(let categories)? = screen.itemFilter, categories.contains(category) {
                 return screen
             }
         }
-        return .largeFiles
+        return .cleanup
     }
 }
 
@@ -380,9 +380,9 @@ final class CommandPaletteModel: ObservableObject {
         case .stopScan:
             app.cancelScan()
         case .reviewCleanup:
-            // The review sheet belongs to the item lists, so show one first. Large files lists
-            // everything, so every ticked row is in it.
-            if app.selection?.itemFilter == nil { app.selection = .largeFiles }
+            // The review sheet belongs to the item lists and Large files, so show one first. Cleanup
+            // lists everything, so every ticked item is in it.
+            if app.selection?.itemFilter == nil, app.selection != .largeFiles { app.selection = .cleanup }
             app.reviewCleanup()
         case .switchMode(let mode):
             app.mode = mode

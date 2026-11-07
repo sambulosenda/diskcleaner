@@ -92,14 +92,15 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .backups: return .categories([.backups])
         case .downloads: return .categories([.downloads])
-        // The core has no "large file" item yet, so this lists everything it found, largest first.
-        case .largeFiles: return .everything
+        // Cleanup lists everything the scan found, so every ticked row can be seen in one place.
+        case .cleanup: return .everything
         case .appsAndCaches: return .categories([.cache, .appData])
         case .systemData: return .categories([.system, .logs])
         case .projects: return .categories([.build])
         case .xcode: return .categories([.developerTools])
         case .docker: return .categories([.docker])
-        case .overview, .libraries, .android, .javascript, .tools, .apps, .cleanup, .history: return nil
+        // Large files has its own screen (`LargeFilesScreen`): files, not rule items.
+        case .overview, .libraries, .largeFiles, .android, .javascript, .tools, .apps, .history: return nil
         }
     }
 

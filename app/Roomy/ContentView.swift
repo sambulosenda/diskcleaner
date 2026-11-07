@@ -81,6 +81,8 @@ struct DetailView: View {
                 AppsScreen()
             } else if item == .android {
                 AndroidScreen()
+            } else if item == .largeFiles {
+                LargeFilesScreen()
             } else if item.itemFilter != nil {
                 ItemListScreen(item: item)
             } else {

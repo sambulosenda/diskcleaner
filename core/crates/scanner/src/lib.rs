@@ -55,6 +55,11 @@ pub struct ScanOptions {
     /// Folders whose files should be listed by name in [`Dir::files`].
     /// `None` (the default) lists none.
     pub record_files: Option<RecordFiles>,
+    /// Folders whose files may go in [`ScanResult::largest_files`], asked
+    /// the same way as `record_files` (path relative to the root). `None`
+    /// (the default) lets every folder's files in. Files in other folders
+    /// are still counted, just never kept by path.
+    pub largest_in: Option<RecordFiles>,
 }
 
 /// Says which folders should have their files listed by name.
@@ -81,6 +86,7 @@ impl Default for ScanOptions {
             threads: None,
             progress_interval: Duration::from_millis(100),
             record_files: None,
+            largest_in: None,
         }
     }
 }

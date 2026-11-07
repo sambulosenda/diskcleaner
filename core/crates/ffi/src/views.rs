@@ -62,6 +62,8 @@ pub struct Finished {
     /// How much the Mac's own libraries take (Photos, Mail and so on).
     /// Shown only; never cleaned.
     pub libraries: Vec<LibrarySize>,
+    /// What the Large files screen lists (E2).
+    pub(crate) loose: crate::files::Loose,
 }
 
 impl Finished {
@@ -73,6 +75,7 @@ impl Finished {
         root_dev: u64,
         unreadable_areas: Vec<UnreadableArea>,
         items: Vec<ClassifiedItem>,
+        loose: crate::files::Loose,
     ) -> Self {
         let unreadable_count = unreadable_areas
             .iter()
@@ -94,6 +97,7 @@ impl Finished {
             quick_rescan: false,
             changes: None,
             libraries: Vec::new(),
+            loose,
         }
     }
 

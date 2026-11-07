@@ -126,6 +126,7 @@ pub fn rescan(
     let shared = Shared::new(
         root,
         opts.record_files.as_ref(),
+        None,
         root_meta.dev(),
         &opts.cancel,
         0,

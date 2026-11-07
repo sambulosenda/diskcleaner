@@ -26,6 +26,7 @@
 		A1000000000000005D47A001 /* SystemDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000005D47A001 /* SystemDataView.swift */; };
 		A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000070C1C1E5 /* ToolCleanupsView.swift */; };
 		A100000000000000119A7E51 /* LibrariesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000119A7E51 /* LibrariesView.swift */; };
+		A1000000000000001A26E501 /* LargeFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E501 /* LargeFilesView.swift */; };
 		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
 		A10000000000000000000081 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* AppsView.swift */; };
 		A10000000000000000A4D201 /* AndroidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000A4D201 /* AndroidView.swift */; };
@@ -83,6 +84,7 @@
 		A2000000000000005D47A001 /* SystemDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemDataView.swift; sourceTree = "<group>"; };
 		A20000000000000070C1C1E5 /* ToolCleanupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCleanupsView.swift; sourceTree = "<group>"; };
 		A200000000000000119A7E51 /* LibrariesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrariesView.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E501 /* LargeFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
 		A20000000000000000A4D201 /* AndroidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndroidView.swift; sourceTree = "<group>"; };
@@ -157,6 +159,7 @@
 				A2000000000000005D47A001 /* SystemDataView.swift */,
 				A20000000000000070C1C1E5 /* ToolCleanupsView.swift */,
 				A200000000000000119A7E51 /* LibrariesView.swift */,
+				A2000000000000001A26E501 /* LargeFilesView.swift */,
 				A20000000000000000000072 /* FullDiskAccessView.swift */,
 				A20000000000000000000081 /* AppsView.swift */,
 				A20000000000000000A4D201 /* AndroidView.swift */,
@@ -331,6 +334,7 @@
 				A1000000000000005D47A001 /* SystemDataView.swift in Sources */,
 				A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */,
 				A100000000000000119A7E51 /* LibrariesView.swift in Sources */,
+				A1000000000000001A26E501 /* LargeFilesView.swift in Sources */,
 				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
 				A10000000000000000000081 /* AppsView.swift in Sources */,
 				A10000000000000000A4D201 /* AndroidView.swift in Sources */,
