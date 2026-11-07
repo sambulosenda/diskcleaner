@@ -45,16 +45,21 @@
   <section class="demo" id="demo" aria-label="Roomy demo">
     <div class="wrap">
       <ol class="steps" id="steps">
-        <li data-step="scan">Scan</li>
-        <li data-step="read">Read what each item is</li>
-        <li data-step="choose">Tick what goes</li>
-        <li data-step="trash">Trash, with Put back</li>
+        <li data-step="scan"><button type="button">Scan</button></li>
+        <li data-step="read"><button type="button">Read what each item is</button></li>
+        <li data-step="choose"><button type="button">Tick what goes</button></li>
+        <li data-step="trash"><button type="button">Trash, with Put back</button></li>
       </ol>
+      <p class="step-caption" id="step-caption" aria-live="polite">Roomy reads the disk. Scanning never changes a file.</p>
 
       <div class="window" id="window">
         <div class="titlebar">
           <div class="lights" aria-hidden="true"><span></span><span></span><span></span></div>
           <span>Roomy</span>
+          <div class="modes" role="group" aria-label="Mode">
+            <button type="button" data-mode="simple" aria-pressed="false">Simple</button>
+            <button type="button" data-mode="developer" aria-pressed="true">Developer</button>
+          </div>
           <span class="example-tag">Example Mac · 512 GB</span>
         </div>
         <div class="window-body">
@@ -118,25 +123,27 @@
 
         <article class="feature">
           <h3>A menu bar panel</h3>
-          <p>See free space at a glance and get a gentle note when your disk runs low.</p>
+          <p>Free space at a glance, and a gentle note when the disk runs low. Drag the slider to fill the disk.</p>
           <div class="mini menubar-mock">
-            <div class="mini-row"><span>Macintosh HD</span><span class="r">16.4 GB free</span></div>
-            <div class="gauge" aria-hidden="true"><span></span></div>
+            <div class="mini-row"><span>Macintosh HD</span><span class="r" id="free-out">16.4 GB free</span></div>
+            <div class="gauge" aria-hidden="true"><span id="panel-gauge"></span></div>
+            <label class="slider-label" for="free-slider">Free space</label>
+            <input type="range" id="free-slider" min="2" max="60" step="0.1" value="16.4">
+            <div class="notice" id="lowspace-note" hidden><strong>Your Mac is almost full.</strong> Roomy found 54.4 GB you can likely free.</div>
             <div><span class="r">You can likely free</span><div class="big">54.4 GB</div></div>
-            <div class="mini-row"><span class="l"><span>Xcode DerivedData</span></span><span class="r">18.4 GB · changed 3 days ago</span></div>
-            <div class="mini-row"><span class="l"><span>Unavailable simulators</span></span><span class="r">9.6 GB</span></div>
-            <button class="btn btn-primary btn-small" type="button" data-toast="In the app, this opens the review in Roomy.">Review in Roomy…</button>
+            <button class="btn btn-primary btn-small" type="button" id="panel-review">Review in Roomy…</button>
           </div>
         </article>
 
         <article class="feature">
           <h3>Leaves alone what you are using</h3>
-          <p>Items in use, changed recently, holding unsaved git work or inside folders you keep are skipped and say why.</p>
-          <div class="mini">
-            <div class="mini-row"><span class="l"><span>node_modules in roomy-site</span></span><span class="pill keep">Changed 2 hours ago</span></div>
-            <div class="mini-row"><span class="l"><span>DerivedData for Photos Plus</span></span><span class="pill keep">Open in Xcode</span></div>
-            <div class="mini-row"><span class="l"><span>Agent worktree feature-login</span></span><span class="pill keep">Unsaved git work</span></div>
-            <div class="mini-row"><span class="l"><span>~/Clients</span></span><span class="pill keep">A folder you keep</span></div>
+          <p>Items in use, changed recently, holding unsaved git work or inside folders you keep are skipped. Click one to see why.</p>
+          <div class="mini" id="guards">
+            <button type="button" class="mini-row explain" data-explain="You saved a file in this project 2 hours ago, so Roomy treats it as work in progress."><span class="l"><span>node_modules in roomy-site</span></span><span class="pill keep">Changed 2 hours ago</span></button>
+            <button type="button" class="mini-row explain" data-explain="Xcode has this project open. Removing its build files now could break the build you are running."><span class="l"><span>DerivedData for Photos Plus</span></span><span class="pill keep">Open in Xcode</span></button>
+            <button type="button" class="mini-row explain" data-explain="This worktree has changes that are not committed or not merged, so it is never offered."><span class="l"><span>Agent worktree feature-login</span></span><span class="pill keep">Unsaved git work</span></button>
+            <button type="button" class="mini-row explain" data-explain="You told Roomy to keep this folder. Nothing inside it is ever offered."><span class="l"><span>~/Clients</span></span><span class="pill keep">A folder you keep</span></button>
+            <p class="explain-text" id="guards-text" data-idle="Click a row." aria-live="polite">Click a row.</p>
           </div>
         </article>
 
@@ -152,22 +159,27 @@
 
         <article class="feature">
           <h3>What System Data really is</h3>
-          <p>macOS lumps a lot into one grey bar. Roomy breaks it down into Time Machine snapshots, caches, logs and more, so you know what you are looking at.</p>
-          <div class="mini">
-            <div class="mini-row"><span>Local Time Machine snapshots</span><span class="r">22.1 GB</span></div>
-            <div class="mini-row"><span>App caches</span><span class="r">8.7 GB</span></div>
-            <div class="mini-row"><span>iPhone backups</span><span class="r">14.3 GB</span></div>
-            <div class="mini-row"><span>Logs</span><span class="r">1.2 GB</span></div>
+          <p>macOS lumps a lot into one grey bar. Roomy breaks it down. Click a part to read what it is.</p>
+          <div class="mini" id="sysdata">
+            <button type="button" class="mini-row explain" data-explain="Hourly copies Time Machine keeps on this disk while your backup drive is away. macOS removes them by itself when space runs low."><span class="l"><span>Local Time Machine snapshots</span></span><span class="r">22.1 GB</span></button>
+            <button type="button" class="mini-row explain" data-explain="Full backups of an iPhone or iPad. Old ones for devices you no longer have are often the biggest win."><span class="l"><span>iPhone backups</span></span><span class="r">14.3 GB</span></button>
+            <button type="button" class="mini-row explain" data-explain="Data apps keep to load faster. They rebuild it as you use them."><span class="l"><span>App caches</span></span><span class="r">8.7 GB</span></button>
+            <button type="button" class="mini-row explain" data-explain="Records apps and macOS write while they run. Useful for fixing problems, rarely needed after a few weeks."><span class="l"><span>Logs</span></span><span class="r">1.2 GB</span></button>
+            <p class="explain-text" id="sysdata-text" data-idle="Click a part." aria-live="polite">Click a part.</p>
           </div>
         </article>
 
         <article class="feature">
-          <h3>Uninstall apps fully</h3>
-          <p>See an app's caches, preferences and support files next to the app itself, then move them to the Trash together.</p>
-          <div class="mini">
-            <div class="mini-row"><span>Figma caches</span><span class="r">2.4 GB</span></div>
-            <div class="mini-row"><span>Figma support files</span><span class="r">310 MB</span></div>
-            <div class="mini-row"><span>Figma preferences</span><span class="r">48 KB</span></div>
+          <h3>Remove what apps leave behind</h3>
+          <p>See an app's caches, support files and preferences next to the app, and move them to the Trash together. Pick an app.</p>
+          <div class="mini" id="uninstall">
+            <div class="chips" role="group" aria-label="Example apps">
+              <button type="button" data-app="Figma" aria-pressed="true">Figma</button>
+              <button type="button" data-app="Zoom" aria-pressed="false">Zoom</button>
+              <button type="button" data-app="Slack" aria-pressed="false">Slack</button>
+            </div>
+            <div id="uninstall-list"></div>
+            <button class="btn btn-ghost btn-small" type="button" id="uninstall-btn">Move to the Trash</button>
           </div>
         </article>
 

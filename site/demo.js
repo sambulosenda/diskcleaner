@@ -32,7 +32,9 @@
     { id: "h1", cat: "brew", seg: "system", tier: "safe", gb: 2.3, name: "Old Homebrew versions", why: "Older copies of tools Homebrew has already updated.", path: "brew cleanup", cmd: true },
     { id: "f1", cat: "files", seg: "files", tier: "review", gb: 14.3, name: "Backup of Sam's old iPhone", why: "Last backed up 14 months ago. Check you have a newer backup first.", path: "~/Library/Application Support/MobileSync/Backup" },
     { id: "f2", cat: "files", seg: "files", tier: "review", gb: 3.9, name: "Installers in Downloads", why: "12 .dmg and .pkg files for apps that are already installed.", path: "~/Downloads" },
-    { id: "f3", cat: "files", seg: "files", tier: "review", gb: 1.7, name: "Copy of Screen Recording.mov", why: "The same file is also in Movies. You pick the copy to keep.", path: "~/Desktop/Screen Recording.mov" }
+    { id: "f3", cat: "files", seg: "files", tier: "review", gb: 1.7, name: "Copy of Screen Recording.mov", why: "The same file is also in Movies. You pick the copy to keep.", path: "~/Desktop/Screen Recording.mov" },
+    { id: "f4", cat: "files", seg: "files", tier: "review", gb: 6.8, name: "Messages attachments", why: "Photos and videos from chats, mostly from 2023. Open Messages to keep the ones you want.", path: "~/Library/Messages/Attachments" },
+    { id: "c1", cat: "caches", seg: "system", tier: "safe", gb: 3.2, name: "Browser and app caches", why: "Copies of web pages and app data. Apps make them again as you use them.", path: "~/Library/Caches" }
   ];
 
   var CATS = [
@@ -45,8 +47,17 @@
     { id: "ai", label: "AI models" },
     { id: "brew", label: "Homebrew" },
     { group: "Everyday" },
-    { id: "files", label: "Your files" }
+    { id: "files", label: "Your files" },
+    { id: "caches", label: "Caches" }
   ];
+  // Simple mode shows only everyday things, in plain words, without paths or commands.
+  var SIMPLE_CATS = { all: true, files: true, caches: true };
+  var STEP_CAPTIONS = {
+    scan: "Roomy reads the disk. Scanning never changes a file.",
+    read: "Each item says what it is, whether it is likely safe, and how it comes back.",
+    choose: "Tick what goes. Review first items are never ticked for you.",
+    trash: "Everything goes to the Trash. Put back returns it."
+  };
 
   var TIER_LABEL = { safe: "Likely safe", review: "Review first", keep: "Keep", skip: "Skipped" };
   var SCAN_PATHS = [
@@ -59,6 +70,8 @@
   var state = {
     phase: "idle", // idle | scanning | results | done
     cat: "all",
+    mode: "developer", // developer | simple
+    touched: false, // true once the visitor has used the demo, so autoplay stays out of the way
     checked: {},
     trashed: {}, // id -> true, items moved in the last clean-up
     lastFreed: 0
@@ -89,9 +102,10 @@
     return DISK_GB - used;
   }
   function visibleItems() {
-    return ITEMS.filter(function (i) { return !state.trashed[i.id] && (state.cat === "all" || i.cat === state.cat); });
+    return ITEMS.filter(function (i) { return !state.trashed[i.id] && inMode(i) && (state.cat === "all" || i.cat === state.cat); });
   }
-  function chosen() { return ITEMS.filter(function (i) { return state.checked[i.id] && !state.trashed[i.id]; }); }
+  function inMode(item) { return state.mode === "developer" || SIMPLE_CATS[item.cat]; }
+  function chosen() { return ITEMS.filter(function (i) { return state.checked[i.id] && !state.trashed[i.id] && inMode(i); }); }
   function sumGb(list) { return list.reduce(function (s, i) { return s + i.gb; }, 0); }
 
   // Disk bar: during a scan it fills up as `progress` goes 0 → 1.
@@ -121,11 +135,13 @@
     var sb = $("sidebar");
     sb.textContent = "";
     CATS.forEach(function (c) {
+      if (state.mode === "simple" && (c.group || !SIMPLE_CATS[c.id])) return;
       if (c.group) { sb.appendChild(el("div", { class: "group", text: c.group })); return; }
-      var items = ITEMS.filter(function (i) { return !state.trashed[i.id] && (c.id === "all" || i.cat === c.id) && (i.tier === "safe" || i.tier === "review"); });
+      var items = ITEMS.filter(function (i) { return !state.trashed[i.id] && inMode(i) && (c.id === "all" || i.cat === c.id) && (i.tier === "safe" || i.tier === "review"); });
       var count = state.phase === "results" || state.phase === "done" ? fmt(sumGb(items)) : "";
       var b = el("button", { type: "button", "aria-pressed": String(state.cat === c.id) }, [el("span", { text: c.label }), el("span", { class: "count", text: count })]);
       b.addEventListener("click", function () {
+        state.touched = true;
         state.cat = c.id;
         if (state.phase === "done") state.phase = "results";
         render();
@@ -145,12 +161,13 @@
       li.classList.toggle("done", i < ci);
       if (i === ci) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
     });
+    $("step-caption").textContent = STEP_CAPTIONS[current];
   }
 
   function renderIdle() {
     stage.textContent = "";
     var btn = el("button", { class: "btn btn-primary", type: "button", id: "scan-btn", text: "Scan this example Mac" });
-    btn.addEventListener("click", startScan);
+    btn.addEventListener("click", function () { state.touched = true; startScan(); });
     stage.appendChild(el("div", { class: "scan-cta" }, [
       el("h3", { text: "Only 16.4 GB left. What is using the rest?" }),
       el("p", { text: "This is a made-up Mac belonging to a developer. Scan it to see what Roomy finds and how it explains each item." }),
@@ -159,6 +176,7 @@
   }
 
   function startScan() {
+    if (state.phase === "scanning") return;
     state.phase = "scanning";
     renderSteps();
     stage.textContent = "";
@@ -192,7 +210,7 @@
     if (offerable) {
       lead = el("input", { type: "checkbox", id: "demo-" + item.id, "aria-label": "Choose " + item.name });
       lead.checked = !!state.checked[item.id];
-      lead.addEventListener("change", function () { state.checked[item.id] = lead.checked; renderFooter(); renderSteps(); });
+      lead.addEventListener("change", function () { state.touched = true; state.checked[item.id] = lead.checked; renderFooter(); renderSteps(); });
     } else {
       lead = el("span", { class: "lock", "aria-hidden": "true", text: "🔒" });
     }
@@ -202,7 +220,7 @@
       el("div", null, [
         offerable ? el("label", { for: "demo-" + item.id, class: "name", text: item.name }) : el("div", { class: "name", text: item.name }),
         el("div", { class: "why", text: item.why }),
-        el("div", { class: "path", text: (item.cmd ? "Runs: " : "") + item.path })
+        state.mode === "developer" ? el("div", { class: "path", text: (item.cmd ? "Runs: " : "") + item.path }) : null
       ]),
       el("div", { class: "meta" }, [el("span", { class: "size", text: fmt(item.gb) }), el("span", { class: "pill " + pillClass, text: TIER_LABEL[item.tier] })])
     ]);
@@ -271,15 +289,16 @@
     go.focus();
   }
 
-  function putBack() {
+  function putBack(quiet) {
     Object.keys(state.trashed).forEach(function (id) { state.checked[id] = false; });
     state.trashed = {};
     state.phase = "results";
     render();
-    toast("Put back. Everything is where it was.");
+    if (quiet !== true) toast("Put back. Everything is where it was.");
   }
 
   function quickSelect() {
+    state.touched = true;
     visibleItems().forEach(function (i) { if (i.tier === "safe") state.checked[i.id] = true; });
     if (state.phase === "done") state.phase = "results";
     render();
@@ -301,6 +320,86 @@
     t.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+
+
+  // ---- Feature cards ----
+
+  function wireFeatures() {
+    wireLowSpace();
+    wireExplainers("guards");
+    wireExplainers("sysdata");
+    wireUninstaller();
+    var review = $("panel-review");
+    if (review) review.addEventListener("click", function () {
+      $("demo").scrollIntoView();
+      goToStep("trash");
+    });
+  }
+
+  // Menu bar panel: drag free space down and the low-space note appears below 10 GB.
+  function wireLowSpace() {
+    var slider = $("free-slider"), out = $("free-out"), gauge = $("panel-gauge"), note = $("lowspace-note");
+    if (!slider) return;
+    function update() {
+      var free = Number(slider.value);
+      out.textContent = free.toFixed(1) + " GB free";
+      gauge.style.width = ((DISK_GB - free) / DISK_GB * 100) + "%";
+      note.hidden = free >= 10;
+    }
+    slider.addEventListener("input", update);
+    update();
+  }
+
+  // Rows that open a short explanation when clicked.
+  function wireExplainers(id) {
+    var box = $(id);
+    if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll("button[data-explain]"), function (b) {
+      b.addEventListener("click", function () {
+        var open = b.getAttribute("aria-expanded") === "true";
+        Array.prototype.forEach.call(box.querySelectorAll("button[data-explain]"), function (o) { o.setAttribute("aria-expanded", "false"); });
+        var text = $(id + "-text");
+        if (open) { text.textContent = text.dataset.idle; return; }
+        b.setAttribute("aria-expanded", "true");
+        text.textContent = b.dataset.explain;
+      });
+    });
+  }
+
+  var APPS = {
+    Figma: [["Figma.app", 0.52, "/Applications"], ["Caches", 2.4, "~/Library/Caches/com.figma.Desktop"], ["Support files", 0.31, "~/Library/Application Support/Figma"], ["Preferences", 0.00005, "~/Library/Preferences"]],
+    Zoom: [["zoom.us.app", 0.41, "/Applications"], ["Caches", 0.62, "~/Library/Caches/us.zoom.xos"], ["Recordings folder", 0, "Not offered: it holds your recordings"], ["Logs", 0.09, "~/Library/Logs/zoom.us"]],
+    Slack: [["Slack.app", 0.48, "/Applications"], ["Caches", 1.9, "~/Library/Application Support/Slack/Cache"], ["Support files", 0.74, "~/Library/Application Support/Slack"], ["Saved state", 0.002, "~/Library/Saved Application State"]]
+  };
+  function wireUninstaller() {
+    var box = $("uninstall");
+    if (!box) return;
+    var list = $("uninstall-list"), btn = $("uninstall-btn"), current = "Figma", removed = false;
+    function draw() {
+      list.textContent = "";
+      var total = 0;
+      APPS[current].forEach(function (f) {
+        var isApp = /\.app$/.test(f[0]);
+        var offered = f[1] > 0 && !isApp;
+        if (offered) total += f[1];
+        var right = isApp ? "stays in Applications" : (f[1] > 0 ? fmt(f[1]) : "kept");
+        list.appendChild(el("div", { class: "mini-row" + (removed && offered ? " gone" : "") }, [
+          el("span", { class: "l" }, [el("span", { text: f[0] })]),
+          el("span", { class: "r", text: removed && offered ? "in the Trash" : right })
+        ]));
+      });
+      btn.textContent = removed ? "Put back" : "Move " + fmt(total) + " to the Trash";
+    }
+    Array.prototype.forEach.call(box.querySelectorAll("[data-app]"), function (chip) {
+      chip.addEventListener("click", function () {
+        current = chip.dataset.app; removed = false;
+        Array.prototype.forEach.call(box.querySelectorAll("[data-app]"), function (c) { c.setAttribute("aria-pressed", String(c === chip)); });
+        draw();
+      });
+    });
+    btn.addEventListener("click", function () { removed = !removed; draw(); });
+    draw();
   }
 
   // ⌘K palette demo
@@ -356,8 +455,53 @@
     update(null);
   }
 
+  // Clicking a step jumps the demo to that point.
+  function goToStep(step) {
+    state.touched = true;
+    if (step === "scan") { state.trashed = {}; state.checked = {}; state.cat = "all"; startScan(); return; }
+    if (state.phase === "idle" || state.phase === "scanning") { state.phase = "results"; }
+    if (step === "read") { if (state.phase === "done") putBack(true); state.checked = {}; render(); return; }
+    if (step === "choose") { if (state.phase === "done") putBack(true); quickSelect(); return; }
+    if (step === "trash") {
+      if (state.phase === "done") return;
+      if (!chosen().length) quickSelect();
+      openSheet();
+    }
+  }
+
+  function setMode(mode) {
+    state.touched = true;
+    state.mode = mode;
+    state.cat = "all";
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+    });
+    if (state.phase === "done") state.phase = "results";
+    render();
+  }
+
+  // Start the scan by itself the first time the window comes into view.
+  function autoplay() {
+    var win = $("window");
+    if (!("IntersectionObserver" in window)) return;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting && state.phase === "idle" && !state.touched) { io.disconnect(); startScan(); }
+      });
+    }, { threshold: 0.35 });
+    io.observe(win);
+  }
+
   function start() {
     render();
+    Array.prototype.forEach.call($("steps").querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () { goToStep(b.parentNode.dataset.step); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) {
+      b.addEventListener("click", function () { setMode(b.dataset.mode); });
+    });
+    autoplay();
+    wireFeatures();
     $("quick-select").addEventListener("click", quickSelect);
     $("review-btn").addEventListener("click", openSheet);
     var pi = $("palette-input");

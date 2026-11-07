@@ -367,3 +367,39 @@ section.block { padding-block: 72px; border-top: 1px solid var(--line); }
 /* Fixes after the first look */
 .site-nav a.btn-primary, .site-nav a.btn-primary:hover { color: var(--accent-ink); }
 @media (min-width: 761px) { .list { max-height: 620px; overflow-y: auto; } }
+
+/* Interactive pieces added in the second pass */
+.steps li { padding: 0; border: 0; background: none; }
+.steps li button {
+  font: inherit; font-weight: 600; color: var(--muted); cursor: pointer;
+  padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+}
+.steps li button:hover { border-color: var(--accent); color: var(--ink); }
+.steps li[aria-current="step"] button { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.steps li.done button { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.step-caption { color: var(--muted); margin: -4px 0 16px; min-height: 1.55em; }
+
+.modes { display: inline-flex; margin-left: auto; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.modes button { font: inherit; font-size: 0.8rem; font-weight: 600; padding: 3px 10px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.titlebar .modes + .example-tag { margin-left: 12px; }
+@media (max-width: 520px) { .titlebar .example-tag { display: none; } }
+
+button.mini-row.explain {
+  font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 8px; padding: 6px 8px;
+}
+button.mini-row.explain:hover { background: var(--surface); border-color: var(--line); }
+button.mini-row.explain[aria-expanded="true"] { background: var(--surface); border-color: var(--accent); }
+.explain-text { color: var(--ink); font-size: 0.88rem; min-height: 2.6em; border-top: 1px dashed var(--line); padding-top: 8px; }
+
+.slider-label { font-size: 0.8rem; color: var(--muted); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.notice { background: var(--review-bg); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; }
+.notice strong { color: var(--review); }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips button { font: inherit; font-size: 0.82rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.chips button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mini-row.gone .l span { text-decoration: line-through; color: var(--muted); }
+#uninstall-list { display: grid; gap: 6px; }
