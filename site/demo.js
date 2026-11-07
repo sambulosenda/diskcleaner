@@ -1,5 +1,5 @@
-// Roomy site demo. Everything here is example data; nothing reads the visitor's Mac.
-// The hero is an example Mac running Roomy. The window copies the real app's screens on main:
+// Diskwell site demo. Everything here is example data; nothing reads the visitor's Mac.
+// The hero is an example Mac running Diskwell. The window copies the real app's screens on main:
 // the sidebar sections, the Overview (one answer, a bar, Ready to clean, Worth a look), the item
 // list with tier labels, the bar under it once something is ticked, and the review sheet.
 document.documentElement.classList.add("js");
@@ -31,10 +31,10 @@ document.documentElement.classList.add("js");
     { id: "a1", cat: "developerTools", screens: ["android"], tier: "review", gb: 6.1, title: "Android system image", place: "API 30", explain: "No project on this Mac uses API 30. Android Studio can download it again.", path: "~/Library/Android/sdk/system-images/android-30" },
     { id: "a2", cat: "cache", screens: ["android", "appscaches"], tier: "safe", gb: 4.8, title: "Gradle caches", explain: "Downloaded build files. Gradle fetches them again when a build needs them.", path: "~/.gradle/caches", changed: "2 weeks ago" },
     { id: "j1", cat: "build", screens: ["projects", "javascript"], tier: "safe", gb: 5.8, title: "node_modules", place: "6 old projects", explain: "Last worked on more than 3 months ago. npm install brings them back.", path: "~/Developer/*/node_modules", changed: "4 months ago" },
-    { id: "j2", cat: "build", screens: ["projects", "javascript"], tier: "keep", gb: 0.9, title: "node_modules", place: "roomy-site", explain: "Skipped: you changed this project 2 hours ago.", path: "~/Developer/roomy-site/node_modules" },
+    { id: "j2", cat: "build", screens: ["projects", "javascript"], tier: "keep", gb: 0.9, title: "node_modules", place: "diskwell-site", explain: "Skipped: you changed this project 2 hours ago.", path: "~/Developer/diskwell-site/node_modules" },
     { id: "d1", cat: "docker", screens: ["docker", "tools"], tier: "safe", gb: 7.2, title: "Docker build cache", explain: "Cached build steps. Docker rebuilds them when needed.", path: "docker builder prune", cmd: true, changed: "2 weeks ago" },
     { id: "d2", cat: "docker", screens: ["docker"], tier: "review", gb: 11.4, title: "Images no container uses", explain: "Pulling them again takes time on a slow connection.", path: "docker image prune", cmd: true },
-    { id: "d3", cat: "docker", screens: ["docker"], tier: "keep", gb: 12.0, title: "Docker volumes", explain: "These hold your containers' data. Roomy never removes them.", path: "docker volume ls" },
+    { id: "d3", cat: "docker", screens: ["docker"], tier: "keep", gb: 12.0, title: "Docker volumes", explain: "These hold your containers' data. Diskwell never removes them.", path: "docker volume ls" },
     { id: "ai1", cat: "appData", screens: ["appscaches", "largefiles"], tier: "review", gb: 39.6, title: "Ollama model", place: "llama3.1:70b", explain: "Last used 3 months ago. Takes hours to download again.", path: "~/.ollama/models" },
     { id: "ai2", cat: "appData", screens: ["appscaches"], tier: "review", gb: 8.1, title: "LM Studio model", place: "qwen2.5-14b", explain: "Last used 6 weeks ago.", path: "~/.lmstudio/models" },
     { id: "h1", cat: "cache", screens: ["appscaches", "tools"], tier: "safe", gb: 2.3, title: "Old Homebrew versions", explain: "Older copies of tools Homebrew has already updated.", path: "brew cleanup", cmd: true, changed: "1 month ago" },
@@ -133,6 +133,8 @@ document.documentElement.classList.add("js");
   };
 
   var $ = function (id) { return document.getElementById(id); };
+  // Set by wireTrashFx: re-checks the Trash animation when the window opens, closes or finishes scanning.
+  var fxRefresh = null;
 
   // ---- small helpers ----
 
@@ -198,6 +200,7 @@ document.documentElement.classList.add("js");
     renderSheet();
     renderPopover();
     updateTrash();
+    if (fxRefresh) fxRefresh();
   }
 
   function renderSidebar() {
@@ -227,7 +230,7 @@ document.documentElement.classList.add("js");
     var wrap = el("div", { class: "scan-view" }, [
       el("div", { class: "spinner", "aria-hidden": "true" }),
       el("h2", { text: "Scanning this Mac…" }),
-      el("p", { class: "sec", text: "Roomy only reads sizes. Nothing is removed." }),
+      el("p", { class: "sec", text: "Diskwell only reads sizes. Nothing is removed." }),
       el("div", { class: "pbar" }, [el("span", { id: "scan-fill" })]),
       el("p", { class: "mono sec", id: "scan-path", text: "~/Library" })
     ]);
@@ -303,7 +306,7 @@ document.documentElement.classList.add("js");
     ]));
     col.appendChild(el("div", { class: "ov-foot sec" }, [
       el("span", { text: "Scanned today at " + clockText(false) }),
-      el("span", { text: "Roomy could open every folder." })
+      el("span", { text: "Diskwell could open every folder." })
     ]));
     return col;
   }
@@ -381,7 +384,7 @@ document.documentElement.classList.add("js");
         el("button", { type: "button", class: "mbtn primary", id: "win-review", text: "Review…", onclick: function () { state.sheet = "preview"; renderWindow(); } })
       ]));
     }
-    left.appendChild(el("div", { class: "unmeasured sec", text: "Roomy measured every folder in this list." }));
+    left.appendChild(el("div", { class: "unmeasured sec", text: "Diskwell measured every folder in this list." }));
     return el("div", { class: "list-wrap" }, [left, detailPanel(items)]);
   }
 
@@ -395,7 +398,7 @@ document.documentElement.classList.add("js");
   function detailPanel(items) {
     var item = ITEMS.filter(function (i) { return i.id === state.selected; })[0];
     if (!item) return el("aside", { class: "detail empty" }, [el("p", { class: "sec", text: items.length ? "Select a row to see what it is and what removing it would mean." : "" })]);
-    var what = item.tier === "keep" ? "Roomy keeps this. It isn't offered for cleanup." :
+    var what = item.tier === "keep" ? "Diskwell keeps this. It isn't offered for cleanup." :
       item.tier === "safe" ? "Comes back by itself when it's needed. Moving it to the Trash is likely safe." :
       "Look at this first. It may take time to get back, or hold something you want.";
     return el("aside", { class: "detail" }, [
@@ -460,7 +463,7 @@ document.documentElement.classList.add("js");
       var hasCmd = c.some(function (i) { return i.cmd; });
       box = el("div", { class: "msheet", role: "dialog", "aria-modal": "true", "aria-label": "Review your clean-up" }, [
         el("h2", { text: "Move " + fmt(sum(c)) + " to the Trash?" }),
-        el("p", { class: "sec", text: "Roomy checked each item again, just as a clean-up would. Nothing has been moved yet." + (hasCmd ? " Tool commands run only after you confirm." : "") }),
+        el("p", { class: "sec", text: "Diskwell checked each item again, just as a clean-up would. Nothing has been moved yet." + (hasCmd ? " Tool commands run only after you confirm." : "") }),
         ul,
         el("div", { class: "sheet-actions" }, [
           el("button", { type: "button", class: "mbtn", id: "sheet-cancel", text: "Cancel", onclick: closeSheet }),
@@ -532,7 +535,7 @@ document.documentElement.classList.add("js");
     if (wasHidden) win.classList.add("opening");
     setTimeout(function () { win.classList.remove("opening"); }, 350);
   }
-  function closeWindow() { state.sheet = null; renderSheet(); $("win").hidden = true; state.open = false; }
+  function closeWindow() { state.sheet = null; renderSheet(); $("win").hidden = true; state.open = false; if (fxRefresh) fxRefresh(); }
 
   function openPopover() {
     $("popover").hidden = false;
@@ -547,7 +550,7 @@ document.documentElement.classList.add("js");
   }
 
   // The menu bar panel (MenuBarPanel.swift): free space, "X ready", the gauge, Ready to free rows
-  // you can tick, locked Review first rows, and "Review N items…" / "Open Roomy".
+  // you can tick, locked Review first rows, and "Review N items…" / "Open Diskwell".
   function renderPopover() {
     var pop = $("popover");
     if (pop.hidden) return;
@@ -578,12 +581,12 @@ document.documentElement.classList.add("js");
       rows.appendChild(el("label", { class: "pp-row", for: "pp-" + i.id }, [cb, el("span", { class: "pp-t" }, [el("span", { text: i.title }), el("span", { class: "sec small", text: "Likely safe" + (i.changed ? " · changed " + i.changed : "") })]), el("span", { class: "num sec", text: fmt(i.gb) })]));
     });
     live().filter(function (i) { return i.tier === "review" && inMode(i); }).sort(function (a, b) { return b.gb - a.gb; }).slice(0, 1).forEach(function (i) {
-      rows.appendChild(el("div", { class: "pp-row locked" }, [icon("tierKeep", "lock"), el("span", { class: "pp-t" }, [el("span", { text: i.title }), el("span", { class: "sec small", text: "Review first, in Roomy" })]), el("span", { class: "num sec", text: fmt(i.gb) })]));
+      rows.appendChild(el("div", { class: "pp-row locked" }, [icon("tierKeep", "lock"), el("span", { class: "pp-t" }, [el("span", { text: i.title }), el("span", { class: "sec small", text: "Review first, in Diskwell" })]), el("span", { class: "num sec", text: fmt(i.gb) })]));
     });
     pop.appendChild(rows);
     var ticked = live().filter(function (i) { return state.popChecked[i.id] && inMode(i); });
     pop.appendChild(el("button", { type: "button", class: "mbtn primary wide", id: "pop-review",
-      text: ticked.length === 0 ? "Open Roomy" : ticked.length === 1 ? "Review 1 item…" : "Review " + ticked.length + " items…",
+      text: ticked.length === 0 ? "Open Diskwell" : ticked.length === 1 ? "Review 1 item…" : "Review " + ticked.length + " items…",
       onclick: function () {
         state.touched = true;
         var t = live().filter(function (i) { return state.popChecked[i.id] && inMode(i); });
@@ -867,7 +870,7 @@ document.documentElement.classList.add("js");
   }
 
   // When the Mac first comes into view, play a short tour unless the visitor has already
-  // touched it: the low-space note, then the menu bar panel, then the Roomy window.
+  // touched it: the low-space note, then the menu bar panel, then the Diskwell window.
   function wireTour() {
     var desk = $("desktop");
     function touch() { state.touched = true; }
@@ -955,12 +958,21 @@ document.documentElement.classList.add("js");
     var freed = el("div", { class: "fx-freed", "aria-hidden": "true", text: fmt(sum(ITEMS.filter(function (i) { return i.tier === "safe"; }))) + " freed" });
     desk.appendChild(layer);
     desk.appendChild(freed);
-    var wasFull = false, ticking = false;
+    var wasFull = false, ticking = false, readyScroll = null;
     function frame() {
       ticking = false;
       var vh = window.innerHeight, d = desk.getBoundingClientRect();
-      // 0 while the Mac's bottom edge is low on screen, 1 once it has risen to 45% of the viewport.
-      var p = clamp01((vh * 0.92 - d.bottom) / (vh * 0.47));
+      // Nothing flies until the Diskwell window is open and its scan has finished; chips leaving a
+      // window that still says "Scanning" would make no sense. Remember where the page was then,
+      // so a visitor who scrolled on during the scan still sees the whole flight from that point.
+      var ready = state.open && state.phase === "ready";
+      if (!ready) readyScroll = null;
+      else if (readyScroll === null) readyScroll = window.scrollY;
+      // Starts once the whole Mac has been on screen (or from where it sat when the scan finished,
+      // if that was later) and finishes after a further 30% of the Mac's height, so the chips fly
+      // while the window and the Dock are still in view rather than after they have scrolled away.
+      var start = ready ? Math.min(vh, d.bottom + window.scrollY - readyScroll) : -Infinity;
+      var p = ready ? clamp01((start - d.bottom) / (d.height * 0.3)) : 0;
       var t = trash.getBoundingClientRect();
       var tx = t.left - d.left + t.width / 2, ty = t.top - d.top + t.height * 0.35;
       chips.forEach(function (c, n) {
@@ -983,6 +995,7 @@ document.documentElement.classList.add("js");
     function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
+    fxRefresh = onScroll;
     frame();
   }
 
