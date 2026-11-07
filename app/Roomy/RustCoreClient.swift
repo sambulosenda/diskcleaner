@@ -117,6 +117,16 @@ final class RustCoreClient: CoreClient {
         return (try? await offMain { $0.dockerOverview() }) ?? fallback
     }
 
+    func systemData(mode: Mode) async -> SystemData {
+        let fallback = SystemData(
+            snapshots: LocalSnapshots(
+                status: .unavailable(reason: "Roomy couldn't start, so it can't measure System Data."),
+                count: 0, oldestUnixSeconds: nil, newestUnixSeconds: nil),
+            parts: [],
+            totalBytes: 0)
+        return (try? await offMain { $0.systemData(mode: mode) }) ?? fallback
+    }
+
     func previewDockerCleanup(kind: DockerCleanupKind) async throws -> DockerCleanupPreview {
         try await offMain { try $0.previewDockerCleanup(kind: kind) }
     }

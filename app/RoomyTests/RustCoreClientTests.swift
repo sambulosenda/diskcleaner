@@ -156,6 +156,11 @@ private final class FailingCore: CoreClient {
     }
     func discardDockerCleanup(plan: DockerPlanHandle) async {}
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult { throw CoreError.HomeNotFound }
+    func systemData(mode: Mode) async -> SystemData {
+        SystemData(snapshots: LocalSnapshots(status: .unavailable(reason: "No core."), count: 0,
+                                             oldestUnixSeconds: nil, newestUnixSeconds: nil),
+                   parts: [], totalBytes: 0)
+    }
     func previewToolCleanup(kind: ToolCleanupKind) async throws -> ToolCleanupPreview { throw CoreError.HomeNotFound }
     func discardToolCleanup(plan: ToolPlanHandle) async {}
     func runToolCleanup(plan: ToolPlanHandle, package: String?) async throws -> ToolCleanupResult {

@@ -83,6 +83,10 @@ protocol CoreClient: AnyObject {
     /// anything new appeared. The plan is used up.
     func runDockerCleanup(plan: DockerPlanHandle) async throws -> DockerCleanupResult
 
+    /// What macOS's System Data holds, measured just now: snapshots, caches, logs, updates, temporary
+    /// files, swap and the sleep image. Reads only; never throws. Paths come back in Developer mode only.
+    /// Can take several seconds.
+    func systemData(mode: Mode) async -> SystemData
     /// The dry run of one tool clean-up (`brew cleanup`, deleting unavailable simulators, or one Android SDK
     /// package): what the tool would remove. Removes nothing. Sends a kind, never a command. Throws
     /// `CoreError.ToolUnavailable` if the tool is missing. `sdkmanager` can take a minute.

@@ -23,6 +23,7 @@
 		A10000000000000000000070 /* CleanupReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000070 /* CleanupReview.swift */; };
 		A10000000000000000000071 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000071 /* HistoryView.swift */; };
 		A100000000000000D0C4E501 /* DockerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000D0C4E501 /* DockerView.swift */; };
+		A1000000000000005D47A001 /* SystemDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000005D47A001 /* SystemDataView.swift */; };
 		A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000070C1C1E5 /* ToolCleanupsView.swift */; };
 		A100000000000000119A7E51 /* LibrariesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000119A7E51 /* LibrariesView.swift */; };
 		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
@@ -44,6 +45,7 @@
 		A100000000000000000000E0 /* LowSpaceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E0 /* LowSpaceMonitor.swift */; };
 		A100000000000000000000E1 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E1 /* MenuBarView.swift */; };
 		A100000000000000000000E2 /* LowSpaceMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000E2 /* LowSpaceMonitorTests.swift */; };
+		A1000000000000005D47A002 /* SystemDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000005D47A002 /* SystemDataTests.swift */; };
 		A100000000000000000000C1 /* CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C1 /* CommandPalette.swift */; };
 		A100000000000000000000C2 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C2 /* CommandPaletteView.swift */; };
 		A100000000000000000000C3 /* CommandPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000C3 /* CommandPaletteTests.swift */; };
@@ -78,6 +80,7 @@
 		A20000000000000000000070 /* CleanupReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupReview.swift; sourceTree = "<group>"; };
 		A20000000000000000000071 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A200000000000000D0C4E501 /* DockerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerView.swift; sourceTree = "<group>"; };
+		A2000000000000005D47A001 /* SystemDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemDataView.swift; sourceTree = "<group>"; };
 		A20000000000000070C1C1E5 /* ToolCleanupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCleanupsView.swift; sourceTree = "<group>"; };
 		A200000000000000119A7E51 /* LibrariesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrariesView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
@@ -100,6 +103,7 @@
 		A200000000000000000000E0 /* LowSpaceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitor.swift; sourceTree = "<group>"; };
 		A200000000000000000000E1 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		A200000000000000000000E2 /* LowSpaceMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitorTests.swift; sourceTree = "<group>"; };
+		A2000000000000005D47A002 /* SystemDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemDataTests.swift; sourceTree = "<group>"; };
 		A200000000000000000000C1 /* CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPalette.swift; sourceTree = "<group>"; };
 		A200000000000000000000C2 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		A200000000000000000000C3 /* CommandPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteTests.swift; sourceTree = "<group>"; };
@@ -150,6 +154,7 @@
 				A20000000000000000000070 /* CleanupReview.swift */,
 				A20000000000000000000071 /* HistoryView.swift */,
 				A200000000000000D0C4E501 /* DockerView.swift */,
+				A2000000000000005D47A001 /* SystemDataView.swift */,
 				A20000000000000070C1C1E5 /* ToolCleanupsView.swift */,
 				A200000000000000119A7E51 /* LibrariesView.swift */,
 				A20000000000000000000072 /* FullDiskAccessView.swift */,
@@ -183,6 +188,7 @@
 				A20000000000000000000032 /* ScreenshotTests.swift */,
 				A20000000000000000000064 /* UpdaterControllerTests.swift */,
 				A200000000000000000000E2 /* LowSpaceMonitorTests.swift */,
+				A2000000000000005D47A002 /* SystemDataTests.swift */,
 				A200000000000000000000C3 /* CommandPaletteTests.swift */,
 			);
 			path = RoomyTests;
@@ -322,6 +328,7 @@
 				A10000000000000000000070 /* CleanupReview.swift in Sources */,
 				A10000000000000000000071 /* HistoryView.swift in Sources */,
 				A100000000000000D0C4E501 /* DockerView.swift in Sources */,
+				A1000000000000005D47A001 /* SystemDataView.swift in Sources */,
 				A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */,
 				A100000000000000119A7E51 /* LibrariesView.swift in Sources */,
 				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
@@ -354,6 +361,7 @@
 				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,
 				A10000000000000000000064 /* UpdaterControllerTests.swift in Sources */,
 				A100000000000000000000E2 /* LowSpaceMonitorTests.swift in Sources */,
+				A1000000000000005D47A002 /* SystemDataTests.swift in Sources */,
 				A100000000000000000000C3 /* CommandPaletteTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

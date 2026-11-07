@@ -706,7 +706,7 @@ Docker id. Only the two Docker commands on the allow-list in `docs/safety/allowe
 run, each after its read-only preview. Volumes are shown and never offered for removal. No command
 ever gets `-f`, `--force`, `-a` or `--all`.
 
-The core looks for `docker` in `/usr/local/bin`, `/opt/homebrew/bin`, `~/.docker/bin`,
+The core looks for `docker` in `/usr/local/bin`, `/opt/homebrew/bin`, `~/.docker/bin`, `~/.orbstack/bin`,
 `/Applications/Docker.app/Contents/Resources/bin`, `/usr/bin` and `/bin`, because a Mac app's own
 `PATH` holds none of them. Every call blocks until Docker answers, so the app calls them off the main
 thread.
@@ -755,6 +755,43 @@ these are estimates.
 
 ### `DockerCleanupResult` (record)
 `kind`, `success`, `reclaimed_bytes: u64?`, `saved_to_history`.
+
+## System Data
+
+What macOS's "System Data" bar holds (PRD F9). Read only: nothing here can be cleaned. What Roomy can
+clean in these places (your own caches, logs and iPhone updates) is already in the scan's items and
+goes through the usual Trash-only cleanup.
+
+### `system_data(mode: Mode) -> SystemData`
+Measures, just now: caches (`~/Library/Caches`, `/Library/Caches`), logs (`~/Library/Logs`,
+`/Library/Logs`, `/private/var/log`, `/private/var/db/diagnostics`), software updates
+(`~/Library/iTunes/iPhone Software Updates`, `~/Library/iTunes/iPad Software Updates`,
+`/Library/Updates`), the user's temporary folder under `/private/var/folders` (from
+`_CS_DARWIN_USER_CACHE_DIR`), swap files (`/private/var/vm/swapfile*`) and the sleep image
+(`/private/var/vm/sleepimage`). Folders go through the read-only scanner (allocated size, no
+symlink followed, one volume, hard links once); files are read with `lstat`. Also counts Time
+Machine local snapshots with the read-only `tmutil listlocalsnapshots /` (15 second limit). Never
+throws. Can take several seconds; call it off the main thread. Paths only in Developer mode.
+
+### `SystemData` (record)
+`snapshots: LocalSnapshots`, `parts: [SystemDataPart]` (in the order caches, logs, software
+updates, temporary files, swap, sleep image), `total_bytes` (sum of the parts; snapshots have no
+size).
+
+### `SystemDataPart` (record)
+`kind: SystemDataKind`, `size_bytes`, `partly_unreadable` (a place or a folder inside one could not
+be read, so the real size is larger), `places: [SystemDataPlace]`.
+
+### `SystemDataPlace` (record)
+`id` (stable, such as `user_caches`, `shared_caches`, `sleep_image`), `owner: SystemDataOwner`
+(`you` inside the home folder, `system` outside it), `state: SystemDataPlaceState` (`missing`,
+`unreadable`, `measured`), `size_bytes`, `file_count`, `partly_unreadable`, `path: String?`
+(`~/…` or `/…`, Developer mode only).
+
+### `LocalSnapshots` (record)
+`status: SnapshotStatus` (`listed` or `unavailable { reason }`), `count`, `oldest_unix_seconds:
+i64?`, `newest_unix_seconds: i64?`. macOS names snapshots in local time; the core reads the name as
+if it were UTC, so show the date in UTC.
 
 ## Tool clean-ups
 

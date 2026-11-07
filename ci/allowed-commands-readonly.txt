@@ -13,3 +13,7 @@
 #
 # docker.rs runs only `docker system df --format '{{json .}}'` (read only).
 core/crates/analysers/src/docker.rs docker
+#
+# system_data.rs runs only `tmutil listlocalsnapshots /` (read only: lists
+# Time Machine local snapshots for the System Data breakdown, PRD F9).
+core/crates/analysers/src/system_data.rs tmutil

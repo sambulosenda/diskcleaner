@@ -11,10 +11,12 @@
 //! here is an estimate, close to what `docker system df` shows.
 
 use std::ffi::OsString;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use crate::process;
+pub use crate::process::{Output, RunError};
 
 /// How long the read-only query may take before Roomy gives up on it.
 pub const QUERY_TIMEOUT: Duration = Duration::from_secs(20);
@@ -25,13 +27,15 @@ pub const DISK_IMAGE: &str = "Library/Containers/com.docker.docker/Data/vms/0/da
 /// The folders searched for the `docker` program, in order.
 ///
 /// A Mac app starts with a short `PATH` that holds none of the places Docker
-/// installs its command-line tool, so Roomy names them itself. `~/.docker/bin`
+/// installs its command-line tool, so Roomy names them itself (OrbStack
+/// puts its copy in `~/.orbstack/bin`). `~/.docker/bin`
 /// is where Docker Desktop puts it when it is set up without admin rights.
 pub fn search_path(home: &Path) -> OsString {
-    let folders: [PathBuf; 6] = [
+    let folders: [PathBuf; 7] = [
         PathBuf::from("/usr/local/bin"),
         PathBuf::from("/opt/homebrew/bin"),
         home.join(".docker/bin"),
+        home.join(".orbstack/bin"),
         PathBuf::from("/Applications/Docker.app/Contents/Resources/bin"),
         PathBuf::from("/usr/bin"),
         PathBuf::from("/bin"),
@@ -81,31 +85,6 @@ pub enum DockerState {
     Ready(DockerUsage),
 }
 
-/// What a finished program printed.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Output {
-    /// Whether it exited with status 0.
-    pub success: bool,
-    /// What it printed on stdout, lossily decoded.
-    pub stdout: String,
-    /// What it printed on stderr, lossily decoded.
-    pub stderr: String,
-}
-
-/// Why a program could not be run to the end.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum RunError {
-    /// The program is not in any searched folder.
-    #[error("the program was not found")]
-    NotFound,
-    /// It did not finish in time and was stopped.
-    #[error("the program took too long")]
-    TimedOut,
-    /// Anything else, in plain words.
-    #[error("{0}")]
-    Other(String),
-}
-
 /// Runs the read-only `docker system df` query. A trait so that tests can
 /// answer with recorded output instead of a real Docker.
 pub trait DockerQuery {
@@ -145,51 +124,8 @@ impl DockerQuery for RealDocker {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        wait_with_timeout(command, QUERY_TIMEOUT)
+        process::wait_with_timeout(command, QUERY_TIMEOUT, "Docker")
     }
-}
-
-/// Starts `command`, collects what it prints and waits for it, stopping it
-/// if it takes longer than `timeout`.
-fn wait_with_timeout(mut command: Command, timeout: Duration) -> Result<Output, RunError> {
-    let mut child = command.spawn().map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => RunError::NotFound,
-        _ => RunError::Other(format!("Docker could not be started ({e}).")),
-    })?;
-    // Read both pipes on their own threads so a full pipe can't stall it.
-    let stdout = child.stdout.take().map(drain);
-    let stderr = child.stderr.take().map(drain);
-    let started = Instant::now();
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if started.elapsed() >= timeout => {
-                // Stopping the query is safe: it only reads.
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(RunError::TimedOut);
-            }
-            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
-            Err(e) => return Err(RunError::Other(format!("Docker could not be read ({e})."))),
-        }
-    };
-    let collect = |h: Option<std::thread::JoinHandle<String>>| {
-        h.and_then(|h| h.join().ok()).unwrap_or_default()
-    };
-    Ok(Output {
-        success: status.success(),
-        stdout: collect(stdout),
-        stderr: collect(stderr),
-    })
-}
-
-/// Reads a pipe to the end on its own thread.
-fn drain<R: Read + Send + 'static>(mut pipe: R) -> std::thread::JoinHandle<String> {
-    std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let _ = pipe.read_to_end(&mut bytes);
-        String::from_utf8_lossy(&bytes).into_owned()
-    })
 }
 
 /// Asks Docker how much space it uses. Never fails: every problem becomes
@@ -215,12 +151,96 @@ pub fn usage(query: &dyn DockerQuery) -> DockerState {
 }
 
 /// Whether Docker's error says that Docker itself is not running.
+///
+/// Docker CLI 28 and later say "failed to connect to the docker API at
+/// unix://…; check if the path is correct and if the daemon is running";
+/// older versions say "Cannot connect to the Docker daemon … Is the docker
+/// daemon running?". Both, and a socket that is missing or refusing
+/// connections, mean Docker is not running.
 pub fn is_not_running(stderr: &str) -> bool {
     let lower = stderr.to_ascii_lowercase();
+    let socket_gone = lower.contains("docker.sock")
+        && (lower.contains("no such file or directory") || lower.contains("connection refused"));
     lower.contains("cannot connect to the docker daemon")
         || lower.contains("is the docker daemon running")
+        || lower.contains("failed to connect to the docker api")
+        || lower.contains("if the daemon is running")
         || lower.contains("docker desktop is not running")
         || lower.contains("error during connect")
+        || socket_gone
+}
+
+/// Docker's own error, in one short line the app can show: the first line
+/// of stderr that says something, with every path replaced by "…" so no
+/// path reaches the app, and cut to 160 characters. `None` if Docker
+/// printed nothing.
+pub fn error_line(stderr: &str) -> Option<String> {
+    let line = stderr
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty() && !l.to_ascii_lowercase().starts_with("warning"))
+        .or_else(|| stderr.lines().map(str::trim).find(|l| !l.is_empty()))?;
+    let line = redact_quoted_paths(line);
+    let cleaned: Vec<String> = line
+        .split_whitespace()
+        .map(|word| {
+            if word.contains('/') {
+                "…".to_string()
+            } else {
+                word.to_string()
+            }
+        })
+        .collect();
+    let mut text = cleaned.join(" ");
+    if text.chars().count() > 160 {
+        text = text.chars().take(159).collect::<String>() + "…";
+    }
+    Some(text)
+}
+
+/// Replaces every double-quoted span holding a `/` with `"…"`, so a quoted
+/// path with spaces in it ("/Users/Alice Smith") is removed whole.
+fn redact_quoted_paths(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(start) = rest.find('"') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('"') {
+            Some(end) => {
+                let inner = &after[..end];
+                if inner.contains('/') {
+                    out.push_str("\"…\"");
+                } else {
+                    out.push('"');
+                    out.push_str(inner);
+                    out.push('"');
+                }
+                rest = &after[end + 1..];
+            }
+            None => {
+                // An unclosed quote: drop the rest if it holds a path.
+                if after.contains('/') {
+                    out.push_str("\"…");
+                } else {
+                    out.push('"');
+                    out.push_str(after);
+                }
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// "Docker said: …" for an error Roomy doesn't recognise, or `fallback`
+/// if Docker printed nothing.
+pub fn explain_failure(stderr: &str, fallback: &str) -> String {
+    match error_line(stderr) {
+        Some(line) => format!("Docker said: {line}"),
+        None => fallback.to_string(),
+    }
 }
 
 /// The state for a query that exited with an error.
@@ -230,7 +250,10 @@ fn failure_state(stderr: &str) -> DockerState {
     } else {
         tracing::warn!(stderr = %stderr.trim(), "docker system df failed");
         DockerState::Unavailable {
-            reason: "Docker reported a problem, so Roomy could not read its sizes.".to_string(),
+            reason: explain_failure(
+                stderr,
+                "Docker stopped with an error but didn't say why, so Roomy could not read its sizes.",
+            ),
         }
     }
 }
@@ -650,6 +673,51 @@ mod tests {
             usage(&ok("not json")),
             DockerState::Unavailable { .. }
         ));
+    }
+
+    #[test]
+    fn newer_docker_not_running_messages_are_recognised() {
+        // Docker CLI 28 and later.
+        assert!(is_not_running(
+            "failed to connect to the docker API at unix:///Users/me/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/me/.docker/run/docker.sock: connect: no such file or directory"
+        ));
+        assert!(is_not_running(
+            "dial unix /Users/me/.docker/run/docker.sock: connect: connection refused"
+        ));
+        // OrbStack's socket, exactly as Sam's Mac printed it with OrbStack closed.
+        assert!(is_not_running(
+            "failed to connect to the docker API at unix:///Users/sam/.orbstack/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/sam/.orbstack/run/docker.sock: connect: no such file or directory"
+        ));
+        assert!(!is_not_running("permission denied"));
+    }
+
+    #[test]
+    fn unknown_errors_are_shown_in_dockers_words_without_paths() {
+        let state = usage(&failed(
+            "WARNING: something minor\nerror: context \"colima\" not found: open /Users/me/.docker/contexts/meta/x/meta.json: no such file\n",
+        ));
+        let DockerState::Unavailable { reason } = state else {
+            panic!("expected unavailable");
+        };
+        assert!(
+            reason.starts_with("Docker said: error: context"),
+            "{reason}"
+        );
+        assert!(!reason.contains('/'), "{reason}");
+        assert_eq!(error_line("  \n"), None);
+        let spaced =
+            error_line(r#"open "/Users/Alice Smith/.docker/config.json": permission denied"#)
+                .unwrap();
+        assert_eq!(spaced, r#"open "…": permission denied"#);
+        assert!(!spaced.contains("Smith"));
+        assert_eq!(
+            error_line(r#"context "colima" not found"#).unwrap(),
+            r#"context "colima" not found"#
+        );
+        assert!(!error_line(r#"open "/Users/Alice Smith"#)
+            .unwrap()
+            .contains("Smith"));
+        assert!(error_line(&"x".repeat(500)).unwrap().chars().count() <= 160);
     }
 
     #[test]
