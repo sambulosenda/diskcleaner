@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+brand = { path = "../brand" }
 classifier = { path = "../classifier" }
 rules = { path = "../rules" }
 safety = { path = "../safety" }

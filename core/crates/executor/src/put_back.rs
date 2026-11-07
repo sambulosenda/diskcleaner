@@ -68,10 +68,10 @@ impl TrashIdentity {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PutBackRefusal {
     /// The entry is not one this executor could have made.
-    #[error("Roomy can't put this back")]
+    #[error("{product} can't put this back", product = brand::PRODUCT_NAME)]
     NotOurs,
     /// The Trash no longer holds what was moved there.
-    #[error("it is no longer in the Trash as Roomy left it")]
+    #[error("it is no longer in the Trash as {product} left it", product = brand::PRODUCT_NAME)]
     NotInTrash,
     /// A folder on the way to the old place is gone, is a link, or is on
     /// another disk.

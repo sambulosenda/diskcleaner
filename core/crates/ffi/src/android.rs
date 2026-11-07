@@ -31,9 +31,9 @@ use crate::CoreError;
 
 /// Shown when there is no Android SDK, emulator or Gradle folder at all.
 const NOTHING_FOUND: &str =
-    "Roomy didn't find the Android SDK, any emulators or Gradle in your home folder.";
+    concat!(brand::name!(), " didn't find the Android SDK, any emulators or Gradle in your home folder.");
 /// Shown when no Android project was found.
-const NO_PROJECTS: &str = "Roomy didn't find any Android projects in your home folder, so it can't tell which of these you still use. If your projects are somewhere else, such as another disk, check before you remove anything.";
+const NO_PROJECTS: &str = concat!(brand::name!(), " didn't find any Android projects in your home folder, so it can't tell which of these you still use. If your projects are somewhere else, such as another disk, check before you remove anything.");
 
 /// What the core keeps between `android_overview` and
 /// `preview_android_cleanup`.
@@ -358,15 +358,15 @@ fn usage_text(kind: PartKind, usage: &Usage) -> String {
         ),
         Usage::NotSure { by } => match kind {
             PartKind::SystemImage => format!(
-                "Roomy couldn't tell which image {} uses",
+                concat!(brand::name!(), " couldn't tell which image {} uses"),
                 list(by, "emulator")
             ),
             _ => format!(
-                "Roomy couldn't read the settings of {}, so it can't tell",
+                concat!(brand::name!(), " couldn't read the settings of {}, so it can't tell"),
                 list(by, "project")
             ),
         },
-        Usage::NotUsed => format!("No {what} Roomy found uses this"),
+        Usage::NotUsed => format!("No {what} {} found uses this", brand::PRODUCT_NAME),
         Usage::NotApplicable => match kind {
             PartKind::GradleCache => "Shared by every Gradle project".to_string(),
             _ => String::new(),

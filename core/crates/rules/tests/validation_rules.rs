@@ -519,7 +519,7 @@ fn error_messages_name_file_rule_and_setting() {
     assert_eq!(
         err.to_string(),
         "test.toml, rule 1 (\"xcode.derived_data\"), setting \"match.path\": \
-         this pattern could match your keychains, which the app never removes"
+         this pattern could match your keychains, which Diskwell never removes"
     );
 }
 

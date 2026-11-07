@@ -143,7 +143,7 @@ pub fn usage(query: &dyn DockerQuery) -> DockerState {
             Err(e) => {
                 tracing::warn!(error = %e, "docker system df output not understood");
                 DockerState::Unavailable {
-                    reason: "Roomy could not read Docker's answer.".to_string(),
+                    reason: concat!(brand::name!(), " could not read Docker's answer.").to_string(),
                 }
             }
         },
@@ -252,7 +252,7 @@ fn failure_state(stderr: &str) -> DockerState {
         DockerState::Unavailable {
             reason: explain_failure(
                 stderr,
-                "Docker stopped with an error but didn't say why, so Roomy could not read its sizes.",
+                concat!("Docker stopped with an error but didn't say why, so ", brand::name!(), " could not read its sizes."),
             ),
         }
     }

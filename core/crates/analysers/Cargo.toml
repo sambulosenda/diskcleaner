@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+brand = { path = "../brand" }
 libc = "0.2"
 plist = "1"
 scanner = { path = "../scanner" }

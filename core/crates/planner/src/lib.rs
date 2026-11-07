@@ -142,7 +142,7 @@ impl PlanItem {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PlanError {
     /// Nothing was selected.
-    #[error("nothing was selected")]
+    #[error("nothing was chosen")]
     Empty,
     /// One item failed a plan-time safety check. The whole plan is refused.
     #[error("one of the items cannot be removed: {refusal}")]

@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+brand = { path = "../brand" }
 analysers = { path = "../analysers" }
 ignore = "0.4"
 libc = "0.2"

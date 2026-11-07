@@ -237,10 +237,10 @@ pub enum DockerError {
     #[error("There is nothing to remove.")]
     NothingToClean,
     /// The arguments are not one of the allow-listed commands. A bug.
-    #[error("Roomy refused to run this Docker command.")]
+    #[error("{product} refused to run this Docker command.", product = brand::PRODUCT_NAME)]
     NotAllowed,
     /// Docker's output could not be read, so Roomy did not act on it.
-    #[error("Roomy could not read Docker's answer, so nothing was removed.")]
+    #[error("{product} could not read Docker's answer, so nothing was removed.", product = brand::PRODUCT_NAME)]
     Unreadable,
     /// Docker took too long.
     #[error("Docker took too long to answer. It may still be finishing.")]
@@ -345,7 +345,7 @@ fn list(
             DockerError::Failed {
                 reason: docker::explain_failure(
                     &out.stderr,
-                    "Docker stopped with an error but didn't say why, so Roomy could not list what it would remove.",
+                    concat!("Docker stopped with an error but didn't say why, so ", brand::name!(), " could not list what it would remove."),
                 ),
             }
         });

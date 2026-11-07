@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+brand = { path = "../brand" }
 safety = { path = "../safety" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"

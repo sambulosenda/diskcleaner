@@ -372,10 +372,10 @@ pub enum ToolError {
     #[error("That package wasn't in the review, so nothing was removed. Please review again.")]
     NotInPreview,
     /// The arguments are not one of the allow-listed commands. A bug.
-    #[error("Roomy refused to run this command.")]
+    #[error("{product} refused to run this command.", product = brand::PRODUCT_NAME)]
     NotAllowed,
     /// The preview could not be read, so Roomy did not act on it.
-    #[error("Roomy could not read the tool's answer, so nothing was removed.")]
+    #[error("{product} could not read the tool's answer, so nothing was removed.", product = brand::PRODUCT_NAME)]
     Unreadable,
     /// The program took too long.
     #[error("The tool took too long to answer. It may still be finishing.")]
@@ -482,7 +482,7 @@ fn preview_failed(tool: Tool, out: &Output) -> ToolError {
     tracing::warn!(tool = tool.program(), stderr = %out.stderr.trim(), "tool preview failed");
     ToolError::Failed {
         reason: format!(
-            "{} reported a problem, so Roomy could not list what it would remove.",
+            concat!("{} reported a problem, so ", brand::name!(), " could not list what it would remove."),
             tool.name()
         ),
     }

@@ -82,19 +82,19 @@ uniffi::setup_scaffolding!("roomy_core");
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum CoreError {
     /// The path given by the app was not usable (empty, relative or containing a NUL byte).
-    #[error("invalid path: {reason}")]
+    #[error("{product} couldn't read this disk: {reason}", product = brand::PRODUCT_NAME)]
     InvalidPath { reason: String },
     /// The operating system refused the request, for example because the path does not exist.
     #[error("could not read disk information: {reason}")]
     Io { reason: String },
     /// The core could not find the home folder.
-    #[error("Roomy could not find your home folder.")]
+    #[error("{product} could not find your home folder.", product = brand::PRODUCT_NAME)]
     HomeNotFound,
     /// A built-in rule failed validation. A bug caught by tests.
     #[error("the built-in rules are not valid: {reason}")]
     RulesInvalid { reason: String },
     /// The scan handle was never issued or has been closed.
-    #[error("Roomy lost track of this scan. Please scan again.")]
+    #[error("{product} lost track of this scan. Please scan again.", product = brand::PRODUCT_NAME)]
     UnknownScan,
     /// The scan is still running.
     #[error("The scan hasn't finished yet.")]
@@ -106,7 +106,7 @@ pub enum CoreError {
     #[error("{reason}")]
     ScanFailed { reason: String },
     /// The scan has no item with that id.
-    #[error("Roomy could not find that item. Please scan again.")]
+    #[error("{product} could not find that item. Please scan again.", product = brand::PRODUCT_NAME)]
     UnknownItem,
     /// A cleanup preview was asked for with no items.
     #[error("Nothing was chosen.")]
@@ -118,7 +118,7 @@ pub enum CoreError {
     /// Put back was asked for a cleanup the core no longer holds: not the
     /// most recent one, already put back, or from before Roomy started.
     /// Trying again will not help, unlike `CleanupUnavailable`.
-    #[error("Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash.")]
+    #[error("{product} can only put back its most recent cleanup, until {product} quits. You can still drag items back from the Trash.", product = brand::PRODUCT_NAME)]
     NothingToPutBack,
     /// A Docker clean-up could not be previewed or was refused before it
     /// ran: Docker is missing or stopped, the review expired, or Docker's
@@ -127,7 +127,7 @@ pub enum CoreError {
     DockerUnavailable { reason: String },
     /// The app uninstaller was given an app id that is not from the latest
     /// `list_apps` (or, for `preview_uninstall`, not the app last reviewed).
-    #[error("Roomy lost track of this app. Please look again.")]
+    #[error("{product} lost track of this app. Please look again.", product = brand::PRODUCT_NAME)]
     UnknownApp,
     /// A tool clean-up (Homebrew, simulators, Android SDK) could not be
     /// previewed or was refused before it ran: the tool is missing, the
@@ -166,7 +166,7 @@ pub fn disk_summary(path: String) -> Result<DiskSummary, CoreError> {
 /// Total and free space on the volume holding `path`, for core-internal callers.
 pub(crate) fn read_disk_summary(path: &Path) -> Result<DiskSummary, CoreError> {
     let text = path.to_str().ok_or_else(|| CoreError::InvalidPath {
-        reason: "the path is not valid UTF-8".to_string(),
+        reason: concat!("its location has characters ", brand::name!(), " can't read").to_string(),
     })?;
     let c_path = validate_path(text)?;
     let stats = statfs(&c_path)?;
@@ -177,16 +177,16 @@ pub(crate) fn read_disk_summary(path: &Path) -> Result<DiskSummary, CoreError> {
 fn validate_path(path: &str) -> Result<CString, CoreError> {
     if path.is_empty() {
         return Err(CoreError::InvalidPath {
-            reason: "the path is empty".to_string(),
+            reason: "its location is empty".to_string(),
         });
     }
     if !Path::new(path).is_absolute() {
         return Err(CoreError::InvalidPath {
-            reason: "the path must be absolute".to_string(),
+            reason: "its location is incomplete".to_string(),
         });
     }
     CString::new(path).map_err(|_| CoreError::InvalidPath {
-        reason: "the path contains a NUL byte".to_string(),
+        reason: concat!("its location has a character ", brand::name!(), " can't use").to_string(),
     })
 }
 

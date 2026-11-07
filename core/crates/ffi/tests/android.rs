@@ -208,7 +208,7 @@ fn lists_every_part_with_what_uses_it() {
     );
     let old_gradle = part(&o, "Gradle 7.2");
     assert_eq!(old_gradle.usage, AndroidUsage::NotUsed);
-    assert_eq!(old_gradle.usage_text, "No project Roomy found uses this");
+    assert_eq!(old_gradle.usage_text, "No project Diskwell found uses this");
     assert_eq!(part(&o, "Gradle cache").usage, AndroidUsage::NotApplicable);
 
     let emulator = part(&o, "Pixel 7");
