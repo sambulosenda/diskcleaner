@@ -439,3 +439,62 @@ fn scans_can_run_at_the_same_time() {
     };
     assert_eq!(comparable(handles[0]), comparable(handles[2]));
 }
+
+/// Sets the modification time of `path` and everything inside it to `when`.
+/// Never follows a symlink.
+fn set_times(path: &std::path::Path, when: std::time::SystemTime) {
+    let meta = path.symlink_metadata().unwrap();
+    if meta.file_type().is_symlink() {
+        return;
+    }
+    if meta.is_dir() {
+        for entry in std::fs::read_dir(path).unwrap() {
+            set_times(&entry.unwrap().path(), when);
+        }
+    }
+    std::fs::File::open(path)
+        .unwrap()
+        .set_modified(when)
+        .unwrap();
+}
+
+#[test]
+fn items_say_when_something_inside_last_changed() {
+    let s = setup();
+    let now = std::time::SystemTime::now();
+    let old = now - Duration::from_secs(3 * 24 * 60 * 60);
+    set_times(&s.root, old);
+    let unix = |t: std::time::SystemTime| {
+        t.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64
+    };
+
+    // Find a likely safe folder, then add something deep inside it.
+    let h = finished_scan(&s.core, Mode::Developer);
+    let items = all_items(&s.core, h);
+    let folder = items
+        .iter()
+        .filter(|i| i.tier == Tier::LikelySafe)
+        .find_map(|i| {
+            let path = s.core.item_detail(h, i.id.clone()).unwrap().path?;
+            let place = s.root.join(path.trim_start_matches("~/"));
+            place.is_dir().then(|| (i.id.clone(), place))
+        })
+        .expect("a likely safe folder");
+    assert!(items.iter().all(|i| i
+        .last_changed_unix_seconds
+        .is_some_and(|t| (t - unix(old)).abs() <= 2)));
+    std::fs::create_dir_all(folder.1.join("deep/new")).unwrap();
+
+    let h = finished_scan(&s.core, Mode::Developer);
+    let items = all_items(&s.core, h);
+    let changed = items.iter().find(|i| i.id == folder.0).unwrap();
+    let t = changed.last_changed_unix_seconds.unwrap();
+    assert!((t - unix(now)).abs() <= 120, "{t} vs {}", unix(now));
+    // Items nothing happened in keep the old time.
+    assert!(items
+        .iter()
+        .filter(|i| i.id != folder.0 && i.tier == Tier::LikelySafe)
+        .all(|i| i
+            .last_changed_unix_seconds
+            .is_some_and(|t| (t - unix(old)).abs() <= 2)));
+}

@@ -86,6 +86,7 @@ mod tests {
             kind: ItemKind::Folder,
             size_bytes: 4096,
             modified: Some(SystemTime::UNIX_EPOCH),
+            last_changed: Some(SystemTime::UNIX_EPOCH),
             path: PathBuf::from("/Users/sam/Library/Caches/x"),
             lowered: Vec::new(),
         }

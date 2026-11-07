@@ -108,6 +108,7 @@ fn unknown_items(scan: &ScanResult, claimed: &HashMap<DirId, u64>) -> Vec<Classi
             kind: ItemKind::Folder,
             size_bytes: rest,
             modified: dir.modified,
+            last_changed: dir.modified,
             path,
             lowered: Vec::new(),
         });

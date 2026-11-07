@@ -96,6 +96,18 @@ final class MenuBarPanelTests: XCTestCase {
         XCTAssertEqual(MenuBarPanelContent.readyText(for: overview), "\(Format.bytes(overview.likelySafeBytes)) ready")
     }
 
+    func testRowsSayWhenTheyLastChangedWhenKnown() {
+        var known = item("a", 1, .likelySafe, .cache)
+        known.lastChangedUnixSeconds = Int64(now.timeIntervalSince1970) - 3 * 24 * 60 * 60
+        let changed = Date(timeIntervalSince1970: TimeInterval(known.lastChangedUnixSeconds ?? 0))
+        XCTAssertEqual(MenuBarPanelContent.rowDetail(for: known, now: now),
+                       "Likely safe \u{00B7} changed \(Format.relative(changed, now: now))")
+        known.lastChangedUnixSeconds = Int64(now.timeIntervalSince1970) - 10
+        XCTAssertEqual(MenuBarPanelContent.rowDetail(for: known, now: now), "Likely safe \u{00B7} changed just now")
+        XCTAssertEqual(MenuBarPanelContent.rowDetail(for: item("b", 1, .reviewFirst, .cache), now: now),
+                       "Review first")
+    }
+
     func testNoWordingSoundsAlarming() {
         let overview = MockData.overview(for: .normal)
         let texts = [

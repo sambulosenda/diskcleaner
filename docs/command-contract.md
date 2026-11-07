@@ -255,6 +255,8 @@ One row in a list. No path, in any mode.
 | `size_bytes` | `u64` | Allocated bytes on disk |
 | `tier` | `Tier` | |
 | `category` | `Category` | |
+| `place` | `String?` | Developer mode only: the name that tells items with the same title apart |
+| `last_changed_unix_seconds` | `i64?` | Roughly when it last changed: the newest modification time of the item or anything inside it the scan saw (a folder's time moves when something is added, removed or renamed in it). Shown only, as "Changed 3 days ago"; never decides what is safe |
 
 ### `ItemDetail` (record)
 | Field | Type | Meaning |

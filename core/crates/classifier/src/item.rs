@@ -122,6 +122,12 @@ pub struct ClassifiedItem {
     /// system reported one. The planner needs it: the executor refuses an
     /// item whose modification time changed since the scan.
     pub modified: Option<std::time::SystemTime>,
+    /// The newest modification time of the item or anything inside it that
+    /// the scan saw (folders, and files where the scan recorded them). A
+    /// folder's time changes when something is added, removed or renamed in
+    /// it, so this says roughly when the item was last changed. Shown only;
+    /// never used to decide what is safe.
+    pub last_changed: Option<std::time::SystemTime>,
     /// Absolute path. **Core-internal only**: never send it to the UI. The
     /// planner and executor must validate it again before acting.
     pub path: PathBuf,

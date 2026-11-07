@@ -975,6 +975,16 @@ enum MockData {
         _ bytes: UInt64, _ tier: Tier, _ category: Category, place: String? = nil
     ) -> ItemSummary {
         ItemSummary(id: id, title: title, explain: explain, sizeBytes: bytes, tier: tier, category: category,
-                    place: place)
+                    place: place, lastChangedUnixSeconds: lastChanged(id))
+    }
+
+    /// A made-up "last changed" time for some items, so rows show one. Fixed, so tests stay stable.
+    private static func lastChanged(_ id: String) -> Int64? {
+        switch id {
+        case "browser-caches": return 1_799_999_400
+        case "app-caches": return 1_799_913_600
+        case "old-logs": return 1_790_000_000
+        default: return nil
+        }
     }
 }

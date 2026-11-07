@@ -105,6 +105,15 @@ enum MenuBarPanelContent {
         overview.reviewFirstBytes > 0 ? "\(Format.bytes(overview.reviewFirstBytes)) more to look at first" : nil
     }
 
+    /// The line under an item's name: its tier, and when it last changed if the scan knows, such as
+    /// "Likely safe · changed 3 days ago".
+    static func rowDetail(for item: ItemSummary, now: Date = Date()) -> String {
+        guard let seconds = item.lastChangedUnixSeconds else { return item.tier.label }
+        let changed = Date(timeIntervalSince1970: TimeInterval(seconds))
+        let when = now.timeIntervalSince(changed) < 60 ? "just now" : Format.relative(changed, now: now)
+        return "\(item.tier.label) \u{00B7} changed \(when)"
+    }
+
     /// The main button's title for `count` ticked rows.
     static func reviewButtonTitle(count: Int) -> String {
         switch count {
@@ -588,7 +597,7 @@ private struct PanelItemRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .foregroundStyle(lock == nil ? HierarchicalShapeStyle.primary : HierarchicalShapeStyle.secondary)
-                Text(lock ?? item.tier.label)
+                Text(lock ?? MenuBarPanelContent.rowDetail(for: item))
                     .font(.caption)
                     .foregroundStyle(lock == nil && item.tier == .reviewFirst ? Tier.reviewFirst.tint : Color.secondary)
                     .lineLimit(2)
