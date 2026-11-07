@@ -30,6 +30,7 @@ mod files;
 mod folders;
 mod javascript;
 mod low_space;
+mod place;
 mod run;
 mod system_data;
 #[cfg(feature = "testing")]

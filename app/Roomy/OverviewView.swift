@@ -48,29 +48,54 @@ struct OverviewContent: View {
             .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .sheet(isPresented: Binding(
+            get: { model.cleanupState != .closed },
+            set: { if !$0 { model.closeCleanupReview() } }
+        )) {
+            CleanupReviewSheet()
+                .environmentObject(model)
+        }
     }
 }
 
-/// "You can likely free 34 GB", with free space now and after cleaning.
+/// "You can likely free 34 GB", what more is worth reviewing, and free space now and after cleaning.
 struct OverviewHeadline: View {
     let overview: Overview
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(headline)
-                .font(.largeTitle.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(Self.headline(for: overview))
+                    .font(.largeTitle.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                if let line = Self.reviewLine(for: overview) {
+                    Text(line)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+            }
             HStack(spacing: 40) {
                 FreeSpaceFigure(caption: "Free now", bytes: overview.diskFree)
                 FreeSpaceFigure(caption: "Free after cleaning", bytes: freeAfter)
+                    .help("Free space once every Likely safe item has gone. Review first items aren't counted.")
             }
         }
     }
 
-    private var headline: String {
+    static func headline(for overview: Overview) -> String {
         overview.likelySafeBytes > 0
             ? "You can likely free \(Format.bytes(overview.likelySafeBytes))"
             : "Nothing is clearly safe to remove right now"
+    }
+
+    /// The Review first total, so the headline doesn't undersell what could be freed. Never added to
+    /// the headline itself: those items need a person to look first.
+    static func reviewLine(for overview: Overview) -> String? {
+        guard overview.reviewFirstBytes > 0 else { return nil }
+        let size = Format.bytes(overview.reviewFirstBytes)
+        return overview.likelySafeBytes > 0
+            ? "Up to \(size) more once you\u{2019}ve checked the items marked Review first."
+            : "\(size) is marked Review first. Check those items before you clean them."
     }
 
     /// Free space if every likely safe item were removed. Never more than the disk.
@@ -97,16 +122,23 @@ struct FreeSpaceFigure: View {
     }
 }
 
-/// The 5 to 8 biggest recommendations.
+/// The 5 to 8 biggest recommendations. Nothing is ticked for the user.
 struct WorthReviewingList: View {
+    @EnvironmentObject private var model: AppModel
     let items: [ItemSummary]
     let searchText: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Worth reviewing")
-                .font(.title3.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Worth reviewing")
+                    .font(.title3.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button("See everything") { model.selection = .cleanup }
+                    .buttonStyle(.link)
+                    .accessibilityHint("Opens the list of everything Roomy found.")
+            }
             if items.isEmpty {
                 Text(emptyText)
                     .foregroundStyle(.secondary)
@@ -116,7 +148,7 @@ struct WorthReviewingList: View {
                     ForEach(items) { item in
                         WorthReviewingRow(item: item)
                         if item.id != items.last?.id {
-                            Divider().padding(.leading, 48)
+                            Divider().padding(.leading, 80)
                         }
                     }
                 }
@@ -137,20 +169,21 @@ struct WorthReviewingList: View {
     }
 }
 
-/// Icon, title, one-line explanation, size and tier label.
+/// Checkbox, icon, title, one-line explanation, size and tier label.
+///
+/// The Overview never shows `keep` items, but the checkbox is left out for them all the same, as in
+/// `ItemRow`. Ticking changes nothing on disk; it only chooses the row for the cleanup review.
 struct WorthReviewingRow: View {
+    @EnvironmentObject private var model: AppModel
     let item: ItemSummary
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: item.category.symbol)
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-                .accessibilityHidden(true)
+            checkbox
+                .frame(width: 20)
+            CategoryIcon(category: item.category)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.body.weight(.medium))
+                ItemTitle(item: item)
                 Text(item.explain)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -164,9 +197,71 @@ struct WorthReviewingRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.title), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(item.accessibleTitle), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
         .accessibilityHint(item.explain)
+    }
+
+    @ViewBuilder
+    private var checkbox: some View {
+        if item.tier == .keep {
+            Color.clear
+                .frame(width: 16, height: 16)
+                .accessibilityHidden(true)
+        } else {
+            Toggle("Choose \(item.accessibleTitle)", isOn: Binding(
+                get: { model.isChecked(item) },
+                set: { model.setChecked($0, for: item) }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .help("Choose this to review it for cleanup.")
+        }
+    }
+}
+
+/// The category's symbol in the category's colour, so a row matches its part of the strip.
+struct CategoryIcon: View {
+    let category: Category
+
+    var body: some View {
+        Image(systemName: category.symbol)
+            .font(.title3)
+            .foregroundStyle(category.color)
+            .frame(width: 24)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The item's title, then the name that tells it apart from items with the same title, such as the
+/// project a `node_modules` folder belongs to. The core sends that name in Developer mode only.
+struct ItemTitle: View {
+    let item: ItemSummary
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(item.title)
+                .font(.body.weight(.medium))
+                .layoutPriority(1)
+            if let place = item.place {
+                Text(place)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.secondary.opacity(0.12)))
+            }
+        }
+    }
+}
+
+extension ItemSummary {
+    /// The title with its distinguishing name, for VoiceOver and checkbox labels.
+    var accessibleTitle: String {
+        guard let place else { return title }
+        return "\(title), \(place)"
     }
 }
 
@@ -190,20 +285,31 @@ struct TierLabel: View {
     }
 }
 
-/// Opens Cleanup with likely safe items chosen. Disabled until the Cleanup screen exists.
+/// Opens the cleanup review for the ticked rows. Nothing is ticked for the user, and the review is a
+/// dry run: nothing moves until the user confirms there.
 struct ReviewAndCleanButton: View {
+    @EnvironmentObject private var model: AppModel
+
     var body: some View {
         HStack(spacing: 12) {
-            Button("Review and clean") {}
+            Button("Review and clean\u{2026}") { model.reviewCleanup() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(true)
-                .help("Cleaning arrives in a later update.")
-                .accessibilityHint("Not available yet. Cleaning arrives in a later update.")
-            Text("Nothing is removed until you confirm.")
-                .font(.callout)
+                .disabled(model.checkedItemIDs.isEmpty)
+                .accessibilityHint("Checks what would move to the Trash. Nothing is moved.")
+            Text(Self.caption(count: model.checkedItemIDs.count, bytes: model.checkedBytes))
+                .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// What is chosen so far, or how to choose.
+    static func caption(count: Int, bytes: UInt64) -> String {
+        guard count > 0 else {
+            return "Tick the items you want to clean. Nothing is removed until you confirm."
+        }
+        let noun = count == 1 ? "item" : "items"
+        return "\(count) \(noun) chosen, \(Format.bytes(bytes)). Nothing is removed until you confirm."
     }
 }
 
@@ -336,11 +442,7 @@ struct ChangeRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: change.category.symbol)
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-                .accessibilityHidden(true)
+            CategoryIcon(category: change.category)
             VStack(alignment: .leading, spacing: 2) {
                 Text(change.title)
                     .font(.body.weight(.medium))

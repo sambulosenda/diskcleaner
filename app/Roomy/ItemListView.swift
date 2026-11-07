@@ -138,14 +138,9 @@ struct ItemRow: View {
         HStack(alignment: .center, spacing: 10) {
             checkbox
                 .frame(width: 20)
-            Image(systemName: item.category.symbol)
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-                .accessibilityHidden(true)
+            CategoryIcon(category: item.category)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.body.weight(.medium))
+                ItemTitle(item: item)
                 Text(item.explain)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -159,7 +154,7 @@ struct ItemRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(item.title), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
+        .accessibilityLabel("\(item.accessibleTitle), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
     }
 
     @ViewBuilder
@@ -169,7 +164,7 @@ struct ItemRow: View {
                 .frame(width: 16, height: 16)
                 .accessibilityHidden(true)
         } else {
-            Toggle("Choose \(item.title)", isOn: Binding(
+            Toggle("Choose \(item.accessibleTitle)", isOn: Binding(
                 get: { model.isChecked(item) },
                 set: { model.setChecked($0, for: item) }
             ))

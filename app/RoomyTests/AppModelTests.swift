@@ -172,8 +172,31 @@ final class AppModelTests: XCTestCase {
         for entry in overview.categories {
             XCTAssertTrue(summary.contains(entry.category.title), entry.category.title)
         }
-        XCTAssertTrue(summary.contains("Everything else"))
+        XCTAssertTrue(summary.contains("Apps and macOS"))
         XCTAssertTrue(summary.contains("Free space"))
+    }
+
+    func testDiskPartsNameEachLeftoverOnceAndCoverTheDisk() {
+        let overview = MockData.overview(for: .normal)
+        let parts = DiskPart.parts(for: overview)
+        let total = parts.reduce(UInt64(0)) { $0 + $1.bytes }
+        XCTAssertEqual(total, overview.diskTotal)
+        XCTAssertEqual(Set(parts.map(\.title)).count, parts.count, "every part has its own name")
+        XCTAssertFalse(parts.contains { $0.title == "Not sorted" || $0.title == "Everything else" })
+        XCTAssertEqual(parts.last?.kind, .free)
+    }
+
+    func testHeadlineMentionsReviewFirstWithoutAddingItIn() {
+        let overview = MockData.overview(for: .normal)
+        XCTAssertTrue(OverviewHeadline.headline(for: overview).contains(Format.bytes(overview.likelySafeBytes)))
+        let line = OverviewHeadline.reviewLine(for: overview)
+        XCTAssertEqual(overview.reviewFirstBytes > 0, line != nil)
+        if let line { XCTAssertTrue(line.contains(Format.bytes(overview.reviewFirstBytes))) }
+    }
+
+    func testReviewAndCleanCaptionNeverImpliesAnythingIsChosen() {
+        XCTAssertTrue(ReviewAndCleanButton.caption(count: 0, bytes: 0).hasPrefix("Tick"))
+        XCTAssertTrue(ReviewAndCleanButton.caption(count: 1, bytes: 5).hasPrefix("1 item chosen"))
     }
     // MARK: - Category screens (T11)
 

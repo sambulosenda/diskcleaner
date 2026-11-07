@@ -85,7 +85,7 @@ extension Category {
         case .userData: return "Your files"
         case .backups: return "Backups"
         case .system: return "System Data"
-        case .unknown: return "Not sorted"
+        case .unknown: return "Other files"
         }
     }
 
@@ -96,7 +96,8 @@ extension Category {
         case .build: return "hammer"
         case .developerTools: return "wrench.and.screwdriver"
         case .docker: return "shippingbox"
-        case .appData: return "app"
+        // Not "app": that draws an empty rounded square, which reads as an unticked checkbox.
+        case .appData: return "folder.badge.gearshape"
         case .logs: return "doc.text"
         case .downloads: return "arrow.down.circle"
         case .userData: return "person.crop.square"
