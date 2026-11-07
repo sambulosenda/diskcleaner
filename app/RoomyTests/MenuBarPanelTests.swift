@@ -23,7 +23,7 @@ final class MenuBarPanelTests: XCTestCase {
         return (model, client)
     }
 
-    private func item(_ id: String, _ size: UInt64, _ tier: Tier, _ category: Category) -> ItemSummary {
+    private func item(_ id: String, _ size: UInt64, _ tier: Tier, _ category: Roomy.Category) -> ItemSummary {
         ItemSummary(id: id, title: id, explain: "", sizeBytes: size, tier: tier, category: category, place: nil)
     }
 
