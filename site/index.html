@@ -24,7 +24,6 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<div class="grain" aria-hidden="true"></div>
 
 <header class="site-header">
   <div class="wrap">
@@ -44,7 +43,7 @@
   <section class="hero" id="top">
     <div class="hero-glow" aria-hidden="true"></div>
     <div class="wrap hero-copy">
-      <p class="pill-tag reveal"><span class="live-dot"></span>Roomy for Mac · now in testing</p>
+      <p class="kicker reveal">Roomy for Mac, in testing</p>
       <h1 class="hero-title">
         <span class="line"><span class="word">Make</span> <span class="word room">room</span></span>
         <span class="line"><span class="word">on your</span> <span class="word">Mac.</span></span>
@@ -54,9 +53,7 @@
         <a class="btn btn-primary btn-lg" href="#demo">Try it on the Mac below <span aria-hidden="true">↓</span></a>
         <a class="btn btn-ghost btn-lg" href="#how">How it stays safe</a>
       </div>
-      <ul class="hero-facts reveal" aria-label="At a glance">
-        <li>Native Mac app</li><li>Nothing leaves your Mac</li><li>Trash first, with Put back</li>
-      </ul>
+      <p class="hero-facts reveal">A native Mac app. Nothing leaves your Mac. Everything goes to the Trash first.</p>
     </div>
 
     <div class="stage" id="demo">
@@ -128,15 +125,14 @@
 
   <section class="statement">
     <div class="wrap">
-      <p class="big-quote reveal">Your Mac says <em>“System Data: 140 GB”</em> and leaves you guessing. Roomy names every folder, says what it is, and tells you what removing it would mean.</p>
+      <p class="big-quote reveal">Your Mac says <em>“System Data: 140 GB”</em> and stops there. Roomy names each folder inside it and says what removing it would mean.</p>
     </div>
   </section>
 
   <section class="story" id="how" aria-labelledby="how-title">
     <div class="wrap">
       <header class="section-head reveal">
-        <p class="eyebrow">How it works</p>
-        <h2 id="how-title">Five steps.<br>You decide every one.</h2>
+        <h2 id="how-title">How a clean-up works</h2>
       </header>
       <div class="story-grid">
         <div class="story-visual" aria-hidden="true">
@@ -171,11 +167,11 @@
           </div>
         </div>
         <ol class="chapters">
-          <li class="chapter" data-step="0"><span class="ch-num">01</span><h3>Scan</h3><p>Roomy reads your disk, quickly and in parallel. Scanning never changes a file, and it never follows shortcuts out of your home folder.</p></li>
-          <li class="chapter" data-step="1"><span class="ch-num">02</span><h3>Explain</h3><p>Every item gets a plain description and one of three labels: <b class="t-safe">Likely safe</b>, <b class="t-review">Review first</b> or <b class="t-keep">Keep</b>. Your photos, documents and messages are never Likely safe.</p></li>
-          <li class="chapter" data-step="2"><span class="ch-num">03</span><h3>You choose</h3><p>Nothing is ticked for you. You tick each thing you want gone, and see exactly how much space it gives back.</p></li>
-          <li class="chapter" data-step="3"><span class="ch-num">04</span><h3>Check again</h3><p>Just before acting, Roomy checks every item again. Anything that changed, opened or moved since the scan is skipped.</p></li>
-          <li class="chapter" data-step="4"><span class="ch-num">05</span><h3>Trash, with Put back</h3><p>Items go to the Trash, not straight off your disk. Changed your mind? Put back returns the last clean-up to where it was.</p></li>
+          <li class="chapter" data-step="0"><span class="ch-num">Step 1</span><h3>Scan</h3><p>Roomy reads your disk. Scanning never changes a file, and it never follows shortcuts out of your home folder.</p></li>
+          <li class="chapter" data-step="1"><span class="ch-num">Step 2</span><h3>Explain</h3><p>Every item gets a plain description and one of three labels: <b class="t-safe">Likely safe</b>, <b class="t-review">Review first</b> or <b class="t-keep">Keep</b>. Your photos, documents and messages are never Likely safe.</p></li>
+          <li class="chapter" data-step="2"><span class="ch-num">Step 3</span><h3>You choose</h3><p>Nothing is ticked for you. You tick each thing you want gone, and Roomy shows how much space that frees.</p></li>
+          <li class="chapter" data-step="3"><span class="ch-num">Step 4</span><h3>Check again</h3><p>Just before acting, Roomy checks every item again. Anything that changed, opened or moved since the scan is skipped.</p></li>
+          <li class="chapter" data-step="4"><span class="ch-num">Step 5</span><h3>Trash, with Put back</h3><p>Items go to the Trash, not straight off your disk. Put back returns the last clean-up to where it was.</p></li>
         </ol>
       </div>
     </div>
@@ -184,8 +180,7 @@
   <section class="devs band-dark" id="developers" aria-labelledby="dev-title">
     <div class="wrap">
       <header class="section-head reveal">
-        <p class="eyebrow">Developer mode</p>
-        <h2 id="dev-title">Built by a developer,<br>for the 200 GB you forgot.</h2>
+        <h2 id="dev-title">Developer mode</h2>
         <p>Build files, simulators and caches pile up fastest on a developer's Mac. Roomy knows where each tool keeps them, which projects still use them, and the command that clears them properly.</p>
       </header>
       <div class="bento">
@@ -195,7 +190,7 @@
 <span class="p">$</span> xcrun simctl delete unavailable
 <span class="o">  Removes simulators for iOS versions you no longer have</span>
 <span class="p">$</span> docker builder prune
-<span class="o">  Frees 7.2 GB of build cache. Volumes are never touched</span>
+<span class="o">  Frees 7.2 GB of build cache. Volumes are left alone</span>
 <span class="p">$</span> sdkmanager --uninstall "system-images;android-29"
 <span class="o">  No project's Gradle files use API 29</span>
 <span class="p">$</span> brew cleanup
@@ -215,13 +210,11 @@
   <section class="feats" id="features" aria-labelledby="feat-title">
     <div class="wrap">
       <header class="section-head reveal">
-        <p class="eyebrow">Built in</p>
-        <h2 id="feat-title">Small things.<br>Done properly.</h2>
-        <p>Every card below works. Try them with example files.</p>
+        <h2 id="feat-title">More in Roomy</h2>
+        <p>Each of these works here with example files.</p>
       </header>
       <div class="features">
         <article class="feature reveal f-palette">
-          <span class="f-num">01</span>
           <h3>Find anything with <kbd>⌘K</kbd></h3>
           <p>Jump to a screen, start a scan or review what is ready to free, all from the keyboard.</p>
           <div class="mini">
@@ -231,7 +224,6 @@
         </article>
 
         <article class="feature reveal f-panel">
-          <span class="f-num">02</span>
           <h3>A menu bar panel</h3>
           <p>Free space at a glance, and a gentle note when the disk runs low. Drag the slider to fill the disk.</p>
           <div class="mini menubar-mock">
@@ -246,7 +238,6 @@
         </article>
 
         <article class="feature reveal f-guards">
-          <span class="f-num">03</span>
           <h3>Leaves alone what you are using</h3>
           <p>Items in use, changed recently, holding unsaved git work or inside folders you keep are skipped. Click one to see why.</p>
           <div class="mini" id="guards">
@@ -259,7 +250,6 @@
         </article>
 
         <article class="feature reveal f-dupes">
-          <span class="f-num">04</span>
           <h3>Duplicates and large files</h3>
           <p>The 500 largest files with the date you last opened them, and copies of the same file. You pick the copy to keep.</p>
           <div class="mini" id="dupes">
@@ -270,8 +260,7 @@
         </article>
 
         <article class="feature reveal f-sysdata">
-          <span class="f-num">05</span>
-          <h3>What System Data really is</h3>
+          <h3>What System Data is made of</h3>
           <p>macOS lumps a lot into one grey bar. Roomy breaks it down. Click a part to read what it is.</p>
           <div class="mini" id="sysdata">
             <button type="button" class="mini-row explain" data-explain="Hourly copies Time Machine keeps on this disk while your backup drive is away. macOS removes them by itself when space runs low."><span class="l"><span>Local Time Machine snapshots</span></span><span class="r">22.1 GB</span></button>
@@ -283,7 +272,6 @@
         </article>
 
         <article class="feature reveal f-uninstall">
-          <span class="f-num">06</span>
           <h3>Remove what apps leave behind</h3>
           <p>See an app's caches, support files and preferences next to the app, and move them to the Trash together. Pick an app.</p>
           <div class="mini" id="uninstall">
@@ -303,8 +291,8 @@
   <section class="promises" id="promises" aria-labelledby="prom-title">
     <div class="wrap">
       <header class="section-head reveal">
-        <p class="eyebrow">Our promises</p>
-        <h2 id="prom-title">It would rather leave something behind than remove a file you needed.</h2>
+        <h2 id="prom-title">What Roomy will not do</h2>
+        <p>When it is unsure, Roomy leaves a file where it is.</p>
       </header>
       <ul class="never">
         <li class="reveal"><span>No</span> automatic clean-ups. Ever.</li>
@@ -322,12 +310,11 @@
          Replace the disabled button with the real download link and prices once they are settled. -->
     <div class="wrap cta-inner reveal">
       <div class="cta-icon"><img src="icon.svg" alt="Roomy app icon" width="132" height="132"></div>
-      <p class="eyebrow">Coming soon</p>
-      <h2 id="cta-title">Make room.</h2>
-      <p class="cta-sub">Roomy is in testing. Scanning will always be free. Pricing and the download link will be here soon.</p>
+      <h2 id="cta-title">Roomy is in testing</h2>
+      <p class="cta-sub">Scanning will always be free. Pricing and the download link will be here soon.</p>
       <div class="hero-actions">
         <button class="btn btn-primary btn-lg" type="button" disabled>Download for Mac</button>
-        <a class="btn btn-ghost btn-lg" href="#demo">Try the demo again</a>
+        <a class="btn btn-ghost btn-lg" href="#demo">Try the demo</a>
       </div>
       <p class="reqs">macOS 13 Ventura or later · Apple silicon and Intel</p>
     </div>
@@ -335,7 +322,7 @@
 
   <section class="faq-sec" id="faq" aria-labelledby="faq-title">
     <div class="wrap faq-grid">
-      <header class="section-head"><p class="eyebrow">Questions</p><h2 id="faq-title">Good questions.</h2></header>
+      <header class="section-head"><h2 id="faq-title">Questions</h2></header>
       <div class="faq">
         <details><summary>Will Roomy delete something I need?</summary><p>Roomy only moves items you tick, and it moves them to the Trash so you can get them back. Your own photos, documents and messages are never labelled Likely safe, and anything in use or changed recently is skipped.</p></details>
         <details><summary>Does Roomy send my file names anywhere?</summary><p>No. Scanning and labelling happen on your Mac. Roomy does not use an AI service to decide what is safe.</p></details>
@@ -354,7 +341,6 @@
     <nav aria-label="Footer"><a href="#how">How it works</a><a href="#developers">Developers</a><a href="#features">Features</a><a href="#faq">FAQ</a></nav>
     <span>Made by Sam Senda · Sizes in the demo are examples.</span>
   </div>
-  <div class="wordmark" aria-hidden="true">Roomy</div>
 </footer>
 
 <div class="toast" id="toast" role="status" hidden></div>

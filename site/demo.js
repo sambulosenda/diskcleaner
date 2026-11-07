@@ -802,7 +802,7 @@ document.documentElement.classList.add("js");
 
 
   // ---- The page around the Mac: reveals, the Mac tilting up, a short guided tour,
-  // the statement lighting up, the five-step story and the card spotlight. ----
+  // the statement lighting up and the five-step story. ----
 
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -925,16 +925,6 @@ document.documentElement.classList.add("js");
     Array.prototype.forEach.call(chapters, function (c) { io.observe(c); });
   }
 
-  function wireSpotlight() {
-    Array.prototype.forEach.call(document.querySelectorAll(".b-card, .feature"), function (card) {
-      card.addEventListener("pointermove", function (e) {
-        var r = card.getBoundingClientRect();
-        card.style.setProperty("--mx", (e.clientX - r.left) + "px");
-        card.style.setProperty("--my", (e.clientY - r.top) + "px");
-      });
-    });
-  }
-
   // The floating header tucks away while scrolling down and comes back on the way up,
   // so it never sits over the example Mac's own menu bar.
   function wireHeader() {
@@ -1003,7 +993,6 @@ document.documentElement.classList.add("js");
     wireScrollEffects();
     wireTour();
     wireStory();
-    wireSpotlight();
   }
 
   function start() {

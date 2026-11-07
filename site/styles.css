@@ -958,3 +958,21 @@ button.dock-app:focus-visible { outline: 2px solid #fff; border-radius: 12px; }
 #dock-trash.fx-full .trash-paper { opacity: 1; }
 #dock-trash.fx-bump { animation: bump 0.35s var(--ease); }
 @keyframes bump { 40% { transform: translateY(-8px) scale(1.12); } }
+
+/* ==== Plainer finish: no grain, no gradient text, no hover spotlights or decorative blobs ==== */
+.kicker { font-weight: 600; color: var(--muted); font-size: 0.95rem; }
+.hero-title .room { background: none; color: var(--accent); -webkit-background-clip: border-box; background-clip: border-box; animation: rise 1s var(--ease) 0.08s forwards; }
+:root:not(.js) .hero-title .room { animation: none; }
+.hero-facts { display: block; text-align: center; }
+.hero-glow { opacity: 0.55; }
+.ticker li::after { content: ""; margin-left: 12px; }
+.b-card::after, .feature::after, .b-tool::before, .disk::before { display: none; }
+.b-card:hover { transform: none; }
+.never li:hover { padding-left: 0; }
+.ch-num { font: 600 var(--step--1) var(--font-body); color: var(--accent); }
+.site-footer { padding-bottom: 40px; }
+.cta::before { opacity: 0.45; }
+.cta-icon img { animation: none; }
+.b-size { color: var(--ink); }
+.b-tool h3 { display: flex; align-items: center; gap: 10px; }
+.b-tool h3::before { content: ""; flex: 0 0 10px; height: 10px; border-radius: 3px; background: var(--tc); }
