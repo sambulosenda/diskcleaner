@@ -365,6 +365,12 @@ as `list_items`.
 Drops the waiting plan if it is `plan`. Safe to call more than once, or with an unknown plan. The
 app calls it when the user closes the review without cleaning up.
 
+### `check_items(handle: ScanHandle, item_ids: [ItemId]) -> [CleanupPreviewItem]` throws
+For the menu bar panel's locked rows: checks the items exactly as `preview_cleanup` would (each
+as chosen on its own) and returns the same rows, so a row the panel shows as locked is one the
+review would refuse, with the same reason. Moves nothing and keeps **no** plan: a plan waiting in
+the main window's review is left alone. Throws the same errors as `preview_cleanup`.
+
 ### `PlanHandle` (record)
 | Field | Type | Meaning |
 |---|---|---|

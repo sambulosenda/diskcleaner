@@ -55,6 +55,11 @@ protocol CoreClient: AnyObject {
     /// Drops the plan a preview made, when the user closes the review without cleaning up.
     func discardCleanup(plan: PlanHandle) async
 
+    /// For the menu bar panel's locked rows: checks items exactly as `previewCleanup` would (each as
+    /// chosen on its own) and says which would move and why the others wouldn't. Moves nothing and keeps
+    /// no plan, so a review open in the main window is left alone. Sends item ids only, never paths.
+    func checkItems(handle: ScanHandle, itemIds: [String]) async throws -> [CleanupPreviewItem]
+
     /// Moves the plan's items to the Trash. The core checks every item again first. The plan is used up.
     func runCleanup(plan: PlanHandle) async throws -> CleanupResult
 

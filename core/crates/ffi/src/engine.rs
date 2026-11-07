@@ -27,9 +27,9 @@ use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AndroidOverview, AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview,
-    CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary,
-    LargeFiles, LibrarySize, Mode, Overview, PlanHandle, PutBackResult, ScanChanges, ScanHandle,
-    ScanPhase, ScanProgress, Sort, Tier,
+    CleanupPreviewItem, CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail,
+    ItemSummary, LargeFiles, LibrarySize, Mode, Overview, PlanHandle, PutBackResult, ScanChanges,
+    ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -446,6 +446,33 @@ impl RoomyCore {
             crate::cleanup::prepare(&f, &choices, id, &guards, std::time::SystemTime::now())?;
         *lock(&self.pending_plan) = prepared.plan;
         Ok(prepared.preview)
+    }
+
+    /// Checks items the way `preview_cleanup` would, for the menu bar panel's
+    /// locked rows, and says which would move and why the others would not
+    /// (an app is open, it changed recently, a folder you keep). Moves
+    /// nothing and keeps no plan: the waiting plan, if any, is left alone,
+    /// so a review open in the main window still works. Each id counts as
+    /// chosen on its own, as a ticked row is.
+    pub fn check_items(
+        &self,
+        handle: ScanHandle,
+        item_ids: Vec<String>,
+    ) -> Result<Vec<CleanupPreviewItem>, CoreError> {
+        let f = self.finished(handle)?;
+        let choices: Vec<CleanupChoice> = item_ids
+            .into_iter()
+            .map(|item_id| CleanupChoice {
+                item_id,
+                chosen_alone: true,
+            })
+            .collect();
+        // The plan id is never handed out: the plan is dropped here.
+        let id = self.next_plan_id.fetch_add(1, Ordering::Relaxed);
+        let guards = self.guards();
+        let prepared =
+            crate::cleanup::prepare(&f, &choices, id, &guards, std::time::SystemTime::now())?;
+        Ok(prepared.preview.items)
     }
 
     /// Drops the waiting plan, if it is `plan`. Safe to call more than once

@@ -51,10 +51,11 @@ struct RoomyApp: App {
         }
 
         MenuBarExtra(isInserted: menuBarInserted) {
-            MenuBarMenu(monitor: lowSpace, model: model)
+            MenuBarPanel(monitor: lowSpace, model: model)
         } label: {
             MenuBarLabel(monitor: lowSpace)
         }
-        .menuBarExtraStyle(.menu)
+        // A panel rather than a plain menu, so it can show the gauge and the "Ready to free" list.
+        .menuBarExtraStyle(.window)
     }
 }

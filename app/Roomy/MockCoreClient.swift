@@ -51,6 +51,11 @@ final class MockCoreClient: CoreClient {
     var changes: ScanChanges?
     /// Handles of scans that have finished, in order, so the first one has nothing to compare with.
     private var finishedScans: [ScanHandle] = []
+    /// Items the pretend extra checks hold back, by id, with the reason the core would give (an app is
+    /// open, it changed recently). Empty by default; tests and the mock app set it.
+    var inUse: [String: String] = [:]
+    /// How many times `checkItems` was called. Tests read it.
+    private(set) var checkItemsCalls = 0
 
     init(scenario: Scenario = .normal, totalSteps: Int = 30) {
         self.scenario = scenario
@@ -63,6 +68,8 @@ final class MockCoreClient: CoreClient {
         guard let name = defaults.string(forKey: "RoomyMockScenario") else { return nil }
         let mock = MockCoreClient(scenario: Scenario(rawValue: name) ?? .normal)
         if defaults.string(forKey: "RoomyMockAccess") == "notGranted" { mock.access = .notGranted }
+        // So the menu bar panel shows a locked row when run with made-up data.
+        mock.inUse = ["browser-caches": "Safari is open. Quit Safari, then try again."]
         return mock
     }
 
@@ -145,9 +152,8 @@ final class MockCoreClient: CoreClient {
         return MockData.largeFiles(for: scenario, mode: modes[handle] ?? .simple)
     }
 
-    /// Follows the core's rules: `keep` items never move, and Review first items move only when
-    /// chosen on their own. Nothing here touches the disk.
-    func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
+    /// The preview's rows for `choices`, as the core checks them. Keeps no plan.
+    private func checkedRows(handle: ScanHandle, choices: [CleanupChoice]) async throws -> [CleanupPreviewItem] {
         _ = try await overview(handle: handle)
         guard !choices.isEmpty else { throw CoreError.NothingSelected }
         var seen: Set<String> = []
@@ -163,7 +169,7 @@ final class MockCoreClient: CoreClient {
                 continue
             }
             guard let item = MockData.lookup(choice.itemId, in: scenario) else { throw CoreError.UnknownItem }
-            let check: CleanupCheck
+            var check: CleanupCheck
             switch item.tier {
             case .keep:
                 check = .wontMove(reason: "The app keeps this, so it is not offered for cleanup.")
@@ -172,11 +178,28 @@ final class MockCoreClient: CoreClient {
             default:
                 check = .willMove
             }
+            if check == .willMove, let reason = inUse[item.id] {
+                check = .wontMove(reason: reason)
+            }
             let path = modes[handle] == .developer ? "~/Library/Mock/\(item.id)" : nil
             rows.append(CleanupPreviewItem(itemId: item.id, title: item.title, sizeBytes: item.sizeBytes,
                                            check: check, path: path,
                                            deviceBackup: MockData.deviceBackup(for: item)))
         }
+        return rows
+    }
+
+    /// The same rows `previewCleanup` gives, each chosen on its own, without touching the waiting plan.
+    func checkItems(handle: ScanHandle, itemIds: [String]) async throws -> [CleanupPreviewItem] {
+        checkItemsCalls += 1
+        return try await checkedRows(handle: handle,
+                                     choices: itemIds.map { CleanupChoice(itemId: $0, chosenAlone: true) })
+    }
+
+    /// Follows the core's rules: `keep` items never move, and Review first items move only when
+    /// chosen on their own. Nothing here touches the disk.
+    func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
+        let rows = try await checkedRows(handle: handle, choices: choices)
         let moving = rows.filter { $0.check == .willMove }
         var plan: PlanHandle?
         pendingPlan = nil

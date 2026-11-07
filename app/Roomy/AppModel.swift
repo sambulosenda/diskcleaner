@@ -325,6 +325,23 @@ final class AppModel: ObservableObject {
         return (try? await client.listItems(handle: handle, category: nil, tier: nil, sort: .largestFirst)) ?? []
     }
 
+    /// For the menu bar panel's locked rows: asks the core whether each item would move if reviewed now,
+    /// and why not (an app is open, it changed recently, a folder you keep). Moves nothing and keeps no
+    /// plan, so a review open in the main window is left alone. The core hears the kept folders first,
+    /// as before a review.
+    func checkItems(_ ids: [String]) async throws -> [CleanupPreviewItem] {
+        guard let handle = loadedHandle, overview != nil, !ids.isEmpty else { return [] }
+        _ = try await client.setProtectedFolders(protectedFolders)
+        return try await client.checkItems(handle: handle, itemIds: ids)
+    }
+
+    /// The menu bar panel's "Review" button: shows the Overview and opens the usual cleanup review for
+    /// the ticked rows. The review is a dry run; nothing moves until the user confirms there.
+    func reviewFromMenuBar() {
+        selection = .overview
+        reviewCleanup()
+    }
+
     /// The Overview's "Worth reviewing" rows, narrowed by the toolbar search.
     func worthReviewing(in overview: Overview) -> [ItemSummary] {
         matchingSearch(overview.topItems)

@@ -88,6 +88,10 @@ final class RustCoreClient: CoreClient {
         _ = try? await offMain { $0.discardCleanup(plan: plan) }
     }
 
+    func checkItems(handle: ScanHandle, itemIds: [String]) async throws -> [CleanupPreviewItem] {
+        try await offMain { try $0.checkItems(handle: handle, itemIds: itemIds) }
+    }
+
     func runCleanup(plan: PlanHandle) async throws -> CleanupResult {
         try await offMain { try $0.runCleanup(plan: plan) }
     }
