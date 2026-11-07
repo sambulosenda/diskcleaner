@@ -37,80 +37,64 @@
         <p class="hero-note">Try it on the example Mac below: click Roomy in the menu bar. Nothing here looks at your own Mac. <a href="#developers">Skip the demo</a></p>
       </div>
 
+    </div>
+
+    <div class="stage">
       <div class="desktop" id="desktop">
+        <div class="wallpaper" aria-hidden="true"></div>
         <div class="menubar">
           <div class="mb-left"><strong>Finder</strong><span>File</span><span>Edit</span><span>View</span><span class="mb-hide">Go</span><span class="mb-hide">Window</span><span class="mb-hide">Help</span></div>
           <div class="mb-right">
-            <button type="button" class="mb-roomy" id="mb-roomy" aria-expanded="false" aria-controls="popover" aria-label="Open Roomy in the menu bar"><img src="icon.svg" alt="" width="18" height="18"></button>
-            <span id="mb-clock">Sat 11:40</span>
+            <button type="button" class="mb-roomy" id="mb-roomy" aria-expanded="false" aria-controls="popover" aria-label="Open Roomy in the menu bar"><img src="icon.svg" alt="" width="16" height="16"></button>
+            <svg class="mb-ico mb-hide" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="7" width="17" height="10" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="4.3" y="8.8" width="10" height="6.4" rx="1.4" fill="currentColor"/><path d="M21 10.5v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <svg class="mb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5a13 13 0 0 1 18 0M6 12.8a8.5 8.5 0 0 1 12 0M9 16a4 4 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/></svg>
+            <svg class="mb-ico mb-hide" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="mb-ico mb-hide" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="6" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="17.5" cy="8" r="1.8" fill="currentColor"/><rect x="3" y="13" width="18" height="6" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="16" r="1.8" fill="currentColor"/></svg>
+            <span id="mb-clock">Sat 7 Nov  12:30</span>
           </div>
         </div>
 
-        <div class="hint" id="hint" aria-hidden="true">Click here</div>
+        <div class="hint" id="hint" aria-hidden="true">Click Roomy</div>
 
         <button type="button" class="notif" id="notif" hidden>
-          <img src="icon.svg" alt="" width="34" height="34">
-          <span><strong>Your Mac is almost full</strong><br>16.4 GB left. Roomy found 57.6 GB you can likely free.</span>
+          <img src="icon.svg" alt="" width="38" height="38">
+          <span class="notif-body"><span class="notif-app">ROOMY <em>now</em></span><strong>Your Mac is almost full</strong>16.4 GB left. Roomy found 57.6 GB you can likely free.</span>
         </button>
 
-        <div class="popover" id="popover" hidden>
-          <div class="pop-head"><span>Macintosh HD</span><span id="pop-free">16.4 GB free</span></div>
-          <div class="gauge"><span id="pop-gauge"></span></div>
-          <p class="pop-label">Ready to free</p>
-          <div class="pop-list" id="pop-list"></div>
-          <div class="pop-actions">
-            <button type="button" class="btn btn-primary btn-small" id="pop-review">Review in Roomy…</button>
-            <button type="button" class="btn btn-ghost btn-small" id="pop-scan">Scan Now…</button>
-          </div>
-        </div>
+        <div class="popover" id="popover" hidden></div>
 
-        <div class="window" id="window" hidden role="dialog" aria-label="Roomy window">
-          <div class="titlebar">
+        <div class="win" id="win" hidden role="dialog" aria-label="Roomy">
+          <aside class="win-side">
             <div class="lights"><button type="button" id="win-close" aria-label="Close the Roomy window"></button><span aria-hidden="true"></span><span aria-hidden="true"></span></div>
-            <span>Roomy</span>
-            <div class="modes" role="group" aria-label="Mode">
-              <button type="button" data-mode="simple" aria-pressed="false">Simple</button>
-              <button type="button" data-mode="developer" aria-pressed="true">Developer</button>
-            </div>
-            <span class="example-tag">Example Mac · 512 GB</span>
-          </div>
-          <div class="window-body">
-            <nav class="sidebar" id="sidebar" aria-label="Demo categories"></nav>
-            <div class="main" id="main">
-              <div class="disk-head">
-                <div><span class="free" id="free-label">16.4 GB free</span> <span class="of">of 512 GB</span></div>
-                <span class="of" id="disk-note">Macintosh HD</span>
+            <nav id="win-sidebar" aria-label="Sections"></nav>
+          </aside>
+          <div class="win-main">
+            <div class="win-toolbar">
+              <h2 id="win-title">Overview</h2>
+              <div class="tb-right">
+                <button type="button" class="tb-btn" id="win-scan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12A7.5 7.5 0 1 1 17.3 6.7M19.5 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Scan</button>
+                <button type="button" class="tb-btn tb-mode" id="win-mode" title="Switch between Simple and Developer mode">Developer</button>
+                <div class="tb-search" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Search items</span></div>
               </div>
-              <div class="diskbar" id="diskbar" role="img" aria-label="Disk usage by category"></div>
-              <div class="legend" id="legend"></div>
-              <div id="stage"></div>
             </div>
+            <div class="win-content" id="win-content"></div>
           </div>
-          <div class="bottombar" id="bottombar" hidden>
-            <span class="chosen" id="chosen"><strong>0 chosen</strong></span>
-            <div class="actions">
-              <button class="btn btn-primary btn-small" id="review-btn" type="button" disabled>Review</button>
-            </div>
-          </div>
+          <div class="win-sheet" id="win-sheet" hidden></div>
         </div>
 
         <div class="dock" aria-label="Dock">
-          <button type="button" id="dock-roomy" aria-label="Open Roomy"><img src="icon.svg" alt="" width="44" height="44"></button>
+          <span class="dock-app" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="10" fill="#3a8ee6"/><path d="M8 18a4 4 0 0 1 4-4h8l3 3h13a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z" fill="#bfe0ff"/><path d="M8 22h32v12a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z" fill="#e8f4ff"/></svg></span>
+          <span class="dock-app" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="10" fill="#1f2427"/><path d="M12 17l7 6-7 6" fill="none" stroke="#7ee787" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 31h12" stroke="#d0d7de" stroke-width="3" stroke-linecap="round"/></svg></span>
+          <span class="dock-app" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="10" fill="#f5f5f7"/><circle cx="24" cy="24" r="13" fill="none" stroke="#8e8e93" stroke-width="5" stroke-dasharray="5 3.2"/><circle cx="24" cy="24" r="6" fill="#8e8e93"/></svg></span>
+          <button type="button" class="dock-app" id="dock-roomy" aria-label="Open Roomy"><img src="icon.svg" alt="" width="48" height="48"><i class="dot"></i></button>
           <span class="dock-sep" aria-hidden="true"></span>
-          <button type="button" id="dock-trash" aria-label="Trash">
-            <svg viewBox="0 0 44 44" width="44" height="44" aria-hidden="true"><rect x="9" y="9" width="26" height="4" rx="2" class="t-lid"/><path d="M12 15h20l-2 22a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3z" class="t-can"/><path d="M18 20v14M22 20v14M26 20v14" class="t-line"/></svg>
+          <button type="button" class="dock-app" id="dock-trash" aria-label="Trash, empty">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef2f4"/><stop offset="1" stop-color="#b9c3c8"/></linearGradient></defs><path d="M10 12h28l-2.6 30a3 3 0 0 1-3 2.7H15.6a3 3 0 0 1-3-2.7z" fill="url(#tg)" stroke="#9aa6ad" stroke-width="1"/><ellipse cx="24" cy="12" rx="14.5" ry="3" fill="#dde3e6" stroke="#9aa6ad" stroke-width="1"/><path d="M17 18l1 22M24 18v22M31 18l-1 22" stroke="#a7b2b8" stroke-width="1.2"/><g class="trash-paper"><path d="M15 12l4-6 6 3 5-4 3 7z" fill="#fff" stroke="#c9d1d5"/></g></svg>
             <span class="badge" id="trash-badge" hidden></span>
           </button>
         </div>
       </div>
-
-      <ol class="steps" id="steps">
-        <li data-step="scan"><button type="button">Scan</button></li>
-        <li data-step="read"><button type="button">Read what each item is</button></li>
-        <li data-step="choose"><button type="button">Tick what goes</button></li>
-        <li data-step="trash"><button type="button">Trash, with Put back</button></li>
-      </ol>
-      <p class="step-caption" id="step-caption" aria-live="polite">Roomy reads the disk. Scanning never changes a file.</p>
+      <p class="stage-note">An example Mac with made-up files. Click Roomy in the menu bar or in the Dock.</p>
     </div>
   </section>
 
