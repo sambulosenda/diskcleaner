@@ -488,6 +488,9 @@ impl Context {
         if after != before || (survey.dev, survey.ino) != (before.dev, before.ino) {
             return Err(ItemRefusal::ChangedSinceReview);
         }
+        // Before the byte comparison below, so a recently changed copy is
+        // refused without reading two large files.
+        guards.check_recent(survey.newest_modified, now)?;
         if let Some(keep) = item.keep_copy() {
             if survey.is_dir || keep.dev != self.dev {
                 return Err(ItemRefusal::NotSameAsKeptCopy);
@@ -505,7 +508,6 @@ impl Context {
             )?;
         }
         git::check(&self.home, path, survey.is_dir).map_err(ItemRefusal::Git)?;
-        guards.check_recent(survey.newest_modified, now)?;
         Ok(Ready {
             parent_fd,
             name,

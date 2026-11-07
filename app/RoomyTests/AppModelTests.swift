@@ -1144,4 +1144,15 @@ final class AppModelTests: XCTestCase {
         await duplicates.waitForSearch()
         XCTAssertEqual(duplicates.state, .cancelled)
     }
+
+    func testAStoppedSearchCanBeStartedAgain() async {
+        let model = makeModel()
+        let duplicates = model.duplicates
+        duplicates.startSearch()
+        duplicates.cancelSearch()
+        // The earlier stop reaches the core before this start, so it can't stop the new search.
+        duplicates.startSearch()
+        await duplicates.waitForSearch()
+        guard case .finished = duplicates.state else { return XCTFail("\(duplicates.state)") }
+    }
 }

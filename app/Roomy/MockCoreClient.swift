@@ -524,6 +524,7 @@ extension MockCoreClient {
         duplicateSteps = 0
         duplicateMode = mode
         duplicatesSearched = true
+        duplicatesCancelled = false
     }
 
     func duplicateSearchProgress() async -> DuplicateSearch {

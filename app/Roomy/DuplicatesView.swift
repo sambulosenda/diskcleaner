@@ -37,6 +37,9 @@ final class DuplicatesModel: ObservableObject {
     private weak var app: AppModel?
     private let pollInterval: UInt64
     private var searchTask: Task<Void, Never>?
+    /// A stop sent to the core that may not have arrived yet. A new search waits for it, so an old
+    /// stop can never land after the new start and stop that one instead.
+    private var pendingCancel: Task<Void, Never>?
     private var observers: Set<AnyCancellable> = []
 
     init(app: AppModel, pollInterval: UInt64) {
@@ -67,7 +70,9 @@ final class DuplicatesModel: ObservableObject {
         let client = app.client
         let mode = app.mode
         let interval = pollInterval
+        let cancelling = pendingCancel
         searchTask = Task { [weak self] in
+            await cancelling?.value
             await client.startDuplicateSearch(mode: mode)
             while !Task.isCancelled {
                 let progress = await client.duplicateSearchProgress()
@@ -103,7 +108,16 @@ final class DuplicatesModel: ObservableObject {
         searchTask?.cancel()
         searchTask = nil
         state = .cancelled
-        Task { await client.cancelDuplicateSearch() }
+        sendCancel(to: client)
+    }
+
+    /// Tells the core to stop, after any stop already on its way.
+    private func sendCancel(to client: CoreClient) {
+        let earlier = pendingCancel
+        pendingCancel = Task {
+            await earlier?.value
+            await client.cancelDuplicateSearch()
+        }
     }
 
     /// Waits for the search to end. Used by tests.
@@ -191,7 +205,7 @@ final class DuplicatesModel: ObservableObject {
     /// Developer results carry paths, so a search from the other mode is forgotten.
     private func modeDidChange() {
         if isSearching, let client = app?.client {
-            Task { await client.cancelDuplicateSearch() }
+            sendCancel(to: client)
         }
         searchTask?.cancel()
         searchTask = nil
