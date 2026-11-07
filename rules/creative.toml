@@ -41,7 +41,7 @@ action = "trash"
 
 [[rule]]
 id = "adobe.media_cache_files"
-version = 1
+version = 2
 match.path = "Library/Application Support/Adobe/Common/Media Cache Files"
 category = "cache"
 tier = "review_first"
@@ -50,13 +50,13 @@ regenerable = true
 mode = "simple"
 title = "Adobe media cache"
 explain = "Audio and preview files Premiere Pro, After Effects and Media Encoder make so imported media plays quickly."
-risk = "Projects may open more slowly the first time while Adobe apps rebuild the cache. Your projects and media are not affected."
+risk = "Projects may open more slowly the first time while Adobe apps make these files again. Your projects and media are not affected."
 restore = "Adobe apps make it again as you work."
 action = "trash"
 
 [[rule]]
 id = "adobe.media_cache_database"
-version = 1
+version = 2
 match.path = "Library/Application Support/Adobe/Common/Media Cache"
 category = "cache"
 tier = "review_first"
@@ -65,7 +65,7 @@ regenerable = true
 mode = "simple"
 title = "Adobe media cache index"
 explain = "The list Adobe video apps keep of their media cache files."
-risk = "Projects may open more slowly the first time while Adobe apps rebuild it."
+risk = "Projects may open more slowly the first time while Adobe apps make it again."
 restore = "Adobe apps make it again as you work."
 action = "trash"
 
