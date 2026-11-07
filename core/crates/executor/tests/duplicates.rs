@@ -193,8 +193,10 @@ fn nothing_moves_if_the_kept_copy_is_gone_or_replaced() {
     let request = home.standard_request();
     let kept = home.path("Documents/Trips/beach.mov");
     let modified = kept.symlink_metadata().unwrap().modified().unwrap();
-    fs::remove_file(&kept).unwrap();
+    // The new file is written before the old one goes, so the file system
+    // cannot hand it the old inode number.
     fs::write(home.path("Documents/other.mov"), data()).unwrap();
+    fs::remove_file(&kept).unwrap();
     fs::rename(home.path("Documents/other.mov"), &kept).unwrap();
     fs::File::options()
         .write(true)
