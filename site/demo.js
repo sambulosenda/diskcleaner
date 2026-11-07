@@ -168,7 +168,7 @@
   function freeGb() { return FREE_GB + sum(ITEMS.filter(function (i) { return state.trashed[i.id]; })); }
   function safeGb() { return sum(live().filter(function (i) { return i.tier === "safe" && inMode(i); })); }
   function reviewGb() { return sum(live().filter(function (i) { return i.tier === "review" && inMode(i); })); }
-  function chosen() { return live().filter(function (i) { return state.checked[i.id]; }); }
+  function chosen() { return live().filter(function (i) { return state.checked[i.id] && inMode(i); }); }
   function screenInfo(key) {
     for (var s = 0; s < SIDEBAR.length; s++) for (var j = 0; j < SIDEBAR[s].items.length; j++) if (SIDEBAR[s].items[j].key === key) return SIDEBAR[s].items[j];
     return SIDEBAR[0].items[0];
@@ -177,6 +177,9 @@
   // ---- the window ----
 
   function renderWindow() {
+    // Rebuilding replaces every control, so put keyboard focus back on the same one afterwards.
+    var active = document.activeElement;
+    var focusId = active && active.id && $("win").contains(active) ? active.id : null;
     renderSidebar();
     var info = screenInfo(state.screen);
     $("win-title").textContent = info.title;
@@ -190,6 +193,7 @@
     else if (state.screen === "history") content.appendChild(historyView());
     else if (state.screen === "apps") content.appendChild(appsView());
     else { content.className = "win-content is-list"; content.appendChild(listView()); }
+    if (focusId && $(focusId)) $(focusId).focus({ preventScroll: true });
     renderSheet();
     renderPopover();
     updateTrash();
@@ -203,7 +207,7 @@
       if (section.header) nav.appendChild(el("div", { class: "sb-head", text: section.header }));
       section.items.forEach(function (it) {
         nav.appendChild(el("button", {
-          type: "button", class: "sb-item", "aria-current": state.screen === it.key ? "page" : null,
+          type: "button", class: "sb-item", id: "sb-" + it.key, "aria-current": state.screen === it.key ? "page" : null,
           onclick: function () { state.touched = true; showScreen(it.key); }
         }, [icon(it.icon), el("span", { text: it.title })]));
       });
@@ -527,7 +531,7 @@
     if (wasHidden) win.classList.add("opening");
     setTimeout(function () { win.classList.remove("opening"); }, 350);
   }
-  function closeWindow() { $("win").hidden = true; state.open = false; }
+  function closeWindow() { state.sheet = null; renderSheet(); $("win").hidden = true; state.open = false; }
 
   function openPopover() {
     $("popover").hidden = false;
@@ -567,21 +571,21 @@
     if (review > 0) pop.appendChild(el("p", { class: "sec small", text: fmt(review) + " more to look at first" }));
     pop.appendChild(el("div", { class: "pp-head", text: "Ready to free" }));
     var rows = el("div", { class: "pp-rows" });
-    live().filter(function (i) { return i.tier === "safe"; }).sort(function (a, b) { return b.gb - a.gb; }).slice(0, 4).forEach(function (i) {
+    live().filter(function (i) { return i.tier === "safe" && inMode(i); }).sort(function (a, b) { return b.gb - a.gb; }).slice(0, 4).forEach(function (i) {
       var cb = el("input", { type: "checkbox", class: "mcb", id: "pp-" + i.id, onchange: function (e) { state.popChecked[i.id] = e.target.checked; renderPopover(); } });
       cb.checked = !!state.popChecked[i.id];
       rows.appendChild(el("label", { class: "pp-row", for: "pp-" + i.id }, [cb, el("span", { class: "pp-t" }, [el("span", { text: i.title }), el("span", { class: "sec small", text: "Likely safe" + (i.changed ? " · changed " + i.changed : "") })]), el("span", { class: "num sec", text: fmt(i.gb) })]));
     });
-    live().filter(function (i) { return i.tier === "review"; }).sort(function (a, b) { return b.gb - a.gb; }).slice(0, 1).forEach(function (i) {
+    live().filter(function (i) { return i.tier === "review" && inMode(i); }).sort(function (a, b) { return b.gb - a.gb; }).slice(0, 1).forEach(function (i) {
       rows.appendChild(el("div", { class: "pp-row locked" }, [icon("tierKeep", "lock"), el("span", { class: "pp-t" }, [el("span", { text: i.title }), el("span", { class: "sec small", text: "Review first, in Roomy" })]), el("span", { class: "num sec", text: fmt(i.gb) })]));
     });
     pop.appendChild(rows);
-    var ticked = live().filter(function (i) { return state.popChecked[i.id]; });
+    var ticked = live().filter(function (i) { return state.popChecked[i.id] && inMode(i); });
     pop.appendChild(el("button", { type: "button", class: "mbtn primary wide", id: "pop-review",
       text: ticked.length === 0 ? "Open Roomy" : ticked.length === 1 ? "Review 1 item…" : "Review " + ticked.length + " items…",
       onclick: function () {
         state.touched = true;
-        var t = live().filter(function (i) { return state.popChecked[i.id]; });
+        var t = live().filter(function (i) { return state.popChecked[i.id] && inMode(i); });
         state.popChecked = {};
         if (!t.length) { openWindow(); return; }
         t.forEach(function (i) { state.checked[i.id] = true; });

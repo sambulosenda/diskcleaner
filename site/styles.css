@@ -718,6 +718,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 }
 .wal-row:first-child { border-top: 0; }
 .wal-row:hover { background: var(--win-row); }
+.wal-row:focus-visible { outline: 2px solid var(--sys-blue); outline-offset: -2px; }
 .wal-row.static:hover { background: none; }
 .wal-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chev { width: 12px; height: 12px; color: var(--win-secondary); opacity: .7; }
