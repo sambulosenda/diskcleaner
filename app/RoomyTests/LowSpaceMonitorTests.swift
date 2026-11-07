@@ -170,3 +170,54 @@ final class LowSpaceMonitorTests: XCTestCase {
         XCTAssertLessThanOrEqual(summary.freeBytes, summary.totalBytes)
     }
 }
+
+/// The menu bar menu's summary of the last scan. Its button only opens Roomy or starts a scan.
+@MainActor
+final class MenuBarScanSummaryTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    func testBeforeAnyScanItOffersToScan() {
+        let summary = MenuBarScanSummary.make(for: .neverScanned, now: now)
+        XCTAssertEqual(summary.headline, "Scan to see what you can free")
+        XCTAssertNil(summary.detail)
+        XCTAssertEqual(summary.action, .scan)
+    }
+
+    func testWhileScanningThereIsNothingToPress() {
+        let progress = ScanProgress(bytesSeen: 1, itemsSeen: 1, phase: .scanning)
+        let summary = MenuBarScanSummary.make(for: .scanning(progress), now: now)
+        XCTAssertEqual(summary.action, .none)
+        XCTAssertTrue(summary.buttonTitle.isEmpty)
+    }
+
+    func testAFailedScanOffersToScanAgain() {
+        let summary = MenuBarScanSummary.make(for: .failed("Something went wrong."), now: now)
+        XCTAssertEqual(summary.action, .scan)
+        XCTAssertEqual(summary.buttonTitle, "Scan Again\u{2026}")
+    }
+
+    func testAFinishedScanShowsTheOverviewHeadlineAndOpensReview() {
+        let overview = MockData.overview(for: .normal)
+        let scannedAt = now.addingTimeInterval(-2 * 60 * 60)
+        let summary = MenuBarScanSummary.make(for: .loaded(overview, scannedAt: scannedAt), now: now)
+        XCTAssertEqual(summary.headline, OverviewHeadline.headline(for: overview))
+        XCTAssertTrue(summary.headline.contains(Format.bytes(overview.likelySafeBytes)))
+        XCTAssertEqual(summary.detail, "Scanned \(Format.relative(scannedAt, now: now))")
+        XCTAssertEqual(summary.action, .review)
+        XCTAssertEqual(summary.buttonTitle, "Review in Roomy\u{2026}")
+    }
+
+    func testNoWordingSoundsAlarming() {
+        let states: [AppModel.ScanState] = [
+            .neverScanned, .failed("x"),
+            .loaded(MockData.overview(for: .normal), scannedAt: now),
+        ]
+        for state in states {
+            let s = MenuBarScanSummary.make(for: state, now: now)
+            for text in [s.headline, s.detail ?? "", s.buttonTitle] {
+                XCTAssertFalse(text.lowercased().contains("junk"), text)
+                XCTAssertFalse(text.lowercased().contains("delete"), text)
+            }
+        }
+    }
+}

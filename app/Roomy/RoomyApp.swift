@@ -51,7 +51,7 @@ struct RoomyApp: App {
         }
 
         MenuBarExtra(isInserted: menuBarInserted) {
-            MenuBarMenu(monitor: lowSpace)
+            MenuBarMenu(monitor: lowSpace, model: model)
         } label: {
             MenuBarLabel(monitor: lowSpace)
         }

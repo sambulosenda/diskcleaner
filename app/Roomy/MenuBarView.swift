@@ -17,10 +17,57 @@ struct MenuBarLabel: View {
     }
 }
 
-/// The menu that opens from the menu bar item. Shows free space and opens Roomy. It never cleans
-/// anything; scanning and cleaning happen in the main window, where the user chooses.
+/// What the menu says about the last scan, and what its button does. Pure, so tests can check the
+/// words for every scan state without a menu.
+struct MenuBarScanSummary: Equatable {
+    /// What the button does. Neither choice removes anything.
+    enum Action: Equatable {
+        /// Opens Roomy at the Overview, where the user reviews and chooses.
+        case review
+        /// Opens Roomy and starts a scan, which only measures.
+        case scan
+        /// Nothing to press while a scan runs.
+        case none
+    }
+
+    /// The first line, such as "You can likely free 34 GB".
+    let headline: String
+    /// When that was measured, such as "Scanned 2 hours ago". `nil` when there is no finished scan.
+    let detail: String?
+    /// The button's title. Empty when `action` is `.none`.
+    let buttonTitle: String
+    let action: Action
+
+    /// The summary for `state`, with times said relative to `now`.
+    static func make(for state: AppModel.ScanState, now: Date = Date()) -> MenuBarScanSummary {
+        switch state {
+        case .neverScanned:
+            return MenuBarScanSummary(
+                headline: "Scan to see what you can free", detail: nil,
+                buttonTitle: "Scan Now\u{2026}", action: .scan
+            )
+        case .scanning:
+            return MenuBarScanSummary(headline: "Scanning\u{2026}", detail: nil, buttonTitle: "", action: .none)
+        case .failed:
+            return MenuBarScanSummary(
+                headline: "The last scan didn\u{2019}t finish", detail: nil,
+                buttonTitle: "Scan Again\u{2026}", action: .scan
+            )
+        case .loaded(let overview, let scannedAt):
+            return MenuBarScanSummary(
+                headline: OverviewHeadline.headline(for: overview),
+                detail: "Scanned \(Format.relative(scannedAt, now: now))",
+                buttonTitle: "Review in Roomy\u{2026}", action: .review
+            )
+        }
+    }
+}
+
+/// The menu that opens from the menu bar item. Shows free space, what the last scan found, and opens
+/// Roomy. It never cleans anything; cleaning happens in the main window, where the user chooses.
 struct MenuBarMenu: View {
     @ObservedObject var monitor: LowSpaceMonitor
+    @ObservedObject var model: AppModel
 
     var body: some View {
         Text(monitor.summaryText)
@@ -28,12 +75,40 @@ struct MenuBarMenu: View {
             Text(low)
         }
         Divider()
+        scanSummary
+        Divider()
         Button("Open Roomy") { monitor.showRoomy() }
         Button("Check Again") { Task { await monitor.refresh() } }
         Divider()
         settings
         Button("Quit Roomy") { NSApp.terminate(nil) }
             .keyboardShortcut("q", modifiers: .command)
+    }
+
+    /// The last scan's headline and its button. The button only opens Roomy (and, before any scan,
+    /// starts one); review and cleaning stay in the main window.
+    @ViewBuilder
+    private var scanSummary: some View {
+        let summary = MenuBarScanSummary.make(for: model.scanState)
+        Text(summary.headline)
+        if let detail = summary.detail {
+            Text(detail)
+        }
+        switch summary.action {
+        case .review:
+            Button(summary.buttonTitle) {
+                model.selection = .overview
+                monitor.showRoomy()
+            }
+        case .scan:
+            Button(summary.buttonTitle) {
+                model.selection = .overview
+                monitor.showRoomy()
+                model.startScan()
+            }
+        case .none:
+            EmptyView()
+        }
     }
 
     @ViewBuilder
