@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1000000000000000000A55E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000A55E /* Assets.xcassets */; };
 		A10000000000000000000001 /* RoomyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* RoomyApp.swift */; };
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
 		A10000000000000000000003 /* RoomyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RoomyTests.swift */; };
@@ -102,6 +103,7 @@
 		A20000000000000000000032 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000061 /* UpdaterController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterController.swift; sourceTree = "<group>"; };
 		A20000000000000000000062 /* Roomy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Roomy.entitlements; sourceTree = "<group>"; };
+		A2000000000000000000A55E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000000000000000000063 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000064 /* UpdaterControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterControllerTests.swift; sourceTree = "<group>"; };
 		A200000000000000000000E0 /* LowSpaceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LowSpaceMonitor.swift; sourceTree = "<group>"; };
@@ -177,6 +179,7 @@
 				A200000000000000000000E1 /* MenuBarView.swift */,
 				A200000000000000000000C2 /* CommandPaletteView.swift */,
 				A200000000000000000000C1 /* CommandPalette.swift */,
+				A2000000000000000000A55E /* Assets.xcassets */,
 				A20000000000000000000063 /* Info.plist */,
 				A20000000000000000000062 /* Roomy.entitlements */,
 			);
@@ -304,6 +307,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1000000000000000000A55E /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -455,6 +459,7 @@
 		AD0000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Roomy/Roomy.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
@@ -482,6 +487,7 @@
 		AD0000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Roomy/Roomy.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
