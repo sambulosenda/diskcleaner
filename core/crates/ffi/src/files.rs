@@ -120,6 +120,7 @@ pub(crate) fn request_for(f: &LooseFile, chosen_alone: bool) -> ItemRequest {
         selected_individually: chosen_alone,
         owners: &[],
         belongs_to: None,
+        keep_copy: None,
     }
 }
 

@@ -174,6 +174,7 @@ extension SidebarItem {
         case .libraries: return ["photos", "mail", "music", "messages", "attachments", "final cut", "tv"]
         case .downloads: return ["installers", "dmg"]
         case .largeFiles: return ["big", "old downloads", "last opened"]
+        case .duplicates: return ["copies", "duplicate files", "same file"]
         case .appsAndCaches: return ["cache", "app data"]
         case .systemData: return ["logs", "system"]
         case .projects: return ["build", "node_modules", "target"]

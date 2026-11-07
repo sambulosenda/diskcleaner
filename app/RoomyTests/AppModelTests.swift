@@ -118,7 +118,8 @@ final class AppModelTests: XCTestCase {
     func testSidebarListsEveryWireframeEntryInOrder() {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
-            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Apps and caches",
+            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Duplicates",
+            "Apps and caches",
             "System Data", "Remove apps", "Cleanup", "History",
         ])
         model.mode = .developer
@@ -1057,5 +1058,101 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(LargeFilesText.lastOpened(unknown, locale: locale, timeZone: utc), "Changed 1 Mar 2025")
         XCTAssertEqual(LargeFilesText.location(unknown), "In your home folder")
         XCTAssertEqual(LargeFilesText.location(opened), "In Movies")
+    }
+
+    // MARK: - Duplicate finder
+
+    /// A model on the Duplicates screen with a finished pretend search.
+    private func searchedDuplicates(mode: Mode = .simple) async -> (AppModel, DuplicatesModel, DuplicateReport) {
+        let model = makeModel()
+        model.mode = mode
+        model.selection = .duplicates
+        let duplicates = model.duplicates
+        duplicates.startSearch()
+        await duplicates.waitForSearch()
+        guard case .finished(let report) = duplicates.state else {
+            XCTFail("\(duplicates.state)")
+            return (model, duplicates, DuplicateReport(groups: [], couldFreeBytes: 0, folders: []))
+        }
+        return (model, duplicates, report)
+    }
+
+    func testDuplicatesSitsWithTheEverydayScreens() {
+        XCTAssertEqual(SidebarItem.duplicates.title, "Duplicates")
+        XCTAssertNil(SidebarItem.duplicates.itemFilter)
+        XCTAssertTrue(SidebarItem.mainItems.contains(.duplicates))
+        XCTAssertFalse(SidebarItem.duplicates.isDeveloperOnly)
+    }
+
+    func testTheSearchFindsCopiesAndTicksNothing() async {
+        let (_, duplicates, report) = await searchedDuplicates()
+        XCTAssertEqual(report, MockData.duplicateReport(mode: .simple))
+        XCTAssertTrue(duplicates.checkedCopyIDs.isEmpty, "nothing is ticked for the user")
+        XCTAssertTrue(report.groups.flatMap(\.copies).allSatisfy { $0.path == nil }, "simple mode shows no paths")
+    }
+
+    func testTheLastUntickedCopyCanNeverBeTicked() async {
+        let (_, duplicates, report) = await searchedDuplicates()
+        let group = report.groups[0]
+        duplicates.setChecked(true, for: group.copies[0], in: group)
+        duplicates.setChecked(true, for: group.copies[1], in: group)
+        XCTAssertFalse(duplicates.canCheck(group.copies[2], in: group))
+        duplicates.setChecked(true, for: group.copies[2], in: group)
+        XCTAssertEqual(duplicates.checkedCopyIDs, [group.copies[0].copyId, group.copies[1].copyId])
+        // Unticking one frees another to be ticked instead.
+        duplicates.setChecked(false, for: group.copies[0], in: group)
+        XCTAssertTrue(duplicates.canCheck(group.copies[2], in: group))
+    }
+
+    func testRemovingCopiesGoesThroughTheCleanupReviewAndCanBePutBack() async {
+        let (model, duplicates, report) = await searchedDuplicates()
+        let group = report.groups[0]
+        duplicates.setChecked(true, for: group.copies[1], in: group)
+        duplicates.setChecked(true, for: group.copies[2], in: group)
+        XCTAssertEqual(duplicates.checkedBytes, 2 * group.sizeBytes)
+        duplicates.review()
+        await model.waitForCleanupCheck()
+        guard case .ready(let preview) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertEqual(preview.items.map(\.itemId), [group.copies[1].copyId, group.copies[2].copyId])
+        model.moveToTrash()
+        await model.waitForCleanupCheck()
+        guard case .done(let result) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(result.items.allSatisfy(\.done))
+        // The moved copies leave the list; a file with one copy left is no longer a duplicate.
+        XCTAssertFalse(duplicates.visibleGroups.contains { $0.groupId == group.groupId })
+        XCTAssertTrue(duplicates.checkedCopyIDs.isEmpty)
+        model.putBack()
+        await model.waitForCleanupCheck()
+        guard case .putBack = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(duplicates.isOutOfDate)
+    }
+
+    func testDeveloperModeShowsPathsAndChangingModeForgetsTheSearch() async {
+        let (model, duplicates, report) = await searchedDuplicates(mode: .developer)
+        XCTAssertTrue(report.groups.flatMap(\.copies).allSatisfy { $0.path != nil })
+        model.mode = .simple
+        XCTAssertEqual(duplicates.state, .idle)
+    }
+
+    func testTheSearchCanBeStopped() async {
+        let client = MockCoreClient(scenario: .normal, totalSteps: 5)
+        let model = AppModel(client: client, defaults: defaults, pollInterval: 1_000_000_000)
+        let duplicates = model.duplicates
+        duplicates.startSearch()
+        duplicates.cancelSearch()
+        XCTAssertEqual(duplicates.state, .cancelled)
+        await duplicates.waitForSearch()
+        XCTAssertEqual(duplicates.state, .cancelled)
+    }
+
+    func testAStoppedSearchCanBeStartedAgain() async {
+        let model = makeModel()
+        let duplicates = model.duplicates
+        duplicates.startSearch()
+        duplicates.cancelSearch()
+        // The earlier stop reaches the core before this start, so it can't stop the new search.
+        duplicates.startSearch()
+        await duplicates.waitForSearch()
+        guard case .finished = duplicates.state else { return XCTFail("\(duplicates.state)") }
     }
 }

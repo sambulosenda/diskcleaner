@@ -105,6 +105,21 @@ pub fn open_dir_at(dir: &OwnedFd, name: &OsStr) -> io::Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
+/// Flags for opening a file to read: read only, never a symlink, and never
+/// waiting (so a named pipe can't make the executor hang).
+const FILE_FLAGS: libc::c_int =
+    libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC;
+
+/// Opens `name` inside `dir` to read. Fails if `name` is a symlink. The
+/// caller must check it is a plain file.
+pub fn open_file_at(dir: &OwnedFd, name: &OsStr) -> io::Result<std::fs::File> {
+    let c = name_cstr(name)?;
+    // SAFETY: `dir` is an open descriptor and `c` a valid C string.
+    let fd = check(unsafe { libc::openat(dir.as_raw_fd(), c.as_ptr(), FILE_FLAGS) })?;
+    // SAFETY: `openat` returned a new descriptor that nothing else owns.
+    Ok(std::fs::File::from(unsafe { OwnedFd::from_raw_fd(fd) }))
+}
+
 /// `fstat` of an open descriptor.
 pub fn fstat(fd: &OwnedFd) -> io::Result<Stat> {
     // SAFETY: an all-zero `stat` is a valid value of this plain C struct.

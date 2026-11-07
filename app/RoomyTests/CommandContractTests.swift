@@ -278,4 +278,57 @@ final class CommandContractTests: XCTestCase {
         let sizes = files.largeFiles.map(\.sizeBytes)
         XCTAssertEqual(sizes, sizes.sorted(by: >))
     }
+
+    // MARK: - Duplicate finder
+
+    /// Polls until the duplicate search ends.
+    private func waitForDuplicates() -> DuplicateSearch {
+        let deadline = Date().addingTimeInterval(120)
+        while Date() < deadline {
+            let progress = core.duplicateSearchProgress()
+            switch progress {
+            case .looking, .comparing:
+                Thread.sleep(forTimeInterval: 0.01)
+            default:
+                return progress
+            }
+        }
+        XCTFail("The duplicate search never ended")
+        return .cancelled
+    }
+
+    func testDuplicateFinderMovesOneCopyKeepsTheOtherAndCanPutItBack() throws {
+        core.relaxInUseChecksForTesting()
+        let home = URL(fileURLWithPath: homePath)
+        let trash = home.appendingPathComponent(".Trash")
+        if !FileManager.default.fileExists(atPath: trash.path) {
+            try FileManager.default.createDirectory(at: trash, withIntermediateDirectories: false)
+        }
+        let folder = home.appendingPathComponent("Documents/Roomy duplicates test", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let data = Data((0..<(2 * 1024 * 1024)).map { UInt8(truncatingIfNeeded: $0 &* 7) })
+        let first = folder.appendingPathComponent("song.m4a")
+        let second = folder.appendingPathComponent("song copy.m4a")
+        try data.write(to: first)
+        try data.write(to: second)
+
+        core.startDuplicateSearch(mode: .simple)
+        guard case .finished(let report) = waitForDuplicates() else { return XCTFail("the search didn't finish") }
+        let group = try XCTUnwrap(report.groups.first { $0.copies.contains { $0.name == "song copy.m4a" } })
+        XCTAssertEqual(group.copies.count, 2)
+        XCTAssertTrue(group.copies.allSatisfy { $0.path == nil })
+        // Ticking every copy is refused.
+        XCTAssertThrowsError(try core.previewDuplicateCleanup(copyIds: group.copies.map(\.copyId))) { error in
+            guard case CoreError.CleanupUnavailable = error else { return XCTFail("\(error)") }
+        }
+        let preview = try core.previewDuplicateCleanup(copyIds: [group.copies[1].copyId])
+        XCTAssertTrue(preview.items.allSatisfy { $0.check == .willMove }, "\(preview.items)")
+        let result = try core.runCleanup(plan: try XCTUnwrap(preview.plan))
+        XCTAssertTrue(result.items.allSatisfy(\.done), "\(result.items)")
+        let left = [first, second].filter { FileManager.default.fileExists(atPath: $0.path) }
+        XCTAssertEqual(left.count, 1, "exactly one copy stays")
+        _ = try core.putBackCleanup(cleanup: try XCTUnwrap(result.cleanup))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: first.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: second.path))
+    }
 }

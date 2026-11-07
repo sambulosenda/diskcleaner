@@ -123,4 +123,20 @@ protocol CoreClient: AnyObject {
     /// The Android screen's dry run: checks the ticked rows the way a cleanup would and says what would
     /// move to the Trash. Moves nothing. Its plan runs with `runCleanup`, like any cleanup.
     func previewAndroidCleanup(itemIds: [String]) async throws -> CleanupPreview
+
+    /// The duplicate finder: starts looking for files with the same content in the user's own folders, on
+    /// the core's own thread, and returns straight away. Reads only. Replaces any earlier search.
+    func startDuplicateSearch(mode: Mode) async
+
+    /// Where the duplicate search is, with what it found once finished. Never throws.
+    func duplicateSearchProgress() async -> DuplicateSearch
+
+    /// Stops the duplicate search. Safe to call at any time.
+    func cancelDuplicateSearch() async
+
+    /// The duplicate finder's dry run: checks the ticked copies the way a cleanup would, including that the
+    /// copy you keep is still the same byte for byte. Moves nothing. Sends copy ids only, never paths. Its
+    /// plan runs with `runCleanup`, like any cleanup. Throws `CoreError.CleanupUnavailable` if every copy
+    /// of a file was ticked.
+    func previewDuplicateCleanup(copyIds: [String]) async throws -> CleanupPreview
 }

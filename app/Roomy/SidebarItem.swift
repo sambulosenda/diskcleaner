@@ -7,6 +7,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     case libraries
     case downloads
     case largeFiles
+    case duplicates
     case appsAndCaches
     case systemData
     case projects
@@ -22,7 +23,9 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
 
     /// The first group: Overview and the everyday categories.
-    static let mainItems: [SidebarItem] = [.overview, .backups, .libraries, .downloads, .largeFiles, .appsAndCaches, .systemData]
+    static let mainItems: [SidebarItem] = [
+        .overview, .backups, .libraries, .downloads, .largeFiles, .duplicates, .appsAndCaches, .systemData,
+    ]
     /// Shown only in Developer mode.
     static let developerItems: [SidebarItem] = [.projects, .xcode, .android, .javascript, .docker, .tools]
     /// The last group: acting on things and looking back.
@@ -35,6 +38,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .libraries: return "Photos, Mail and Music"
         case .downloads: return "Downloads and installers"
         case .largeFiles: return "Large files"
+        case .duplicates: return "Duplicates"
         case .appsAndCaches: return "Apps and caches"
         case .systemData: return "System Data"
         case .projects: return "Projects"
@@ -57,6 +61,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .libraries: return "photo.on.rectangle"
         case .downloads: return "arrow.down.circle"
         case .largeFiles: return "doc"
+        case .duplicates: return "doc.on.doc"
         case .appsAndCaches: return "square.grid.2x2"
         case .systemData: return "gearshape"
         case .projects: return "folder"
@@ -100,7 +105,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .xcode: return .categories([.developerTools])
         case .docker: return .categories([.docker])
         // Large files has its own screen (`LargeFilesScreen`): files, not rule items.
-        case .overview, .libraries, .largeFiles, .android, .javascript, .tools, .apps, .history: return nil
+        case .overview, .libraries, .largeFiles, .duplicates, .android, .javascript, .tools, .apps, .history: return nil
         }
     }
 

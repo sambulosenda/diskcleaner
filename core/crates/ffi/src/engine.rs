@@ -27,9 +27,9 @@ use crate::cleanup::Pending;
 use crate::run::LastCleanup;
 use crate::types::{
     AndroidOverview, AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview,
-    CleanupResult, FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary, LargeFiles, LibrarySize,
-    Mode, Overview, PlanHandle, PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress,
-    Sort, Tier,
+    CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail, ItemSummary,
+    LargeFiles, LibrarySize, Mode, Overview, PlanHandle, PutBackResult, ScanChanges, ScanHandle,
+    ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -102,6 +102,8 @@ pub struct RoomyCore {
     pub(crate) tools: crate::tools::ToolSlot,
     /// The app uninstaller's list of apps and its latest review.
     apps: Mutex<crate::uninstall::AppsState>,
+    /// The duplicate finder's latest search.
+    duplicates: crate::duplicates::DuplicatesSlot,
     /// Test-only: the folders to look for apps in, instead of
     /// `/Applications` and `~/Applications`.
     app_folders: Mutex<Option<Vec<PathBuf>>>,
@@ -183,6 +185,7 @@ impl RoomyCore {
             tools: crate::tools::ToolSlot::new(),
             home,
             apps: Mutex::new(crate::uninstall::AppsState::default()),
+            duplicates: crate::duplicates::DuplicatesSlot::default(),
             app_folders: Mutex::new(None),
             android: Mutex::new(crate::android::AndroidState::default()),
         }))
@@ -569,6 +572,53 @@ impl RoomyCore {
             &lock(&self.android),
             &self.home,
             &item_ids,
+            id,
+            &guards,
+            std::time::SystemTime::now(),
+        )?;
+        *lock(&self.pending_plan) = prepared.plan;
+        Ok(prepared.preview)
+    }
+
+    /// The duplicate finder: starts looking, on a background thread, for
+    /// files with exactly the same content in Desktop, Documents, Downloads,
+    /// Movies, Music and Pictures. Reads only: files are compared by size,
+    /// then SHA-256. Returns at once; ask `duplicate_search_progress` how it
+    /// is going. Stops and replaces any earlier search, and its copy ids.
+    pub fn start_duplicate_search(&self, mode: Mode) {
+        self.duplicates.start(&self.home, mode);
+    }
+
+    /// Where the duplicate search is, with what it found once finished.
+    pub fn duplicate_search_progress(&self) -> DuplicateSearch {
+        self.duplicates.progress()
+    }
+
+    /// Stops the duplicate search. Safe to call when none is running.
+    pub fn cancel_duplicate_search(&self) {
+        self.duplicates.cancel();
+    }
+
+    /// The duplicate finder's dry run: checks the ticked copies (ids from
+    /// the finished search) exactly as a cleanup would, including that the
+    /// copy that stays is still the same byte for byte, and says what would
+    /// move to the Trash. Moves nothing. The plan it keeps is carried out by
+    /// `run_cleanup` and can be put back with `put_back_cleanup`, like any
+    /// cleanup. Replaces any earlier plan.
+    ///
+    /// Throws `unknown_item` for a copy id not from the latest search,
+    /// `nothing_selected` for no copies, and `cleanup_unavailable` if every
+    /// copy of a file was ticked (one must stay) or no search has finished.
+    pub fn preview_duplicate_cleanup(
+        &self,
+        copy_ids: Vec<String>,
+    ) -> Result<CleanupPreview, CoreError> {
+        *lock(&self.pending_plan) = None;
+        let id = self.next_plan_id.fetch_add(1, Ordering::Relaxed);
+        let guards = self.guards();
+        let prepared = self.duplicates.prepare(
+            &self.home,
+            &copy_ids,
             id,
             &guards,
             std::time::SystemTime::now(),

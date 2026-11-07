@@ -422,6 +422,17 @@ final class MockCoreClient: CoreClient {
                                  reclaimedBytes: freed, savedToHistory: true)
     }
 
+    // MARK: Duplicate finder
+
+    /// How many times the pretend duplicate search has been asked for progress.
+    var duplicateSteps = 0
+    /// The mode of the last pretend duplicate search.
+    var duplicateMode: Mode = .simple
+    /// Whether a duplicate search was started.
+    var duplicatesSearched = false
+    /// Whether the duplicate search was stopped. Tests read it.
+    var duplicatesCancelled = false
+
     // MARK: App uninstaller
 
     /// When true, `previewUninstall` refuses as if the app were open. Tests set it.
@@ -507,6 +518,52 @@ extension MockCoreClient {
         }
         return makePendingPlan(rows)
     }
+
+    /// The pretend duplicate search: one "looking" step, one "comparing" step, then the made-up groups.
+    func startDuplicateSearch(mode: Mode) async {
+        duplicateSteps = 0
+        duplicateMode = mode
+        duplicatesSearched = true
+        duplicatesCancelled = false
+    }
+
+    func duplicateSearchProgress() async -> DuplicateSearch {
+        guard duplicatesSearched else { return .notStarted }
+        if duplicatesCancelled { return .cancelled }
+        duplicateSteps += 1
+        switch duplicateSteps {
+        case 1: return .looking(filesSeen: 1_200)
+        case 2: return .comparing(filesSeen: 4_800, bytesCompared: 1_000_000_000, bytesToCompare: 3_000_000_000)
+        default: return .finished(report: MockData.duplicateReport(mode: duplicateMode))
+        }
+    }
+
+    func cancelDuplicateSearch() async {
+        if duplicatesSearched { duplicatesCancelled = true }
+    }
+
+    /// Pretends every ticked copy would move, as the core does, and refuses a review that ticks every copy
+    /// of a file. Keeps the plan for `runCleanup`. Touches nothing.
+    func previewDuplicateCleanup(copyIds: [String]) async throws -> CleanupPreview {
+        guard duplicatesSearched else {
+            throw CoreError.CleanupUnavailable(reason: "Look for copies first.")
+        }
+        if copyIds.isEmpty { throw CoreError.NothingSelected }
+        let groups = MockData.duplicateReport(mode: duplicateMode).groups
+        var rows: [CleanupPreviewItem] = []
+        for id in copyIds {
+            guard let group = groups.first(where: { $0.copies.contains { $0.copyId == id } }) else {
+                throw CoreError.UnknownItem
+            }
+            if group.copies.allSatisfy({ copyIds.contains($0.copyId) }) {
+                throw CoreError.CleanupUnavailable(
+                    reason: "Keep at least one copy of \u{201c}\(group.name)\u{201d}. Untick one copy, then review again.")
+            }
+            rows.append(CleanupPreviewItem(itemId: id, title: group.name, sizeBytes: group.sizeBytes,
+                                           check: .willMove, path: nil, deviceBackup: nil))
+        }
+        return makePendingPlan(rows)
+    }
 }
 
 /// Made-up numbers shaped like a real Mac with a 256 GB disk.
@@ -586,6 +643,39 @@ enum MockData {
                              newestUnixSeconds: 1_793_957_412)
         return SystemData(snapshots: snapshots, parts: parts,
                           totalBytes: parts.reduce(0) { $0 + $1.sizeBytes })
+    }
+
+    /// Made-up copies for the duplicate finder. Paths only in Developer mode, as the core does.
+    static func duplicateReport(mode: Mode) -> DuplicateReport {
+        func copy(_ id: String, _ name: String, _ location: String, _ rel: String, days: Int64,
+                  bytes: UInt64, sharesSpace: Bool = false) -> DuplicateCopy {
+            DuplicateCopy(copyId: id, name: name, location: location,
+                          modifiedUnixSeconds: 1_760_000_000 - days * 86_400,
+                          freesBytes: sharesSpace ? 0 : bytes, sharesSpace: sharesSpace, canMove: true,
+                          staysReason: nil, path: mode == .developer ? "~/\(rel)" : nil)
+        }
+        let movie: UInt64 = 2_400_000_000
+        let photos: UInt64 = 180_000_000
+        let groups = [
+            DuplicateGroup(groupId: "dupg-1-0", name: "Holiday 2024.mov", sizeBytes: movie, couldFreeBytes: 2 * movie,
+                           copies: [
+                               copy("dup-1-0-0", "Holiday 2024.mov", "Movies", "Movies/Holiday 2024.mov",
+                                    days: 400, bytes: movie),
+                               copy("dup-1-0-1", "Holiday 2024.mov", "Downloads", "Downloads/Holiday 2024.mov",
+                                    days: 30, bytes: movie),
+                               copy("dup-1-0-2", "Holiday 2024 copy.mov", "Desktop", "Desktop/Holiday 2024 copy.mov",
+                                    days: 2, bytes: movie),
+                           ]),
+            DuplicateGroup(groupId: "dupg-1-1", name: "Wedding photos.zip", sizeBytes: photos, couldFreeBytes: 0,
+                           copies: [
+                               copy("dup-1-1-0", "Wedding photos.zip", "Documents \u{203a} Family",
+                                    "Documents/Family/Wedding photos.zip", days: 900, bytes: photos),
+                               copy("dup-1-1-1", "Wedding photos.zip", "Documents \u{203a} Backup",
+                                    "Documents/Backup/Wedding photos.zip", days: 899, bytes: photos, sharesSpace: true),
+                           ]),
+        ]
+        return DuplicateReport(groups: groups, couldFreeBytes: groups.reduce(0) { $0 + $1.couldFreeBytes },
+                               folders: ["Desktop", "Documents", "Downloads", "Movies", "Music", "Pictures"])
     }
 
     /// Made-up apps for the uninstaller. One is in ~/Applications, one is open.

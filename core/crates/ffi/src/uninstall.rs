@@ -227,6 +227,7 @@ pub(crate) fn prepare(
                 selected_individually: true,
                 owners: &[],
                 belongs_to: Some(belongs_to.clone()),
+                keep_copy: None,
             }),
             wont_move: None,
         });

@@ -83,6 +83,7 @@ impl Home {
             selected_individually: true,
             owners,
             belongs_to: None,
+            keep_copy: None,
         }
     }
 

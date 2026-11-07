@@ -726,6 +726,64 @@ same order), `total_bytes: u64` (every row added up).
 
 `npm`, `pnpm`, `yarn`, `bun`.
 
+## Duplicate finder
+
+Finds files with exactly the same content in the user's own folders (PRD E5) and moves the copies
+the user ticks to the Trash. It reuses the cleanup machinery: the dry run makes the same
+single-use plan, `run_cleanup` carries it out, and `put_back_cleanup` and History work as for any
+cleanup. Trash only.
+
+Rules:
+
+1. Swift sends copy ids, never paths. The core searches `~/Desktop`, `~/Documents`,
+   `~/Downloads`, `~/Movies`, `~/Music` and `~/Pictures` only, files of 1 MB or more. It never
+   follows a symlink or leaves the home volume, and skips hidden files and folders, bundles
+   (folders whose name has an extension, such as `.app` or `.photoslibrary`), code projects (a
+   folder holding `.git`), `node_modules`, and files stored only in iCloud.
+2. Copies are matched by content: same length, then the SHA-256 of the first 64 KB, then the
+   SHA-256 of the whole file. Names and dates are never used. Hard links to one file are one file.
+3. Nothing is ticked to begin with. `preview_duplicate_cleanup` refuses (`cleanup_unavailable`)
+   if every copy of a file is ticked, so at least one copy always stays. Each ticked copy names
+   the oldest unticked copy of its file as the one kept.
+4. Just before moving each copy (in the dry run and again in the run), the executor checks the
+   kept copy is still the same file, unchanged, and compares the two byte for byte. If anything is
+   off, the copy stays. The planner also refuses a plan whose kept copy would move.
+5. On macOS, `frees_bytes` is the copy's private size (`ATTR_CMNEXT_PRIVATESIZE`), so an APFS
+   clone (as Finder's Duplicate makes) shows that removing it frees little (`shares_space`).
+6. All the other cleanup checks apply unchanged: every copy counts as chosen on its own (the
+   review-only rule for personal files), plus folders you keep and the recent-change window.
+   A copy the safety rules would never move has `can_move = false` and `stays_reason`.
+7. `location` (the folder, in plain words such as "Documents › Trips") is given in both modes so
+   the user can tell the copies apart. `path` is given in Developer mode only.
+
+### `start_duplicate_search(mode: Mode)`
+Starts the search on a background thread and returns at once. Stops any earlier search; its copy
+ids are refused afterwards.
+
+### `duplicate_search_progress() -> DuplicateSearch`
+`not_started`, `looking { files_seen }`, `comparing { files_seen, bytes_compared,
+bytes_to_compare }`, `finished { report: DuplicateReport }`, `cancelled`, `failed { reason }`.
+
+### `cancel_duplicate_search()`
+Stops the search. Safe to call at any time.
+
+### `preview_duplicate_cleanup(copy_ids: [String]) -> CleanupPreview` throws
+The dry run for the ticked copies. Like `preview_cleanup`; History names each item
+"Copy of <name>". Throws `unknown_item`, `nothing_selected` or `cleanup_unavailable`.
+
+### `DuplicateReport` (record)
+`groups: [DuplicateGroup]` (most space to free first, at most 500), `could_free_bytes: u64`,
+`folders: [String]`.
+
+### `DuplicateGroup` (record)
+`group_id`, `name`, `size_bytes: u64` (one copy), `could_free_bytes: u64`,
+`copies: [DuplicateCopy]` (oldest first).
+
+### `DuplicateCopy` (record)
+`copy_id`, `name`, `location`, `modified_unix_seconds: i64`, `frees_bytes: u64`,
+`shares_space: Bool`, `can_move: Bool`, `stays_reason: String?`, `path: String?` (Developer mode
+only).
+
 ## Testing
 
 The `ffi` crate has a `testing` Cargo feature. With it, and only with it, the core also exports:
