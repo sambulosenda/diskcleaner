@@ -305,6 +305,8 @@
   }
 
   function render() {
+    renderPopover();
+    updateTrash();
     renderSteps();
     renderSidebar();
     renderBar();
@@ -332,7 +334,7 @@
     wireUninstaller();
     var review = $("panel-review");
     if (review) review.addEventListener("click", function () {
-      $("demo").scrollIntoView();
+      $("desktop").scrollIntoView({ block: "center" });
       goToStep("trash");
     });
   }
@@ -431,8 +433,9 @@
     if (!a) return;
     if (a.cat) {
       state.cat = a.cat;
+      openWindow(false);
       if (state.phase === "idle") { render(); startScan(); } else { if (state.phase === "done") state.phase = "results"; render(); }
-      document.getElementById("demo").scrollIntoView();
+      $("desktop").scrollIntoView({ block: "center" });
       toast(a.label + " in the demo above.");
     } else {
       toast("In the app, this runs “" + a.label + "”.");
@@ -458,6 +461,7 @@
   // Clicking a step jumps the demo to that point.
   function goToStep(step) {
     state.touched = true;
+    openWindow(false);
     if (step === "scan") { state.trashed = {}; state.checked = {}; state.cat = "all"; startScan(); return; }
     if (state.phase === "idle" || state.phase === "scanning") { state.phase = "results"; }
     if (step === "read") { if (state.phase === "done") putBack(true); state.checked = {}; render(); return; }
@@ -480,16 +484,107 @@
     render();
   }
 
-  // Start the scan by itself the first time the window comes into view.
-  function autoplay() {
+  // ---- The example desktop in the hero ----
+
+  // Show the Roomy window. The first time, it starts a scan by itself.
+  function openWindow(autoScan) {
     var win = $("window");
-    if (!("IntersectionObserver" in window)) return;
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting && state.phase === "idle" && !state.touched) { io.disconnect(); startScan(); }
-      });
-    }, { threshold: 0.35 });
-    io.observe(win);
+    var wasHidden = win.hidden;
+    win.hidden = false;
+    closePopover();
+    $("notif").hidden = true;
+    if (wasHidden) $("win-close").focus({ preventScroll: true });
+    if (autoScan !== false && state.phase === "idle") startScan();
+  }
+  function closeWindow() {
+    $("window").hidden = true;
+    $("dock-roomy").focus({ preventScroll: true });
+  }
+
+  function openPopover() {
+    $("popover").hidden = false;
+    $("mb-roomy").setAttribute("aria-expanded", "true");
+    $("hint").hidden = true;
+    $("notif").hidden = true;
+    renderPopover();
+  }
+  function closePopover() {
+    $("popover").hidden = true;
+    $("mb-roomy").setAttribute("aria-expanded", "false");
+  }
+
+  // The menu bar panel, as in Roomy: free space, a gauge, and what is ready to free.
+  function renderPopover() {
+    var free = freeGb();
+    $("pop-free").textContent = fmt(free) + " free";
+    $("pop-gauge").style.width = ((DISK_GB - free) / DISK_GB * 100) + "%";
+    var list = $("pop-list");
+    list.textContent = "";
+    var safe = ITEMS.filter(function (i) { return i.tier === "safe" && !state.trashed[i.id]; })
+      .sort(function (x, y) { return y.gb - x.gb; });
+    var changed = { x1: "changed 3 days ago", x2: "changed 5 months ago", d1: "changed 2 weeks ago" };
+    safe.slice(0, 3).forEach(function (i) {
+      list.appendChild(el("div", { class: "pop-row" }, [
+        el("span", { class: "n", text: i.name }), el("span", { class: "s", text: fmt(i.gb) }),
+        el("span", { class: "w", text: "Likely safe" + (changed[i.id] ? " · " + changed[i.id] : "") })
+      ]));
+    });
+    var review = ITEMS.filter(function (i) { return i.tier === "review" && !state.trashed[i.id]; })
+      .sort(function (x, y) { return y.gb - x.gb; })[0];
+    if (review) {
+      list.appendChild(el("div", { class: "pop-row locked" }, [
+        el("span", { class: "n", text: "🔒 " + review.name }), el("span", { class: "s", text: fmt(review.gb) }),
+        el("span", { class: "w", text: "Review first, in Roomy" })
+      ]));
+    }
+    if (!safe.length) list.appendChild(el("div", { class: "pop-row" }, [el("span", { class: "n", text: "Nothing likely safe left." })]));
+  }
+
+  function updateTrash() {
+    var n = Object.keys(state.trashed).length;
+    var badge = $("trash-badge");
+    badge.hidden = n === 0;
+    badge.textContent = String(n);
+    $("dock-trash").setAttribute("aria-label", n ? "Trash, " + n + " items" : "Trash, empty");
+  }
+
+  function wireDesktop() {
+    var mb = $("mb-roomy");
+    mb.addEventListener("click", function (e) {
+      e.stopPropagation();
+      state.touched = true;
+      if ($("popover").hidden) openPopover(); else closePopover();
+    });
+    $("notif").addEventListener("click", function (e) { e.stopPropagation(); state.touched = true; openPopover(); });
+    $("popover").addEventListener("click", function (e) { e.stopPropagation(); });
+    document.addEventListener("click", function () { if (!$("popover").hidden) closePopover(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("popover").hidden) { closePopover(); mb.focus(); } });
+    $("pop-review").addEventListener("click", function () {
+      state.touched = true;
+      openWindow(false);
+      if (state.phase === "idle" || state.phase === "scanning") { state.phase = "results"; }
+      if (state.phase === "done") state.phase = "results";
+      state.cat = "all";
+      ITEMS.forEach(function (i) { if (i.tier === "safe" && !state.trashed[i.id] && inMode(i)) state.checked[i.id] = true; });
+      render();
+    });
+    $("pop-scan").addEventListener("click", function () { state.touched = true; openWindow(false); startScan(); });
+    $("win-close").addEventListener("click", closeWindow);
+    $("dock-roomy").addEventListener("click", function () { state.touched = true; openWindow(); });
+    $("dock-trash").addEventListener("click", function () {
+      if (Object.keys(state.trashed).length) { openWindow(false); if (state.phase !== "done") { state.phase = "done"; render(); } }
+      else toast("The Trash is empty.");
+    });
+    // Live clock in the menu bar.
+    function tick() {
+      var d = new Date();
+      var day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+      $("mb-clock").textContent = day + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    }
+    tick();
+    setInterval(tick, 30000);
+    // The low-space note slides in shortly after the page opens.
+    setTimeout(function () { if (!state.touched && $("popover").hidden && $("window").hidden) $("notif").hidden = false; }, 900);
   }
 
   function start() {
@@ -500,7 +595,7 @@
     Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) {
       b.addEventListener("click", function () { setMode(b.dataset.mode); });
     });
-    autoplay();
+    wireDesktop();
     wireFeatures();
     $("quick-select").addEventListener("click", quickSelect);
     $("review-btn").addEventListener("click", openSheet);

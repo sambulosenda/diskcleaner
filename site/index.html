@@ -29,21 +29,83 @@
 
 <main id="top">
 
-  <section class="hero">
-    <div class="wrap hero-copy">
-      <p class="eyebrow">Storage for Mac, explained</p>
-      <h1>Make <span class="room">room</span> on your Mac.</h1>
-      <p class="lede">Roomy shows what is filling your disk, says what each thing is in plain words, and moves only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#demo">Try it on an example Mac</a>
-        <a class="btn btn-ghost" href="#download">Get Roomy</a>
-      </div>
-      <p class="hero-note">The demo below uses example files. It never looks at your Mac.</p>
-    </div>
-  </section>
-
-  <section class="demo" id="demo" aria-label="Roomy demo">
+  <section class="hero" id="demo">
     <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow">Storage for Mac, explained</p>
+        <h1>Make <span class="room">room</span> on your Mac.</h1>
+        <p class="lede">Roomy shows what is filling your disk, says what each thing is in plain words, and moves only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.</p>
+        <p class="hero-note">Try it on the example Mac below: click Roomy in the menu bar. Nothing here looks at your own Mac. <a href="#developers">Skip the demo</a></p>
+      </div>
+
+      <div class="desktop" id="desktop">
+        <div class="menubar">
+          <div class="mb-left"><strong>Finder</strong><span>File</span><span>Edit</span><span>View</span><span class="mb-hide">Go</span><span class="mb-hide">Window</span><span class="mb-hide">Help</span></div>
+          <div class="mb-right">
+            <button type="button" class="mb-roomy" id="mb-roomy" aria-expanded="false" aria-controls="popover" aria-label="Open Roomy in the menu bar"><img src="icon.svg" alt="" width="18" height="18"></button>
+            <span id="mb-clock">Sat 11:40</span>
+          </div>
+        </div>
+
+        <div class="hint" id="hint" aria-hidden="true">Click here</div>
+
+        <button type="button" class="notif" id="notif" hidden>
+          <img src="icon.svg" alt="" width="34" height="34">
+          <span><strong>Your Mac is almost full</strong><br>16.4 GB left. Roomy found 57.6 GB you can likely free.</span>
+        </button>
+
+        <div class="popover" id="popover" hidden>
+          <div class="pop-head"><span>Macintosh HD</span><span id="pop-free">16.4 GB free</span></div>
+          <div class="gauge"><span id="pop-gauge"></span></div>
+          <p class="pop-label">Ready to free</p>
+          <div class="pop-list" id="pop-list"></div>
+          <div class="pop-actions">
+            <button type="button" class="btn btn-primary btn-small" id="pop-review">Review in Roomy…</button>
+            <button type="button" class="btn btn-ghost btn-small" id="pop-scan">Scan Now…</button>
+          </div>
+        </div>
+
+        <div class="window" id="window" hidden role="dialog" aria-label="Roomy window">
+          <div class="titlebar">
+            <div class="lights"><button type="button" id="win-close" aria-label="Close the Roomy window"></button><span aria-hidden="true"></span><span aria-hidden="true"></span></div>
+            <span>Roomy</span>
+            <div class="modes" role="group" aria-label="Mode">
+              <button type="button" data-mode="simple" aria-pressed="false">Simple</button>
+              <button type="button" data-mode="developer" aria-pressed="true">Developer</button>
+            </div>
+            <span class="example-tag">Example Mac · 512 GB</span>
+          </div>
+          <div class="window-body">
+            <nav class="sidebar" id="sidebar" aria-label="Demo categories"></nav>
+            <div class="main" id="main">
+              <div class="disk-head">
+                <div><span class="free" id="free-label">16.4 GB free</span> <span class="of">of 512 GB</span></div>
+                <span class="of" id="disk-note">Macintosh HD</span>
+              </div>
+              <div class="diskbar" id="diskbar" role="img" aria-label="Disk usage by category"></div>
+              <div class="legend" id="legend"></div>
+              <div id="stage"></div>
+            </div>
+          </div>
+          <div class="bottombar" id="bottombar" hidden>
+            <span class="chosen" id="chosen"><strong>0 chosen</strong></span>
+            <div class="actions">
+              <button class="btn btn-ghost btn-small" id="quick-select" type="button">Tick all Likely safe</button>
+              <button class="btn btn-primary btn-small" id="review-btn" type="button" disabled>Review</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dock" aria-label="Dock">
+          <button type="button" id="dock-roomy" aria-label="Open Roomy"><img src="icon.svg" alt="" width="44" height="44"></button>
+          <span class="dock-sep" aria-hidden="true"></span>
+          <button type="button" id="dock-trash" aria-label="Trash">
+            <svg viewBox="0 0 44 44" width="44" height="44" aria-hidden="true"><rect x="9" y="9" width="26" height="4" rx="2" class="t-lid"/><path d="M12 15h20l-2 22a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3z" class="t-can"/><path d="M18 20v14M22 20v14M26 20v14" class="t-line"/></svg>
+            <span class="badge" id="trash-badge" hidden></span>
+          </button>
+        </div>
+      </div>
+
       <ol class="steps" id="steps">
         <li data-step="scan"><button type="button">Scan</button></li>
         <li data-step="read"><button type="button">Read what each item is</button></li>
@@ -51,37 +113,6 @@
         <li data-step="trash"><button type="button">Trash, with Put back</button></li>
       </ol>
       <p class="step-caption" id="step-caption" aria-live="polite">Roomy reads the disk. Scanning never changes a file.</p>
-
-      <div class="window" id="window">
-        <div class="titlebar">
-          <div class="lights" aria-hidden="true"><span></span><span></span><span></span></div>
-          <span>Roomy</span>
-          <div class="modes" role="group" aria-label="Mode">
-            <button type="button" data-mode="simple" aria-pressed="false">Simple</button>
-            <button type="button" data-mode="developer" aria-pressed="true">Developer</button>
-          </div>
-          <span class="example-tag">Example Mac · 512 GB</span>
-        </div>
-        <div class="window-body">
-          <nav class="sidebar" id="sidebar" aria-label="Demo categories"></nav>
-          <div class="main" id="main">
-            <div class="disk-head">
-              <div><span class="free" id="free-label">16.4 GB free</span> <span class="of">of 512 GB</span></div>
-              <span class="of" id="disk-note">Macintosh HD</span>
-            </div>
-            <div class="diskbar" id="diskbar" role="img" aria-label="Disk usage by category"></div>
-            <div class="legend" id="legend"></div>
-            <div id="stage"></div>
-          </div>
-        </div>
-        <div class="bottombar" id="bottombar" hidden>
-          <span class="chosen" id="chosen"><strong>0 chosen</strong></span>
-          <div class="actions">
-            <button class="btn btn-ghost btn-small" id="quick-select" type="button">Tick all Likely safe</button>
-            <button class="btn btn-primary btn-small" id="review-btn" type="button" disabled>Review</button>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -129,8 +160,8 @@
             <div class="gauge" aria-hidden="true"><span id="panel-gauge"></span></div>
             <label class="slider-label" for="free-slider">Free space</label>
             <input type="range" id="free-slider" min="2" max="60" step="0.1" value="16.4">
-            <div class="notice" id="lowspace-note" hidden><strong>Your Mac is almost full.</strong> Roomy found 54.4 GB you can likely free.</div>
-            <div><span class="r">You can likely free</span><div class="big">54.4 GB</div></div>
+            <div class="notice" id="lowspace-note" hidden><strong>Your Mac is almost full.</strong> Roomy found 57.6 GB you can likely free.</div>
+            <div><span class="r">You can likely free</span><div class="big">57.6 GB</div></div>
             <button class="btn btn-primary btn-small" type="button" id="panel-review">Review in Roomy…</button>
           </div>
         </article>
