@@ -225,10 +225,12 @@ private struct GrantedNote: View {
 }
 
 /// "What wasn't scanned": the private areas Roomy couldn't read, with a way to turn on Full Disk Access.
-/// Shown on the Overview when some folders couldn't be read and access is not on.
+/// Shown from the Overview footer's "Why?" when some folders couldn't be read and access is not on.
 struct UnscannedAreasBox: View {
     @EnvironmentObject private var model: AppModel
     let overview: Overview
+    /// In a popover the box drops its own background and border.
+    var inPopover = false
     /// How many areas show before "and more".
     static let shownAreas = 5
 
@@ -270,8 +272,10 @@ struct UnscannedAreasBox: View {
             }
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: .separatorColor)))
+        .background(RoundedRectangle(cornerRadius: 10)
+            .fill(inPopover ? Color.clear : Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .strokeBorder(inPopover ? Color.clear : Color(nsColor: .separatorColor)))
     }
 
     /// "Roomy couldn't open 212 folders, most often because macOS keeps them private. …"
