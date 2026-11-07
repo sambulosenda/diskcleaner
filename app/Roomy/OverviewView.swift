@@ -108,7 +108,7 @@ struct DiskBar: View {
                 ForEach(Self.labelled(overview)) { part in
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(part.kind == .outsideHome ? Color.secondary.opacity(0.4) : part.color)
+                            .fill(part.swatch)
                             .frame(width: 8, height: 8)
                             .accessibilityHidden(true)
                         Text("\(part.title) \(Format.bytes(part.bytes))")
@@ -162,16 +162,22 @@ struct ReadyToCleanCard: View {
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 10)], spacing: 10) {
                 ForEach(Self.tiles(overview), id: \.category) { entry in
+                    // Name above size, so a long name never wraps and every tile is the same height.
                     HStack(spacing: 10) {
                         CategoryIcon(category: entry.category)
-                        Text(entry.category.title)
-                        Spacer(minLength: 8)
-                        Text(Format.bytes(entry.likelySafeBytes))
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(entry.category.title)
+                                .lineLimit(1)
+                            Text(Format.bytes(entry.likelySafeBytes))
+                                .font(.callout)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 9)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
                     .accessibilityElement(children: .combine)
                 }
@@ -262,8 +268,9 @@ struct WorthALookList: View {
     }
 }
 
-/// Icon, title, distinguishing name or count, size and a chevron. The explanation is the tooltip and
-/// the VoiceOver hint, so the row stays one line.
+/// Icon, title with its distinguishing name or count, the one-line explanation underneath, size and a
+/// chevron. The explanation is always visible: in simple mode a name and a size alone don't say what
+/// something is.
 struct WorthALookRow: View {
     @EnvironmentObject private var model: AppModel
     let group: ItemGroup
@@ -274,14 +281,20 @@ struct WorthALookRow: View {
         } label: {
             HStack(spacing: 12) {
                 CategoryIcon(category: group.category)
-                HStack(spacing: 4) {
-                    Text(group.title)
-                    if let detail = group.detail {
-                        Text("\u{00B7} \(detail)")
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(group.title)
+                        if let detail = group.detail {
+                            Text("\u{00B7} \(detail)")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
                     }
+                    Text(group.items[0].explain)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer(minLength: 12)
                 Text(Format.bytes(group.bytes))
@@ -297,7 +310,7 @@ struct WorthALookRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(group.items[0].explain)
+        .help(group.items[0].explain) // The full text, when the line above is cut short.
         .accessibilityLabel(accessibleLabel)
         .accessibilityHint(group.items[0].explain)
     }
