@@ -93,7 +93,7 @@ final class MockCoreClient: CoreClient {
         }
         if scenario == .failure && step >= totalSteps / 2 {
             return ScanProgress(bytesSeen: seen, itemsSeen: items,
-                                phase: .failed(reason: "Roomy could not read your home folder."))
+                                phase: .failed(reason: "\(AppInfo.name) could not read your home folder."))
         }
         steps[handle] = min(step + 1, totalSteps)
         if step >= totalSteps {
@@ -116,7 +116,7 @@ final class MockCoreClient: CoreClient {
     func overview(handle: ScanHandle) async throws -> Overview {
         guard let step = steps[handle] else { throw CoreError.UnknownScan }
         if cancelled.contains(handle) { throw CoreError.ScanCancelled }
-        if scenario == .failure { throw CoreError.ScanFailed(reason: "Roomy could not read your home folder.") }
+        if scenario == .failure { throw CoreError.ScanFailed(reason: "\(AppInfo.name) could not read your home folder.") }
         guard step >= totalSteps else { throw CoreError.ScanNotFinished }
         if !finishedScans.contains(handle) { finishedScans.append(handle) }
         return MockData.overview(for: scenario)
@@ -438,7 +438,7 @@ final class MockCoreClient: CoreClient {
             command = "sdkmanager --uninstall \(package)"
             freed = item.sizeBytes
         } else if package != nil {
-            throw CoreError.ToolUnavailable(reason: "Roomy refused to run this command.")
+            throw CoreError.ToolUnavailable(reason: "\(AppInfo.name) refused to run this command.")
         }
         toolRuns.append(command)
         return ToolCleanupResult(kind: preview.kind, commandLine: command, success: true,
@@ -599,18 +599,18 @@ enum MockData {
                         "Google Play, for Apple silicon Macs", 6_800_000_000, .used(by: ["Pixel 7"]), "Used by Pixel 7",
                         "~/Library/Android/sdk/system-images/android-34/google_apis_playstore/arm64-v8a"),
             androidPart("android-1-1", .systemImage, "Android 11 (API 30) emulator image",
-                        "Google APIs, for Intel Macs", 4_200_000_000, .notUsed, "No emulator Roomy found uses this",
+                        "Google APIs, for Intel Macs", 4_200_000_000, .notUsed, "No emulator \(AppInfo.name) found uses this",
                         "~/Library/Android/sdk/system-images/android-30/google_apis/x86_64"),
             androidPart("android-1-2", .emulator, "Pixel 7", "Runs Android 14 (API 34)", 3_100_000_000,
                         .notApplicable, "", "~/.android/avd/Pixel_7.avd", lastUsed: 1_790_000_000),
             androidPart("android-1-3", .platform, "Android 14 (API 34) SDK platform", nil, 160_000_000,
                         .used(by: ["Shop"]), "Used by Shop", "~/Library/Android/sdk/platforms/android-34"),
             androidPart("android-1-4", .buildTools, "Build tools 30.0.3", nil, 140_000_000, .notUsed,
-                        "No project Roomy found uses this", "~/Library/Android/sdk/build-tools/30.0.3"),
+                        "No project \(AppInfo.name) found uses this", "~/Library/Android/sdk/build-tools/30.0.3"),
             androidPart("android-1-5", .ndk, "NDK 21.4.7075529", nil, 2_400_000_000, .notUsed,
-                        "No project Roomy found uses this", "~/Library/Android/sdk/ndk/21.4.7075529"),
+                        "No project \(AppInfo.name) found uses this", "~/Library/Android/sdk/ndk/21.4.7075529"),
             androidPart("android-1-6", .gradleVersion, "Gradle 7.2", "With its documentation and source",
-                        310_000_000, .notUsed, "No project Roomy found uses this",
+                        310_000_000, .notUsed, "No project \(AppInfo.name) found uses this",
                         "~/.gradle/wrapper/dists/gradle-7.2-all"),
             androidPart("android-1-7", .gradleCache, "Gradle cache", nil, 5_600_000_000, .notApplicable,
                         "Shared by every Gradle project", "~/.gradle/caches"),
@@ -659,7 +659,7 @@ enum MockData {
             part(.sleepImage, [place("sleep_image", .system, 1_073_741_824, "/private/var/vm/sleepimage")]),
         ]
         let snapshots = snapshotsUnavailable
-            ? LocalSnapshots(status: .unavailable(reason: "Roomy couldn't ask Time Machine on this Mac."),
+            ? LocalSnapshots(status: .unavailable(reason: "\(AppInfo.name) couldn't ask Time Machine on this Mac."),
                              count: 0, oldestUnixSeconds: nil, newestUnixSeconds: nil)
             // 4 Nov 2026 08:00 and 6 Nov 2026 09:30:12, as the core reads snapshot names.
             : LocalSnapshots(status: .listed, count: 3, oldestUnixSeconds: 1_793_779_200,
@@ -730,7 +730,7 @@ enum MockData {
                     sizeBytes: 640_000_000, preselected: false, sure: true,
                     path: "~/Library/Application Support/\(app.bundleId)"),
             AppPart(itemId: "part-2", title: "Logs",
-                    explain: "Records the app kept of what it did. Roomy matched it by a similar name, so check it belongs to this app.",
+                    explain: "Records the app kept of what it did. \(AppInfo.name) matched it by a similar name, so check it belongs to this app.",
                     sizeBytes: 12_000_000, preselected: false, sure: false, path: "~/Library/Logs/\(app.name)"),
             AppPart(itemId: "part-3", title: "Settings", explain: "The app's settings and preferences.",
                     sizeBytes: 40_960, preselected: true, sure: true, path: "~/Library/Preferences/\(app.bundleId).plist"),
@@ -891,7 +891,7 @@ enum MockData {
             title: item.title,
             explain: item.explain,
             risk: item.tier == .keep
-                ? "These are your own files, so Roomy does not offer to remove them."
+                ? "These are your own files, so \(AppInfo.name) does not offer to remove them."
                 : "You may need to download or rebuild it again later.",
             restore: regenerable ? "It comes back by itself when it is needed." : nil,
             ruleId: "mock.\(item.id)",

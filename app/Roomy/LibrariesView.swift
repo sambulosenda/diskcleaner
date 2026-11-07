@@ -36,7 +36,7 @@ final class LibrariesModel: ObservableObject {
         do {
             phase = .loaded(try await client.libraries(handle: handle))
         } catch {
-            phase = .failed("Roomy couldn't measure your libraries. Please scan again.")
+            phase = .failed("\(AppInfo.name) couldn't measure your libraries. Please scan again.")
         }
     }
 
@@ -193,7 +193,7 @@ private struct LibrariesContent: View {
             switch libraries.phase {
             case .noScan:
                 CenteredMessage(symbol: "photo.on.rectangle", title: "Scan to see your libraries",
-                                message: "Roomy measures Photos, Mail, Music and Messages as part of a scan. Nothing is removed.") {
+                                message: "\(AppInfo.name) measures Photos, Mail, Music and Messages as part of a scan. Nothing is removed.") {
                     Button("Scan") { model.startScan() }
                         .keyboardShortcut(.defaultAction)
                         .disabled(model.isScanning)
@@ -202,7 +202,7 @@ private struct LibrariesContent: View {
                 ProgressView("Measuring\u{2026}")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
-                CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't measure your libraries",
+                CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't measure your libraries",
                                 message: message) {
                     Button("Scan again") { model.startScan() }
                 }
@@ -222,13 +222,13 @@ private struct LibrariesList: View {
     var body: some View {
         if rows.isEmpty {
             CenteredMessage(symbol: "photo.on.rectangle", title: "No libraries found",
-                            message: "Roomy didn't find Photos, Music, Mail or Messages files in your home folder.") {
+                            message: "\(AppInfo.name) didn't find Photos, Music, Mail or Messages files in your home folder.") {
                 EmptyView()
             }
         } else {
             Form {
                 Section {
-                    Text("These belong to the apps that manage them, so Roomy doesn't remove anything inside them. Use each app's own tools, and nothing you need is lost.")
+                    Text("These belong to the apps that manage them, so \(AppInfo.name) doesn't remove anything inside them. Use each app's own tools, and nothing you need is lost.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -240,7 +240,7 @@ private struct LibrariesList: View {
                 if rows.contains(where: \.needsAccess) {
                     Section {
                         HStack {
-                            Text("Some of these are private to macOS. Turn on Full Disk Access so Roomy can measure them.")
+                            Text("Some of these are private to macOS. Turn on Full Disk Access so \(AppInfo.name) can measure them.")
                                 .font(.callout)
                             Spacer()
                             Button("Full Disk Access\u{2026}") { model.showAccessOnboarding() }
@@ -293,6 +293,6 @@ private struct LibraryRow: View {
     private var accessNote: String {
         row.found
             ? "Some of it couldn't be read, so it may be larger."
-            : "Roomy couldn't read this without Full Disk Access."
+            : "\(AppInfo.name) couldn't read this without Full Disk Access."
     }
 }

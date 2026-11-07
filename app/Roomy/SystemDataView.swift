@@ -67,7 +67,7 @@ enum SystemDataText {
     static func advice(_ kind: SystemDataKind) -> String {
         switch kind {
         case .caches:
-            return "Your apps' caches are in Apps and caches, where you can review them. Shared caches belong to macOS, so Roomy leaves them alone."
+            return "Your apps' caches are in Apps and caches, where you can review them. Shared caches belong to macOS, so \(AppInfo.name) leaves them alone."
         case .logs:
             return "macOS trims its own logs. Your apps' logs are in Items to clean."
         case .softwareUpdates:
@@ -219,7 +219,7 @@ private struct SystemDataHost: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Roomy measured \(Format.bytes(systemData.totalBytes)) of System Data")
+                    Text("\(AppInfo.name) measured \(Format.bytes(systemData.totalBytes)) of System Data")
                         .font(.title3.weight(.semibold))
                     Text("macOS counts more than this as System Data, such as app data in your Library folder and space macOS keeps for itself, so the two numbers won't match. Nothing on this page is removed.")
                         .font(.callout)
@@ -303,7 +303,7 @@ private struct PartRow: View {
             Text(SystemDataText.advice(part.kind)).font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
             if part.partlyUnreadable {
-                Text("Roomy couldn't read all of it, so it may be larger.")
+                Text("\(AppInfo.name) couldn't read all of it, so it may be larger.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             HStack {

@@ -26,7 +26,7 @@ final class DuplicatesModel: ObservableObject {
     }
 
     /// Shown when the core hasn't started looking, which only happens if something went wrong.
-    static let couldNotStart = "Roomy couldn't start looking for copies. Please try again."
+    static let couldNotStart = "\(AppInfo.name) couldn't start looking for copies. Please try again."
 
     @Published private(set) var state: State = .idle
     /// The ticked copies. Empty to begin with.
@@ -256,9 +256,9 @@ struct DuplicatesContent: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Files with exactly the same content in Desktop, Documents, Downloads, Movies, Music and Pictures. Roomy compares what is inside each file, not its name.")
+                Text("Files with exactly the same content in Desktop, Documents, Downloads, Movies, Music and Pictures. \(AppInfo.name) compares what is inside each file, not its name.")
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Nothing is chosen for you, and Roomy always keeps at least one copy.")
+                Text("Nothing is chosen for you, and \(AppInfo.name) always keeps at least one copy.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -281,7 +281,7 @@ struct DuplicatesContent: View {
         switch duplicates.state {
         case .idle:
             CenteredMessage(symbol: "doc.on.doc", title: "Find copies of your files",
-                            message: "Roomy reads your files to compare them, which can take a few minutes. Nothing is moved.") {
+                            message: "\(AppInfo.name) reads your files to compare them, which can take a few minutes. Nothing is moved.") {
                 Button("Look for copies") { duplicates.startSearch() }
                     .buttonStyle(.borderedProminent)
             }
@@ -289,18 +289,18 @@ struct DuplicatesContent: View {
             DuplicateSearchProgressView(progress: progress)
         case .cancelled:
             CenteredMessage(symbol: "stop.circle", title: "Stopped",
-                            message: "Roomy stopped looking for copies.") {
+                            message: "\(AppInfo.name) stopped looking for copies.") {
                 Button("Look again") { duplicates.startSearch() }
             }
         case .failed(let message):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't look for copies",
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't look for copies",
                             message: message) {
                 Button("Look again") { duplicates.startSearch() }
             }
         case .finished(let report):
             if report.groups.isEmpty {
                 CenteredMessage(symbol: "checkmark.circle", title: "No copies found",
-                                message: "Roomy didn't find two files with the same content of 1 MB or more.") {
+                                message: "\(AppInfo.name) didn't find two files with the same content of 1 MB or more.") {
                     EmptyView()
                 }
             } else {
@@ -467,8 +467,8 @@ struct DuplicateCopyRow: View {
     }
 
     private var helpText: String {
-        if !copy.canMove { return "Roomy can't move this copy." }
-        if !duplicates.canCheck(copy, in: group) { return "Roomy keeps at least one copy of each file." }
+        if !copy.canMove { return "\(AppInfo.name) can't move this copy." }
+        if !duplicates.canCheck(copy, in: group) { return "\(AppInfo.name) keeps at least one copy of each file." }
         return "Choose this copy to review it for removal."
     }
 }

@@ -117,7 +117,7 @@ enum MenuBarPanelContent {
     /// The main button's title for `count` ticked rows.
     static func reviewButtonTitle(count: Int) -> String {
         switch count {
-        case 0: return "Open Roomy"
+        case 0: return "Open \(AppInfo.name)"
         case 1: return "Review 1 item\u{2026}"
         default: return "Review \(count) items\u{2026}"
         }
@@ -283,11 +283,11 @@ private struct PanelHeader: View {
                 .font(.headline)
             Spacer()
             Menu {
-                Button("Open Roomy") { monitor.showRoomy() }
+                Button("Open \(AppInfo.name)") { monitor.showRoomy() }
                 Button("Check Free Space Again") { Task { await monitor.refresh() } }
                 Divider()
                 PanelSettingsButton()
-                Button("Quit Roomy") { NSApp.terminate(nil) }
+                Button("Quit \(AppInfo.name)") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -553,7 +553,7 @@ private struct GroupRow: View {
             if isOpen {
                 VStack(alignment: .leading, spacing: 0) {
                     if panel.checkFailed.contains(group.category) {
-                        Text("Roomy couldn\u{2019}t check these just now. The review checks them again.")
+                        Text("\(AppInfo.name) couldn\u{2019}t check these just now. The review checks them again.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.vertical, 4)
@@ -563,7 +563,7 @@ private struct GroupRow: View {
                                      isChecking: panel.checking.contains(group.category), model: model)
                     }
                     if group.hiddenCount > 0 {
-                        Button("\(group.hiddenCount) more in Roomy\u{2026}") {
+                        Button("\(group.hiddenCount) more in \(AppInfo.name)\u{2026}") {
                             // Cleanup lists every item the scan found.
                             model.selection = .cleanup
                             openRoomy()
@@ -698,7 +698,7 @@ private struct PanelFooter: View {
             }
             .buttonStyle(.borderedProminent)
         case .scanning:
-            Button("Open Roomy") { monitor.showRoomy() }
+            Button("Open \(AppInfo.name)") { monitor.showRoomy() }
         case .loaded:
             let count = model.checkedItemIDs.count
             Button(MenuBarPanelContent.reviewButtonTitle(count: count)) {
@@ -710,7 +710,7 @@ private struct PanelFooter: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
-            .help(count > 0 ? "Opens Roomy to check them. Nothing is removed until you confirm." : "")
+            .help(count > 0 ? "Opens \(AppInfo.name) to check them. Nothing is removed until you confirm." : "")
         }
     }
 }

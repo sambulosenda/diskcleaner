@@ -119,7 +119,7 @@ final class RustCoreClientTests: XCTestCase {
         model.startScan()
         await model.waitForScan()
         guard case .failed(let message) = model.scanState else { return XCTFail("\(model.scanState)") }
-        XCTAssertEqual(message, "Roomy couldn't find your home folder.")
+        XCTAssertEqual(message, "Diskwell couldn't find your home folder.")
     }
 }
 

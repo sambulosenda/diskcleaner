@@ -57,7 +57,7 @@ struct MenuBarScanSummary: Equatable {
             return MenuBarScanSummary(
                 headline: OverviewHeadline.headline(for: overview),
                 detail: "Scanned \(Format.relative(scannedAt, now: now))",
-                buttonTitle: "Review in Roomy\u{2026}", action: .review
+                buttonTitle: "Review in \(AppInfo.name)\u{2026}", action: .review
             )
         }
     }
@@ -94,13 +94,13 @@ struct LowSpaceSettingsSection: View {
             }
             .disabled(!monitor.alertsEnabled)
             .fixedSize()
-            Text("Roomy only tells you. It never removes anything by itself.")
+            Text("\(AppInfo.name) only tells you. It never removes anything by itself.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if monitor.notificationsDenied {
                 HStack {
-                    Text("Notifications are off for Roomy.")
+                    Text("Notifications are off for \(AppInfo.name).")
                         .font(.callout)
                     Button("Open Notification Settings…") { openNotificationSettings() }
                 }

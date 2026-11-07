@@ -97,7 +97,7 @@ struct ItemListBody: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Loading items")
         case .failed(let message):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't list these", message: message) {
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't list these", message: message) {
                 Button("Scan again") { model.startScan() }
             }
         case .loaded:
@@ -122,7 +122,7 @@ struct ItemListBody: View {
     }
 
     private var emptyMessage: String {
-        model.tierFilter == nil ? "Roomy didn't find anything for this section." : "Try showing everything."
+        model.tierFilter == nil ? "\(AppInfo.name) didn't find anything for this section." : "Try showing everything."
     }
 }
 

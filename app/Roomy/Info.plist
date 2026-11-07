@@ -10,6 +10,12 @@
 -->
 <plist version="1.0">
 <dict>
+	<!-- The name macOS shows: menu bar, Dock, Finder and the Full Disk Access list. Matches AppInfo.name.
+	     The bundle id, executable and Application Support folder keep the Roomy name on purpose. -->
+	<key>CFBundleDisplayName</key>
+	<string>Diskwell</string>
+	<key>CFBundleName</key>
+	<string>Diskwell</string>
 	<key>SUFeedURL</key>
 	<string>$(ROOMY_SPARKLE_FEED_URL)</string>
 	<key>SUPublicEDKey</key>

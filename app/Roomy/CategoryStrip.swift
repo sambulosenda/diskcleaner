@@ -115,9 +115,9 @@ struct DiskPart: Identifiable, Equatable {
         switch kind {
         case .category: return nil
         case .otherFiles:
-            return "Files and folders in your home folder that Roomy doesn't recognise yet, such as your own documents and projects. Roomy leaves them alone."
+            return "Files and folders in your home folder that \(AppInfo.name) doesn't recognise yet, such as your own documents and projects. \(AppInfo.name) leaves them alone."
         case .outsideHome:
-            return "Apps, macOS itself, other people's accounts on this Mac and System Data. Roomy doesn't clean these. System Data has its own screen."
+            return "Apps, macOS itself, other people's accounts on this Mac and System Data. \(AppInfo.name) doesn't clean these. System Data has its own screen."
         case .free: return nil
         }
     }

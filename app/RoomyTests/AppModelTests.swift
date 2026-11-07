@@ -155,8 +155,8 @@ final class AppModelTests: XCTestCase {
     }
 
     func testCoreErrorsBecomePlainWords() {
-        XCTAssertEqual(AppModel.message(for: CoreError.ScanFailed(reason: "Roomy could not read your home folder.")),
-                       "Roomy could not read your home folder.")
+        XCTAssertEqual(AppModel.message(for: CoreError.ScanFailed(reason: "Diskwell could not read your home folder.")),
+                       "Diskwell could not read your home folder.")
         XCTAssertFalse(AppModel.message(for: CoreError.UnknownScan).contains("UnknownScan"))
     }
 
@@ -470,8 +470,8 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(rows.last?.area, .other)
         XCTAssertEqual(rows.filter { $0.area == .other }.count, 1)
         XCTAssertEqual(UnscannedAreasBox.rows(for: Array(areas.prefix(2))), Array(areas.prefix(2)))
-        XCTAssertTrue(UnscannedAreasBox.summary(for: 212).hasPrefix("Roomy couldn't open 212 folders"))
-        XCTAssertTrue(UnscannedAreasBox.summary(for: 1).hasPrefix("Roomy couldn't open 1 folder,"))
+        XCTAssertTrue(UnscannedAreasBox.summary(for: 212).hasPrefix("Diskwell couldn't open 212 folders"))
+        XCTAssertTrue(UnscannedAreasBox.summary(for: 1).hasPrefix("Diskwell couldn't open 1 folder,"))
     }
 
     func testRevealStaysInsideHome() {
@@ -549,8 +549,8 @@ final class AppModelTests: XCTestCase {
     }
 
     func testCleanupErrorsAreInPlainWords() {
-        XCTAssertEqual(AppModel.cleanupMessage(for: CoreError.CleanupUnavailable(reason: "Roomy couldn't open your Trash, so nothing can be moved.")),
-                       "Roomy couldn't open your Trash, so nothing can be moved.")
+        XCTAssertEqual(AppModel.cleanupMessage(for: CoreError.CleanupUnavailable(reason: "Diskwell couldn't open your Trash, so nothing can be moved.")),
+                       "Diskwell couldn't open your Trash, so nothing can be moved.")
         XCTAssertFalse(AppModel.cleanupMessage(for: CoreError.UnknownItem).isEmpty)
         XCTAssertFalse(AppModel.cleanupMessage(for: CancellationError()).isEmpty)
     }
@@ -682,7 +682,7 @@ final class AppModelTests: XCTestCase {
         model.closeCleanupReview()
         await model.waitForScan()
         let mock = try XCTUnwrap(model.client as? MockCoreClient)
-        mock.nextPutBackError = .CleanupUnavailable(reason: "Roomy couldn't open your Trash.")
+        mock.nextPutBackError = .CleanupUnavailable(reason: "Diskwell couldn't open your Trash.")
         model.putBack()
         await model.waitForCleanupCheck()
         XCTAssertNotNil(model.historyMessage, "History says why")
@@ -853,7 +853,7 @@ final class AppModelTests: XCTestCase {
     }
 
     func testUnknownAppErrorReadsPlainly() {
-        XCTAssertEqual(AppModel.message(for: CoreError.UnknownApp), "Roomy lost track of this app. Please look again.")
+        XCTAssertEqual(AppModel.message(for: CoreError.UnknownApp), "Diskwell lost track of this app. Please look again.")
     }
 
     // MARK: - Android
@@ -927,7 +927,7 @@ final class AppModelTests: XCTestCase {
 
     func testAStaleAndroidIdReadsPlainly() {
         XCTAssertEqual(AppModel.androidMessage(for: CoreError.UnknownItem),
-                       "Some of these are no longer where Roomy last looked. Please look again.")
+                       "Some of these are no longer where Diskwell last looked. Please look again.")
     }
 
     // MARK: - JavaScript

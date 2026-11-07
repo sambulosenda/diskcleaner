@@ -100,7 +100,7 @@ struct JavaScriptListBody: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Loading JavaScript projects")
         case .failed(let message):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't list these", message: message) {
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't list these", message: message) {
                 Button("Scan again") { model.startScan() }
             }
         case .loaded:
@@ -141,7 +141,7 @@ struct JavaScriptListBody: View {
 
     private var emptyMessage: String {
         model.searchText.isEmpty
-            ? "Roomy looks for node_modules in projects, Developer, code, dev, src, repos, GitHub, Documents and folders in your home folder."
+            ? "\(AppInfo.name) looks for node_modules in projects, Developer, code, dev, src, repos, GitHub, Documents and folders in your home folder."
             : "Try a different search."
     }
 }
@@ -231,7 +231,7 @@ enum JavaScriptText {
         case .git: text = "The date is the project's last commit, staged change or branch switch."
         case .lockFile: text = "The date is when the project's packages last changed."
         case .manifest: text = "The date is when package.json last changed."
-        case nil: text = "Roomy couldn't find package.json, a lock file or git in this project."
+        case nil: text = "\(AppInfo.name) couldn't find package.json, a lock file or git in this project."
         }
         if let command = project.installCommand {
             text += " To get the packages back, run \(command) in the project folder."

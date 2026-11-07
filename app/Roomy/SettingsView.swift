@@ -25,9 +25,9 @@ struct SettingsView: View {
             FullDiskAccessSetting()
                 .padding(.top, 8)
 
-            Toggle("Scan when Roomy opens", isOn: $model.scanOnOpen)
+            Toggle("Scan when \(AppInfo.name) opens", isOn: $model.scanOnOpen)
                 .padding(.top, 8)
-            Text("Measures your home folder so Roomy and the menu bar show what you can free. Nothing is removed.")
+            Text("Measures your home folder so \(AppInfo.name) and the menu bar show what you can free. Nothing is removed.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -60,7 +60,7 @@ struct FullDiskAccessSetting: View {
                 Text(statusText)
                 if model.fullDiskAccess != .granted {
                     Button("Turn On…") { model.showAccessOnboarding() }
-                        .accessibilityHint("Shows how to let Roomy measure every folder.")
+                        .accessibilityHint("Shows how to let \(AppInfo.name) measure every folder.")
                 }
             }
         }
@@ -69,9 +69,9 @@ struct FullDiskAccessSetting: View {
 
     private var statusText: String {
         switch model.fullDiskAccess {
-        case .granted: return "On. Roomy can measure every folder."
+        case .granted: return "On. \(AppInfo.name) can measure every folder."
         case .notGranted: return "Off. Some folders aren't measured."
-        case .unknown, nil: return "Roomy can't tell."
+        case .unknown, nil: return "\(AppInfo.name) can't tell."
         }
     }
 }
@@ -84,7 +84,7 @@ struct ProtectedFoldersSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Folders to keep")
                 .font(.headline)
-            Text("Roomy never cleans anything inside these folders.")
+            Text("\(AppInfo.name) never cleans anything inside these folders.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -134,7 +134,7 @@ struct ProtectedFoldersSection: View {
         panel.allowsMultipleSelection = true
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
         panel.prompt = "Keep"
-        panel.message = "Choose folders Roomy should never clean."
+        panel.message = "Choose folders \(AppInfo.name) should never clean."
         guard panel.runModal() == .OK else { return }
         let urls = panel.urls
         Task { await model.addProtectedFolders(urls) }

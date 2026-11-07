@@ -26,7 +26,7 @@ final class ScreenshotTests: XCTestCase {
             ("3-overview-simple", .simple, .loaded(normal, scannedAt: scannedAt)),
             ("4-overview-developer", .developer, .loaded(normal, scannedAt: scannedAt)),
             ("5-nothing-found", .simple, .loaded(MockData.overview(for: .nothingFound), scannedAt: scannedAt)),
-            ("6-error", .simple, .failed("Roomy couldn't finish reading your home folder.")),
+            ("6-error", .simple, .failed("Diskwell couldn't finish reading your home folder.")),
         ]
 
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
@@ -117,7 +117,7 @@ final class ScreenshotTests: XCTestCase {
         )
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: appearance)
-        window.title = "Roomy"
+        window.title = "Diskwell"
         let host = NSHostingView(rootView: view)
         if #available(macOS 14.0, *) {
             host.sceneBridgingOptions = [.toolbars, .title]

@@ -124,7 +124,7 @@ struct CommandPalettePanel: View {
         )
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Search Roomy")
+        .accessibilityLabel("Search \(AppInfo.name)")
     }
 }
 
@@ -186,7 +186,7 @@ struct PaletteSearchField: NSViewRepresentable {
         field.lineBreakMode = .byTruncatingTail
         field.cell?.usesSingleLineMode = true
         field.delegate = context.coordinator
-        field.setAccessibilityLabel("Search Roomy")
+        field.setAccessibilityLabel("Search \(AppInfo.name)")
         // Typing should go straight to the field once it is in the window.
         DispatchQueue.main.async { field.window?.makeFirstResponder(field) }
         return field

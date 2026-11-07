@@ -30,7 +30,7 @@ struct AndroidScreen: View {
         case .loaded(let overview):
             if overview.parts.isEmpty {
                 CenteredMessage(symbol: "candybarphone", title: "No Android tools found",
-                                message: overview.note ?? "Roomy didn't find the Android SDK in your home folder.") {
+                                message: overview.note ?? "\(AppInfo.name) didn't find the Android SDK in your home folder.") {
                     Button("Look again") { model.loadAndroid() }
                 }
             } else {
@@ -66,7 +66,7 @@ struct AndroidContent: View {
                     }
                 }
                 if !overview.projects.isEmpty {
-                    Section("Android projects Roomy found") {
+                    Section("Android projects \(AppInfo.name) found") {
                         ForEach(overview.projects) { project in
                             AndroidProjectRow(project: project)
                         }
@@ -106,9 +106,9 @@ struct AndroidContent: View {
         let projects = overview.projects.count
         let found = projects == 1 ? "1 Android project" : "\(projects) Android projects"
         if overview.unusedBytes == 0 {
-            return "Roomy found \(found). Everything here is used, or Roomy couldn't tell."
+            return "\(AppInfo.name) found \(found). Everything here is used, or \(AppInfo.name) couldn't tell."
         }
-        return "Roomy found \(found). \(Format.bytes(overview.unusedBytes)) is in parts none of them use. "
+        return "\(AppInfo.name) found \(found). \(Format.bytes(overview.unusedBytes)) is in parts none of them use. "
             + "Check each one before you choose it; nothing is chosen for you."
     }
 

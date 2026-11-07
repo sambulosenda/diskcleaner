@@ -84,7 +84,7 @@ final class MenuBarPanelTests: XCTestCase {
     }
 
     func testTheButtonAndFooterWords() {
-        XCTAssertEqual(MenuBarPanelContent.reviewButtonTitle(count: 0), "Open Roomy")
+        XCTAssertEqual(MenuBarPanelContent.reviewButtonTitle(count: 0), "Open Diskwell")
         XCTAssertEqual(MenuBarPanelContent.reviewButtonTitle(count: 1), "Review 1 item\u{2026}")
         XCTAssertEqual(MenuBarPanelContent.reviewButtonTitle(count: 4), "Review 4 items\u{2026}")
         let overview = MockData.overview(for: .normal)

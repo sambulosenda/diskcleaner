@@ -10,7 +10,7 @@ struct HistoryScreen: View {
             CenteredMessage(
                 symbol: "clock.arrow.circlepath",
                 title: "No cleanups yet",
-                message: "When you move things to the Trash with Roomy, they're listed here."
+                message: "When you move things to the Trash with \(AppInfo.name), they're listed here."
             ) {
                 EmptyView()
             }

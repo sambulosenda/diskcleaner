@@ -52,12 +52,12 @@ struct FullDiskAccessOnboarding: View {
                 .foregroundStyle(granted ? Color.green : Color.accentColor)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 6) {
-                Text(granted ? "Roomy can see your whole Mac" : "Let Roomy see your whole Mac")
+                Text(granted ? "\(AppInfo.name) can see your whole Mac" : "Let \(AppInfo.name) see your whole Mac")
                     .font(.title2.weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
                 Text(granted
                      ? "Full Disk Access is on."
-                     : "macOS keeps some folders private until you say Roomy may look inside them.")
+                     : "macOS keeps some folders private until you say \(AppInfo.name) may look inside them.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -67,11 +67,11 @@ struct FullDiskAccessOnboarding: View {
     private var reasons: some View {
         VStack(alignment: .leading, spacing: 10) {
             ReasonRow(symbol: "chart.pie",
-                      text: "Without it, Roomy can't measure Mail, Messages, Safari, iPhone backups and other apps' data, so the totals come out too low.")
+                      text: "Without it, \(AppInfo.name) can't measure Mail, Messages, Safari, iPhone backups and other apps' data, so the totals come out too low.")
             ReasonRow(symbol: "trash",
-                      text: "macOS may also stop Roomy moving things to your Trash.")
+                      text: "macOS may also stop \(AppInfo.name) moving things to your Trash.")
             ReasonRow(symbol: "hand.raised",
-                      text: "Roomy only reads sizes. Nothing leaves this Mac, and nothing is removed unless you confirm it.")
+                      text: "\(AppInfo.name) only reads sizes. Nothing leaves this Mac, and nothing is removed unless you confirm it.")
         }
     }
 
@@ -86,10 +86,10 @@ struct FullDiskAccessOnboarding: View {
                 }
                 .accessibilityHint("Opens Privacy & Security, Full Disk Access.")
             }
-            StepRow(number: 2, text: "Switch on Roomy. If Roomy isn't in the list, drag this icon into it, or use the + button.") {
+            StepRow(number: 2, text: "Switch on \(AppInfo.name). If \(AppInfo.name) isn't in the list, drag this icon into it, or use the + button.") {
                 AppIconToDrag()
             }
-            StepRow(number: 3, text: "Come back here. Roomy notices by itself.") {
+            StepRow(number: 3, text: "Come back here. \(AppInfo.name) notices by itself.") {
                 EmptyView()
             }
             WaitingNote(openedSettings: openedSettings)
@@ -100,7 +100,7 @@ struct FullDiskAccessOnboarding: View {
     private var footer: some View {
         HStack {
             if !granted {
-                Text("You can turn it on later in Roomy's Settings.")
+                Text("You can turn it on later in \(AppInfo.name)'s Settings.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -115,7 +115,7 @@ struct FullDiskAccessOnboarding: View {
             } else {
                 Button("Continue without it") { model.finishAccessOnboarding(scan: false) }
                     .keyboardShortcut(.cancelAction)
-                    .accessibilityHint("Roomy scans what it can. Some folders won't be measured.")
+                    .accessibilityHint("\(AppInfo.name) scans what it can. Some folders won't be measured.")
             }
         }
     }
@@ -177,7 +177,7 @@ private struct AppIconToDrag: View {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 40, height: 40)
-            Text("Roomy")
+            Text("\(AppInfo.name)")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -185,7 +185,7 @@ private struct AppIconToDrag: View {
         .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
         .onDrag { NSItemProvider(object: Bundle.main.bundleURL as NSURL) }
         .help("Drag into the Full Disk Access list")
-        .accessibilityLabel("Roomy app icon")
+        .accessibilityLabel("\(AppInfo.name) app icon")
         .accessibilityHint("Drag into the Full Disk Access list in System Settings.")
     }
 }
@@ -202,7 +202,7 @@ private struct WaitingNote: View {
                     .foregroundStyle(.secondary)
             }
             if openedSettings {
-                Text("Switched it on and nothing changed? If System Settings offers to quit and reopen Roomy, choose that. Otherwise quit Roomy and open it again.")
+                Text("Switched it on and nothing changed? If System Settings offers to quit and reopen \(AppInfo.name), choose that. Otherwise quit \(AppInfo.name) and open it again.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -218,8 +218,8 @@ private struct GrantedNote: View {
 
     var body: some View {
         Text(hasScanned
-             ? "Scan again so Roomy can measure the folders it couldn't see before."
-             : "Roomy can now measure every folder in your home folder.")
+             ? "Scan again so \(AppInfo.name) can measure the folders it couldn't see before."
+             : "\(AppInfo.name) can now measure every folder in your home folder.")
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -240,7 +240,7 @@ struct UnscannedAreasBox: View {
                 Image(systemName: "lock.shield")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                Text("What Roomy couldn't scan")
+                Text("What \(AppInfo.name) couldn't scan")
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
             }
@@ -265,7 +265,7 @@ struct UnscannedAreasBox: View {
             .font(.callout)
             HStack(spacing: 12) {
                 Button("Turn on Full Disk Access") { model.showAccessOnboarding() }
-                    .accessibilityHint("Shows how to let Roomy measure these folders.")
+                    .accessibilityHint("Shows how to let \(AppInfo.name) measure these folders.")
                 Text("Then scan again.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -281,7 +281,7 @@ struct UnscannedAreasBox: View {
     /// "Roomy couldn't open 212 folders, most often because macOS keeps them private. …"
     static func summary(for count: UInt64) -> String {
         let folders = count == 1 ? "1 folder" : "\(Format.count(count)) folders"
-        return "Roomy couldn't open \(folders), most often because macOS keeps them private. "
+        return "\(AppInfo.name) couldn't open \(folders), most often because macOS keeps them private. "
             + "Their sizes aren't in these results. Everything else here is right."
     }
 
