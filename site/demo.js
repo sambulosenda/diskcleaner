@@ -2,6 +2,7 @@
 // The hero is an example Mac running Roomy. The window copies the real app's screens on main:
 // the sidebar sections, the Overview (one answer, a bar, Ready to clean, Worth a look), the item
 // list with tier labels, the bar under it once something is ticked, and the review sheet.
+document.documentElement.classList.add("js");
 (function () {
   "use strict";
 
@@ -643,7 +644,6 @@
     function tick() { $("mb-clock").textContent = clockText(true); }
     tick();
     setInterval(tick, 30000);
-    setTimeout(function () { if (!state.touched && $("popover").hidden && !state.open) { $("notif").hidden = false; $("hint").hidden = true; } }, 900);
   }
 
   var toastTimer;
@@ -800,8 +800,165 @@
   }
 
 
+
+  // ---- The page around the Mac: reveals, the Mac tilting up, a short guided tour,
+  // the statement lighting up, the five-step story and the card spotlight. ----
+
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  function wireReveals() {
+    var els = document.querySelectorAll(".reveal");
+    if (!("IntersectionObserver" in window) || reduceMotion) {
+      Array.prototype.forEach.call(els, function (e) { e.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+    }, { rootMargin: "0px 0px -8% 0px" });
+    Array.prototype.forEach.call(els, function (e) { io.observe(e); });
+  }
+
+  // Split the statement into words so they can light up one by one while scrolling.
+  function splitWords(root) {
+    Array.prototype.slice.call(root.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) {
+        var frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(function (part) {
+          if (!part) return;
+          if (/^\s+$/.test(part)) frag.appendChild(document.createTextNode(part));
+          else frag.appendChild(el("span", { class: "w", text: part }));
+        });
+        root.replaceChild(frag, n);
+      } else if (n.nodeType === 1) splitWords(n);
+    });
+  }
+
+  function wireScrollEffects() {
+    var mac = $("mac"), quote = document.querySelector(".big-quote");
+    if (reduceMotion) return;
+    var words = [];
+    if (quote) { splitWords(quote); words = quote.querySelectorAll(".w"); }
+    var ticking = false;
+    function frame() {
+      ticking = false;
+      var vh = window.innerHeight;
+      if (mac) {
+        var r = mac.getBoundingClientRect();
+        var p = clamp01((vh - r.top) / (vh * 0.7));
+        if (p >= 0.999) mac.classList.add("flat");
+        else {
+          mac.classList.remove("flat");
+          mac.style.setProperty("--tilt", (1 - p) * 24 + "deg");
+          mac.style.setProperty("--sc", String(0.88 + 0.12 * p));
+        }
+      }
+      if (words.length) {
+        var q = quote.getBoundingClientRect();
+        var prog = clamp01((vh * 0.8 - q.top) / (q.height + vh * 0.3));
+        var lit = Math.round(prog * words.length);
+        for (var i = 0; i < words.length; i++) words[i].style.setProperty("--o", i < lit ? "1" : "0.16");
+      }
+    }
+    function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    frame();
+  }
+
+  // When the Mac first comes into view, play a short tour unless the visitor has already
+  // touched it: the low-space note, then the menu bar panel, then the Roomy window.
+  function wireTour() {
+    var desk = $("desktop");
+    function touch() { state.touched = true; }
+    desk.addEventListener("pointerdown", touch, true);
+    desk.addEventListener("keydown", touch, true);
+    if (!("IntersectionObserver" in window)) return;
+    var started = false;
+    var io = new IntersectionObserver(function (entries) {
+      if (started || !entries[0].isIntersecting) return;
+      started = true; io.disconnect();
+      var steps = [
+        [600, function () { if (!state.open && $("popover").hidden) { $("notif").hidden = false; $("hint").hidden = true; } }],
+        [2600, function () { if (!state.open) openPopover(); }],
+        [5200, function () { if (!state.open) openWindow(); }]
+      ];
+      steps.forEach(function (s) { setTimeout(function () { if (!state.touched) s[1](); }, s[0]); });
+    }, { threshold: 0.55 });
+    io.observe(desk);
+  }
+
+  var STORY = [
+    { free: 16.4, status: "Reading your disk. Nothing is changed." },
+    { free: 16.4, status: "Every item labelled, in plain words." },
+    { free: 16.4, status: "You ticked what you want gone: 57.6 GB." },
+    { free: 16.4, status: "Checked again just now. Nothing changed." },
+    { free: 74.0, status: "57.6 GB in the Trash. Put back any time." }
+  ];
+  function wireStory() {
+    var disk = $("disk"), chapters = document.querySelectorAll(".chapter");
+    if (!disk || !chapters.length) return;
+    var current = -1, shown = 16.4, anim;
+    function countTo(target) {
+      cancelAnimationFrame(anim);
+      var from = shown, t0 = performance.now(), dur = reduceMotion ? 0 : 900;
+      (function stepFn(now) {
+        var k = dur ? clamp01((now - t0) / dur) : 1;
+        shown = from + (target - from) * (1 - Math.pow(1 - k, 3));
+        $("disk-free").textContent = shown.toFixed(1) + " GB";
+        if (k < 1) anim = requestAnimationFrame(stepFn);
+      })(t0);
+    }
+    function go(i) {
+      if (i === current) return;
+      current = i;
+      disk.dataset.step = String(i);
+      Array.prototype.forEach.call(chapters, function (c) { c.classList.toggle("on", Number(c.dataset.step) === i); });
+      $("disk-status").textContent = STORY[i].status;
+      countTo(STORY[i].free);
+    }
+    go(0);
+    if (!("IntersectionObserver" in window)) return;
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) go(Number(en.target.dataset.step)); });
+    }, { rootMargin: "-48% 0px -48% 0px" });
+    Array.prototype.forEach.call(chapters, function (c) { io.observe(c); });
+  }
+
+  function wireSpotlight() {
+    Array.prototype.forEach.call(document.querySelectorAll(".b-card, .feature"), function (card) {
+      card.addEventListener("pointermove", function (e) {
+        var r = card.getBoundingClientRect();
+        card.style.setProperty("--mx", (e.clientX - r.left) + "px");
+        card.style.setProperty("--my", (e.clientY - r.top) + "px");
+      });
+    });
+  }
+
+  // The floating header tucks away while scrolling down and comes back on the way up,
+  // so it never sits over the example Mac's own menu bar.
+  function wireHeader() {
+    var header = document.querySelector(".site-header"), lastY = window.scrollY;
+    window.addEventListener("scroll", function () {
+      var y = window.scrollY;
+      if (Math.abs(y - lastY) < 6) return;
+      header.classList.toggle("tucked", y > lastY && y > 300 && !header.contains(document.activeElement));
+      lastY = y;
+    }, { passive: true });
+  }
+
+  function wireSite() {
+    wireHeader();
+    wireReveals();
+    wireScrollEffects();
+    wireTour();
+    wireStory();
+    wireSpotlight();
+  }
+
   function start() {
     wireDesktop();
+    wireSite();
     wireFeatures();
     var pi = $("palette-input");
     pi.addEventListener("input", renderPalette);
