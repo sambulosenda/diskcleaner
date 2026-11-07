@@ -642,7 +642,7 @@ Docker id. Only the two Docker commands on the allow-list in `docs/safety/allowe
 run, each after its read-only preview. Volumes are shown and never offered for removal. No command
 ever gets `-f`, `--force`, `-a` or `--all`.
 
-The core looks for `docker` in `/usr/local/bin`, `/opt/homebrew/bin`, `~/.docker/bin`,
+The core looks for `docker` in `/usr/local/bin`, `/opt/homebrew/bin`, `~/.docker/bin`, `~/.orbstack/bin`,
 `/Applications/Docker.app/Contents/Resources/bin`, `/usr/bin` and `/bin`, because a Mac app's own
 `PATH` holds none of them. Every call blocks until Docker answers, so the app calls them off the main
 thread.

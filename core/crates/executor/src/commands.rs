@@ -223,7 +223,7 @@ pub enum DockerError {
     #[error("Docker isn't installed.")]
     NotInstalled,
     /// Docker is not running.
-    #[error("Docker isn't running. Open Docker and try again.")]
+    #[error("Docker isn't running. Open Docker Desktop or OrbStack and try again.")]
     NotRunning,
     /// The plan is older than the plan lifetime, or from the future.
     #[error("This review has expired, so please review again.")]
@@ -343,8 +343,10 @@ fn list(
         } else {
             tracing::warn!(stderr = %out.stderr.trim(), "docker preview failed");
             DockerError::Failed {
-                reason: "Docker reported a problem, so Roomy could not list what it would remove."
-                    .to_string(),
+                reason: docker::explain_failure(
+                    &out.stderr,
+                    "Docker stopped with an error but didn't say why, so Roomy could not list what it would remove.",
+                ),
             }
         });
     }

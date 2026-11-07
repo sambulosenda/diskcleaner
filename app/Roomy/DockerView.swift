@@ -169,7 +169,7 @@ private struct DockerOverviewView: View {
             }
         case .notRunning:
             CenteredMessage(symbol: "shippingbox", title: "Docker isn't running",
-                            message: "Open Docker, then try again. Roomy needs Docker running to see what it uses.") {
+                            message: "Open Docker Desktop, OrbStack or whichever app runs Docker for you, then try again.") {
                 retry
             }
         case .unavailable(let reason):

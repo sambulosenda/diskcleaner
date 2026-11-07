@@ -285,7 +285,7 @@ final class MockCoreClient: CoreClient {
 
     func previewDockerCleanup(kind: DockerCleanupKind) async throws -> DockerCleanupPreview {
         if case .notRunning = dockerStatus {
-            throw CoreError.DockerUnavailable(reason: "Docker isn't running. Open Docker and try again.")
+            throw CoreError.DockerUnavailable(reason: "Docker isn't running. Open Docker Desktop or OrbStack and try again.")
         }
         let items: [DockerPreviewItem]
         switch kind {
