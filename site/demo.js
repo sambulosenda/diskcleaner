@@ -55,7 +55,7 @@
   var STEP_CAPTIONS = {
     scan: "Roomy reads the disk. Scanning never changes a file.",
     read: "Each item says what it is, whether it is likely safe, and how it comes back.",
-    choose: "Tick what goes. Review first items are never ticked for you.",
+    choose: "Tick what goes. Nothing is ticked for you, so tick a few boxes in the window.",
     trash: "Everything goes to the Trash. Put back returns it."
   };
 
@@ -297,13 +297,6 @@
     if (quiet !== true) toast("Put back. Everything is where it was.");
   }
 
-  function quickSelect() {
-    state.touched = true;
-    visibleItems().forEach(function (i) { if (i.tier === "safe") state.checked[i.id] = true; });
-    if (state.phase === "done") state.phase = "results";
-    render();
-  }
-
   function render() {
     renderPopover();
     updateTrash();
@@ -335,7 +328,7 @@
     var review = $("panel-review");
     if (review) review.addEventListener("click", function () {
       $("desktop").scrollIntoView({ block: "center" });
-      goToStep("trash");
+      goToStep("read");
     });
   }
 
@@ -465,12 +458,23 @@
     if (step === "scan") { state.trashed = {}; state.checked = {}; state.cat = "all"; startScan(); return; }
     if (state.phase === "idle" || state.phase === "scanning") { state.phase = "results"; }
     if (step === "read") { if (state.phase === "done") putBack(true); state.checked = {}; render(); return; }
-    if (step === "choose") { if (state.phase === "done") putBack(true); quickSelect(); return; }
+    if (step === "choose") { if (state.phase === "done") putBack(true); render(); pulseBoxes(); return; }
     if (step === "trash") {
       if (state.phase === "done") return;
-      if (!chosen().length) quickSelect();
+      render();
+      if (!chosen().length) { toast("Tick at least one item first. Nothing is ticked for you."); pulseBoxes(); return; }
       openSheet();
     }
+  }
+
+  // Draw the eye to the checkboxes, since the visitor does the ticking.
+  function pulseBoxes() {
+    var boxes = document.querySelectorAll("#stage .row input[type=checkbox]");
+    Array.prototype.forEach.call(boxes, function (b) {
+      b.classList.remove("pulse");
+      void b.offsetWidth;
+      b.classList.add("pulse");
+    });
   }
 
   function setMode(mode) {
@@ -565,8 +569,8 @@
       if (state.phase === "idle" || state.phase === "scanning") { state.phase = "results"; }
       if (state.phase === "done") state.phase = "results";
       state.cat = "all";
-      ITEMS.forEach(function (i) { if (i.tier === "safe" && !state.trashed[i.id] && inMode(i)) state.checked[i.id] = true; });
       render();
+      pulseBoxes();
     });
     $("pop-scan").addEventListener("click", function () { state.touched = true; openWindow(false); startScan(); });
     $("win-close").addEventListener("click", closeWindow);
@@ -597,7 +601,6 @@
     });
     wireDesktop();
     wireFeatures();
-    $("quick-select").addEventListener("click", quickSelect);
     $("review-btn").addEventListener("click", openSheet);
     var pi = $("palette-input");
     pi.addEventListener("input", renderPalette);

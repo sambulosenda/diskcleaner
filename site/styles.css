@@ -540,3 +540,5 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .mini-row .l { flex: 1; min-width: 0; overflow: hidden; }
 .mini-row .pill, .mini-row .r { flex-shrink: 0; }
 .mini > * { min-width: 0; }
+.row input[type="checkbox"].pulse { animation: pulse 0.9s ease-out 2; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
