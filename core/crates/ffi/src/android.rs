@@ -167,6 +167,7 @@ pub(crate) fn prepare(
                 selected_individually: true,
                 owners: planner::owner_apps(rule_for(item.kind)),
                 belongs_to: None,
+                keep_copy: None,
             }),
             wont_move: None,
         });
