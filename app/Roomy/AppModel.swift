@@ -355,6 +355,14 @@ final class AppModel: ObservableObject {
         matchingSearch(overview.topItems)
     }
 
+    /// Opens the list of everything the scan found, showing only `tier` (or everything), with one
+    /// item selected if given. Used by the Overview's buttons. Ticks nothing: the user chooses there.
+    func showItems(tier: Tier?, select itemID: String? = nil) {
+        selection = .cleanup
+        tierFilter = tier
+        selectedItemID = itemID
+    }
+
     /// The category screen's rows, narrowed by the toolbar search.
     var visibleItems: [ItemSummary] {
         guard case .loaded(let items) = listState else { return [] }
