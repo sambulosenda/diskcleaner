@@ -1,6 +1,6 @@
-# Roomy website
+# Diskwell website
 
-A static landing page for Roomy: `index.html`, `styles.css`, `demo.js`, `icon.svg` (a copy of `app/IconSource/roomy-icon.svg`) and `og.jpg` (the share preview image). No build step and no dependencies; fonts come from Google Fonts.
+A static landing page for Diskwell: `index.html`, `styles.css`, `demo.js`, `icon.svg` (a copy of `app/IconSource/roomy-icon.svg`) and `og.jpg` (the share preview image). No build step and no dependencies; fonts come from Google Fonts.
 
 The demo in the page runs on made-up example items in `demo.js`. It never reads the visitor's Mac.
 

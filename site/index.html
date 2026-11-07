@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Roomy for Mac</title>
-<meta name="description" content="Roomy shows what is filling your Mac, says what each item is in plain words, and moves only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.">
+<title>Diskwell for Mac</title>
+<meta name="description" content="Diskwell shows what is filling your Mac, says what each item is in plain words, and moves only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.">
 <meta name="theme-color" content="#10897e">
 <!-- Share preview. Social sites need an absolute URL: change og.jpg to https://<domain>/og.jpg once the domain is picked. -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Roomy">
-<meta property="og:title" content="Roomy: make room on your Mac">
+<meta property="og:site_name" content="Diskwell">
+<meta property="og:title" content="Diskwell: make room on your Mac">
 <meta property="og:description" content="See what fills your disk, in plain words. Move only what you pick to the Trash. Deep clean-ups for Xcode, Android, JavaScript, Docker and local AI models.">
 <meta property="og:image" content="og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Roomy for Mac: Make room on your Mac, next to the Roomy window showing 57.6 GB you can likely free.">
+<meta property="og:image:alt" content="Diskwell for Mac: Make room on your Mac, next to the Diskwell window showing 57.6 GB you can likely free.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,13 +27,13 @@
 
 <header class="site-header">
   <div class="wrap">
-    <a class="brand" href="#top"><img src="icon.svg" alt="" width="30" height="30">Roomy</a>
+    <a class="brand" href="#top"><img src="icon.svg" alt="" width="30" height="30">Diskwell</a>
     <nav class="site-nav" aria-label="Main">
       <a class="nav-link" href="#how">How it works</a>
       <a class="nav-link" href="#developers">Developers</a>
       <a class="nav-link" href="#features">Features</a>
       <a class="nav-link" href="#promises">Safety</a>
-      <a class="btn btn-primary btn-small" href="#download">Get Roomy</a>
+      <a class="btn btn-primary btn-small" href="#download">Get Diskwell</a>
     </nav>
   </div>
 </header>
@@ -43,7 +43,6 @@
   <section class="hero" id="top">
     <div class="hero-glow" aria-hidden="true"></div>
     <div class="wrap hero-copy">
-      <p class="kicker reveal">Roomy for Mac, in testing</p>
       <h1 class="hero-title">
         <span class="line"><span class="word">Make</span> <span class="word room">room</span></span>
         <span class="line"><span class="word">on your</span> <span class="word">Mac.</span></span>
@@ -53,7 +52,7 @@
         <a class="btn btn-primary btn-lg" href="#demo">Try it on the Mac below <span aria-hidden="true">↓</span></a>
         <a class="btn btn-ghost btn-lg" href="#how">How it stays safe</a>
       </div>
-      <p class="hero-facts reveal">A native Mac app. Nothing leaves your Mac. Everything goes to the Trash first.</p>
+      <p class="hero-facts reveal">A native Mac app, in testing. Nothing leaves your Mac. Everything goes to the Trash first.</p>
     </div>
 
     <div class="stage" id="demo">
@@ -63,7 +62,7 @@
         <div class="menubar">
           <div class="mb-left"><strong>Finder</strong><span>File</span><span>Edit</span><span>View</span><span class="mb-hide">Go</span><span class="mb-hide">Window</span><span class="mb-hide">Help</span></div>
           <div class="mb-right">
-            <button type="button" class="mb-roomy" id="mb-roomy" aria-expanded="false" aria-controls="popover" aria-label="Open Roomy in the menu bar"><img src="icon.svg" alt="" width="16" height="16"></button>
+            <button type="button" class="mb-roomy" id="mb-roomy" aria-expanded="false" aria-controls="popover" aria-label="Open Diskwell in the menu bar"><img src="icon.svg" alt="" width="16" height="16"></button>
             <svg class="mb-ico mb-hide" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="7" width="17" height="10" rx="2.8" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="4.3" y="8.8" width="10" height="6.4" rx="1.4" fill="currentColor"/><path d="M21 10.5v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <svg class="mb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5a13 13 0 0 1 18 0M6 12.8a8.5 8.5 0 0 1 12 0M9 16a4 4 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/></svg>
             <svg class="mb-ico mb-hide" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -72,18 +71,18 @@
           </div>
         </div>
 
-        <div class="hint" id="hint" aria-hidden="true">Click Roomy</div>
+        <div class="hint" id="hint" aria-hidden="true">Click Diskwell</div>
 
         <button type="button" class="notif" id="notif" hidden>
           <img src="icon.svg" alt="" width="38" height="38">
-          <span class="notif-body"><span class="notif-app">ROOMY <em>now</em></span><strong>Your Mac is almost full</strong>16.4 GB left. Roomy found 57.6 GB you can likely free.</span>
+          <span class="notif-body"><span class="notif-app">DISKWELL <em>now</em></span><strong>Your Mac is almost full</strong>16.4 GB left. Diskwell found 57.6 GB you can likely free.</span>
         </button>
 
         <div class="popover" id="popover" hidden></div>
 
-        <div class="win" id="win" hidden role="dialog" aria-label="Roomy">
+        <div class="win" id="win" hidden role="dialog" aria-label="Diskwell">
           <aside class="win-side">
-            <div class="lights"><button type="button" id="win-close" aria-label="Close the Roomy window"></button><span aria-hidden="true"></span><span aria-hidden="true"></span></div>
+            <div class="lights"><button type="button" id="win-close" aria-label="Close the Diskwell window"></button><span aria-hidden="true"></span><span aria-hidden="true"></span></div>
             <nav id="win-sidebar" aria-label="Sections"></nav>
           </aside>
           <div class="win-main">
@@ -104,7 +103,7 @@
           <span class="dock-app" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="10" fill="#3a8ee6"/><path d="M8 18a4 4 0 0 1 4-4h8l3 3h13a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z" fill="#bfe0ff"/><path d="M8 22h32v12a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z" fill="#e8f4ff"/></svg></span>
           <span class="dock-app" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="10" fill="#1f2427"/><path d="M12 17l7 6-7 6" fill="none" stroke="#7ee787" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 31h12" stroke="#d0d7de" stroke-width="3" stroke-linecap="round"/></svg></span>
           <span class="dock-app" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="10" fill="#f5f5f7"/><circle cx="24" cy="24" r="13" fill="none" stroke="#8e8e93" stroke-width="5" stroke-dasharray="5 3.2"/><circle cx="24" cy="24" r="6" fill="#8e8e93"/></svg></span>
-          <button type="button" class="dock-app" id="dock-roomy" aria-label="Open Roomy"><img src="icon.svg" alt="" width="48" height="48"><i class="dot"></i></button>
+          <button type="button" class="dock-app" id="dock-roomy" aria-label="Open Diskwell"><img src="icon.svg" alt="" width="48" height="48"><i class="dot"></i></button>
           <span class="dock-sep" aria-hidden="true"></span>
           <button type="button" class="dock-app" id="dock-trash" aria-label="Trash, empty">
             <svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef2f4"/><stop offset="1" stop-color="#b9c3c8"/></linearGradient></defs><path d="M10 12h28l-2.6 30a3 3 0 0 1-3 2.7H15.6a3 3 0 0 1-3-2.7z" fill="url(#tg)" stroke="#9aa6ad" stroke-width="1"/><ellipse cx="24" cy="12" rx="14.5" ry="3" fill="#dde3e6" stroke="#9aa6ad" stroke-width="1"/><path d="M17 18l1 22M24 18v22M31 18l-1 22" stroke="#a7b2b8" stroke-width="1.2"/><g class="trash-paper"><path d="M15 12l4-6 6 3 5-4 3 7z" fill="#fff" stroke="#c9d1d5"/></g></svg>
@@ -114,18 +113,18 @@
       </div>
         <div class="mac-chin" aria-hidden="true"></div>
       </div>
-      <p class="stage-note">An example Mac with made-up files. Click Roomy in the menu bar or in the Dock. Nothing here looks at your own Mac.</p>
+      <p class="stage-note">An example Mac with made-up files. Click Diskwell in the menu bar or in the Dock. Nothing here looks at your own Mac.</p>
     </div>
   </section>
 
-  <section class="ticker" aria-label="Things Roomy finds on the example Mac">
+  <section class="ticker" aria-label="Things Diskwell finds on the example Mac">
     <ul class="ticker-track"><li><span>Xcode build files</span><b>18.4 GB</b></li><li><span>Ollama model llama3.1:70b</span><b>39.6 GB</b></li><li><span>iPhone backup</span><b>14.3 GB</b></li><li><span>Unavailable simulators</span><b>9.6 GB</b></li><li><span>node_modules in 6 old projects</span><b>5.8 GB</b></li><li><span>Docker build cache</span><b>7.2 GB</b></li><li><span>Gradle caches</span><b>4.8 GB</b></li><li><span>Old Homebrew versions</span><b>2.3 GB</b></li><li><span>Messages attachments</span><b>6.8 GB</b></li><li><span>iOS device support</span><b>6.3 GB</b></li></ul>
     <ul class="ticker-track" aria-hidden="true"><li><span>Xcode build files</span><b>18.4 GB</b></li><li><span>Ollama model llama3.1:70b</span><b>39.6 GB</b></li><li><span>iPhone backup</span><b>14.3 GB</b></li><li><span>Unavailable simulators</span><b>9.6 GB</b></li><li><span>node_modules in 6 old projects</span><b>5.8 GB</b></li><li><span>Docker build cache</span><b>7.2 GB</b></li><li><span>Gradle caches</span><b>4.8 GB</b></li><li><span>Old Homebrew versions</span><b>2.3 GB</b></li><li><span>Messages attachments</span><b>6.8 GB</b></li><li><span>iOS device support</span><b>6.3 GB</b></li></ul>
   </section>
 
   <section class="statement">
     <div class="wrap">
-      <p class="big-quote reveal">Your Mac says <em>“System Data: 140 GB”</em> and stops there. Roomy names each folder inside it and says what removing it would mean.</p>
+      <p class="big-quote reveal">Your Mac says <em>“System Data: 140 GB”</em> and stops there. Diskwell names each folder inside it and says what removing it would mean.</p>
     </div>
   </section>
 
@@ -167,10 +166,10 @@
           </div>
         </div>
         <ol class="chapters">
-          <li class="chapter" data-step="0"><span class="ch-num">Step 1</span><h3>Scan</h3><p>Roomy reads your disk. Scanning never changes a file, and it never follows shortcuts out of your home folder.</p></li>
+          <li class="chapter" data-step="0"><span class="ch-num">Step 1</span><h3>Scan</h3><p>Diskwell reads your disk. Scanning never changes a file, and it never follows shortcuts out of your home folder.</p></li>
           <li class="chapter" data-step="1"><span class="ch-num">Step 2</span><h3>Explain</h3><p>Every item gets a plain description and one of three labels: <b class="t-safe">Likely safe</b>, <b class="t-review">Review first</b> or <b class="t-keep">Keep</b>. Your photos, documents and messages are never Likely safe.</p></li>
-          <li class="chapter" data-step="2"><span class="ch-num">Step 3</span><h3>You choose</h3><p>Nothing is ticked for you. You tick each thing you want gone, and Roomy shows how much space that frees.</p></li>
-          <li class="chapter" data-step="3"><span class="ch-num">Step 4</span><h3>Check again</h3><p>Just before acting, Roomy checks every item again. Anything that changed, opened or moved since the scan is skipped.</p></li>
+          <li class="chapter" data-step="2"><span class="ch-num">Step 3</span><h3>You choose</h3><p>Nothing is ticked for you. You tick each thing you want gone, and Diskwell shows how much space that frees.</p></li>
+          <li class="chapter" data-step="3"><span class="ch-num">Step 4</span><h3>Check again</h3><p>Just before acting, Diskwell checks every item again. Anything that changed, opened or moved since the scan is skipped.</p></li>
           <li class="chapter" data-step="4"><span class="ch-num">Step 5</span><h3>Trash, with Put back</h3><p>Items go to the Trash, not straight off your disk. Put back returns the last clean-up to where it was.</p></li>
         </ol>
       </div>
@@ -181,11 +180,11 @@
     <div class="wrap">
       <header class="section-head reveal">
         <h2 id="dev-title">Developer mode</h2>
-        <p>Build files, simulators and caches pile up fastest on a developer's Mac. Roomy knows where each tool keeps them, which projects still use them, and the command that clears them properly.</p>
+        <p>Build files, simulators and caches pile up fastest on a developer's Mac. Diskwell knows where each tool keeps them, which projects still use them, and the command that clears them properly.</p>
       </header>
       <div class="bento">
         <article class="b-card b-term reveal">
-          <div class="term-bar"><i></i><i></i><i></i><span>What Roomy runs, only after you confirm</span></div>
+          <div class="term-bar"><i></i><i></i><i></i><span>What Diskwell runs, only after you confirm</span></div>
           <pre class="term" aria-label="Allow-listed commands"><code><span class="c"># Previewed first, then run with your OK</span>
 <span class="p">$</span> xcrun simctl delete unavailable
 <span class="o">  Removes simulators for iOS versions you no longer have</span>
@@ -210,7 +209,7 @@
   <section class="feats" id="features" aria-labelledby="feat-title">
     <div class="wrap">
       <header class="section-head reveal">
-        <h2 id="feat-title">More in Roomy</h2>
+        <h2 id="feat-title">More in Diskwell</h2>
         <p>Each of these works here with example files.</p>
       </header>
       <div class="features">
@@ -231,9 +230,9 @@
             <div class="gauge" aria-hidden="true"><span id="panel-gauge"></span></div>
             <label class="slider-label" for="free-slider">Free space</label>
             <input type="range" id="free-slider" min="2" max="60" step="0.1" value="16.4">
-            <div class="notice" id="lowspace-note" hidden><strong>Your Mac is almost full.</strong> Roomy found 57.6 GB you can likely free.</div>
+            <div class="notice" id="lowspace-note" hidden><strong>Your Mac is almost full.</strong> Diskwell found 57.6 GB you can likely free.</div>
             <div><span class="r">You can likely free</span><div class="big">57.6 GB</div></div>
-            <button class="btn btn-primary btn-small" type="button" id="panel-review">Review in Roomy…</button>
+            <button class="btn btn-primary btn-small" type="button" id="panel-review">Review in Diskwell…</button>
           </div>
         </article>
 
@@ -241,10 +240,10 @@
           <h3>Leaves alone what you are using</h3>
           <p>Items in use, changed recently, holding unsaved git work or inside folders you keep are skipped. Click one to see why.</p>
           <div class="mini" id="guards">
-            <button type="button" class="mini-row explain" data-explain="You saved a file in this project 2 hours ago, so Roomy treats it as work in progress."><span class="l"><span>node_modules in roomy-site</span></span><span class="pill keep">Changed 2 hours ago</span></button>
+            <button type="button" class="mini-row explain" data-explain="You saved a file in this project 2 hours ago, so Diskwell treats it as work in progress."><span class="l"><span>node_modules in diskwell-site</span></span><span class="pill keep">Changed 2 hours ago</span></button>
             <button type="button" class="mini-row explain" data-explain="Xcode has this project open. Removing its build files now could break the build you are running."><span class="l"><span>DerivedData for Photos Plus</span></span><span class="pill keep">Open in Xcode</span></button>
             <button type="button" class="mini-row explain" data-explain="This worktree has changes that are not committed or not merged, so it is never offered."><span class="l"><span>Agent worktree feature-login</span></span><span class="pill keep">Unsaved git work</span></button>
-            <button type="button" class="mini-row explain" data-explain="You told Roomy to keep this folder. Nothing inside it is ever offered."><span class="l"><span>~/Clients</span></span><span class="pill keep">A folder you keep</span></button>
+            <button type="button" class="mini-row explain" data-explain="You told Diskwell to keep this folder. Nothing inside it is ever offered."><span class="l"><span>~/Clients</span></span><span class="pill keep">A folder you keep</span></button>
             <p class="explain-text" id="guards-text" data-idle="Click a row." aria-live="polite">Click a row.</p>
           </div>
         </article>
@@ -253,7 +252,7 @@
           <h3>Duplicates and large files</h3>
           <p>The 500 largest files with the date you last opened them, and copies of the same file. You pick the copy to keep.</p>
           <div class="mini" id="dupes">
-            <div class="mini-row"><span class="l"><input type="checkbox" id="dupe-a" checked><label for="dupe-a">Desktop/Screen Recording.mov</label></span><span class="r">1.7 GB</span></div>
+            <div class="mini-row"><span class="l"><input type="checkbox" id="dupe-a"><label for="dupe-a">Desktop/Screen Recording.mov</label></span><span class="r">1.7 GB</span></div>
             <div class="mini-row"><span class="l"><input type="checkbox" id="dupe-b"><label for="dupe-b">Movies/Screen Recording.mov</label></span><span class="r">1.7 GB</span></div>
             <p class="r" id="dupe-note">Keeping Movies/Screen Recording.mov.</p>
           </div>
@@ -261,7 +260,7 @@
 
         <article class="feature reveal f-sysdata">
           <h3>What System Data is made of</h3>
-          <p>macOS lumps a lot into one grey bar. Roomy breaks it down. Click a part to read what it is.</p>
+          <p>macOS lumps a lot into one grey bar. Diskwell breaks it down. Click a part to read what it is.</p>
           <div class="mini" id="sysdata">
             <button type="button" class="mini-row explain" data-explain="Hourly copies Time Machine keeps on this disk while your backup drive is away. macOS removes them by itself when space runs low."><span class="l"><span>Local Time Machine snapshots</span></span><span class="r">22.1 GB</span></button>
             <button type="button" class="mini-row explain" data-explain="Full backups of an iPhone or iPad. Old ones for devices you no longer have are often the biggest win."><span class="l"><span>iPhone backups</span></span><span class="r">14.3 GB</span></button>
@@ -291,8 +290,8 @@
   <section class="promises" id="promises" aria-labelledby="prom-title">
     <div class="wrap">
       <header class="section-head reveal">
-        <h2 id="prom-title">What Roomy will not do</h2>
-        <p>When it is unsure, Roomy leaves a file where it is.</p>
+        <h2 id="prom-title">What Diskwell will not do</h2>
+        <p>When it is unsure, Diskwell leaves a file where it is.</p>
       </header>
       <ul class="never">
         <li class="reveal"><span>No</span> automatic clean-ups. Ever.</li>
@@ -309,8 +308,8 @@
     <!-- Placeholder: pricing and licensing are not decided yet (Paddle or Lemon Squeezy, free tier).
          Replace the disabled button with the real download link and prices once they are settled. -->
     <div class="wrap cta-inner reveal">
-      <div class="cta-icon"><img src="icon.svg" alt="Roomy app icon" width="132" height="132"></div>
-      <h2 id="cta-title">Roomy is in testing</h2>
+      <div class="cta-icon"><img src="icon.svg" alt="Diskwell app icon" width="132" height="132"></div>
+      <h2 id="cta-title">Diskwell is in testing</h2>
       <p class="cta-sub">Scanning will always be free. Pricing and the download link will be here soon.</p>
       <div class="hero-actions">
         <button class="btn btn-primary btn-lg" type="button" disabled>Download for Mac</button>
@@ -324,9 +323,9 @@
     <div class="wrap faq-grid">
       <header class="section-head"><h2 id="faq-title">Questions</h2></header>
       <div class="faq">
-        <details><summary>Will Roomy delete something I need?</summary><p>Roomy only moves items you tick, and it moves them to the Trash so you can get them back. Your own photos, documents and messages are never labelled Likely safe, and anything in use or changed recently is skipped.</p></details>
-        <details><summary>Does Roomy send my file names anywhere?</summary><p>No. Scanning and labelling happen on your Mac. Roomy does not use an AI service to decide what is safe.</p></details>
-        <details><summary>Why does Roomy ask for Full Disk Access?</summary><p>Some of the biggest items, like iPhone backups and Mail downloads, sit in folders macOS protects. Roomy explains why before asking, and works without it too, with fewer results.</p></details>
+        <details><summary>Will Diskwell delete something I need?</summary><p>Diskwell only moves items you tick, and it moves them to the Trash so you can get them back. Your own photos, documents and messages are never labelled Likely safe, and anything in use or changed recently is skipped.</p></details>
+        <details><summary>Does Diskwell send my file names anywhere?</summary><p>No. Scanning and labelling happen on your Mac. Diskwell does not use an AI service to decide what is safe.</p></details>
+        <details><summary>Why does Diskwell ask for Full Disk Access?</summary><p>Some of the biggest items, like iPhone backups and Mail downloads, sit in folders macOS protects. Diskwell explains why before asking, and works without it too, with fewer results.</p></details>
         <details><summary>I am not a developer. Is it for me?</summary><p>Yes. Simple mode shows everyday things like large downloads, old installers, iPhone backups and duplicates, in plain words. Developer mode is there when you want it.</p></details>
         <details><summary>Which Macs does it run on?</summary><p>Any Mac with macOS 13 Ventura or later, on Apple silicon or Intel.</p></details>
       </div>
@@ -337,7 +336,7 @@
 
 <footer class="site-footer">
   <div class="wrap foot-row">
-    <a class="brand" href="#top"><img src="icon.svg" alt="" width="26" height="26">Roomy</a>
+    <a class="brand" href="#top"><img src="icon.svg" alt="" width="26" height="26">Diskwell</a>
     <nav aria-label="Footer"><a href="#how">How it works</a><a href="#developers">Developers</a><a href="#features">Features</a><a href="#faq">FAQ</a></nav>
     <span>Made by Sam Senda · Sizes in the demo are examples.</span>
   </div>
