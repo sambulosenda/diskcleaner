@@ -1102,6 +1102,44 @@ final class AppModel: ObservableObject {
         if shown != nil { cleanupTask = work } else { putBackTask = work }
     }
 
+    // MARK: - Finder's "Ask Roomy What This Is"
+
+    /// The question Finder sent, shown as a sheet. `nil` closes it.
+    @Published var placeQuestion: PlaceQuestion?
+    /// The place still waiting for an answer.
+    private var pendingPlacePath: String?
+    private var placeTask: Task<Void, Never>?
+
+    /// Finder asked what a file or folder is. Answers from the finished scan, or scans first (which
+    /// only measures) and answers when it is done. Nothing is ticked or removed.
+    func askAbout(_ url: URL) {
+        // Tidies the text only ("a/../b"); never resolves links or touches the disk.
+        let place = url.standardizedFileURL
+        placeQuestion = PlaceQuestion(name: place.lastPathComponent)
+        pendingPlacePath = place.path
+        if finishedScan != nil {
+            placeTask = Task { [weak self] in await self?.answerPlaceQuestion() }
+        } else if !isScanning {
+            startScan()
+        }
+    }
+
+    /// Asks the core about the waiting place, if a finished scan can answer it.
+    private func answerPlaceQuestion() async {
+        guard let path = pendingPlacePath, let handle = finishedScan else { return }
+        pendingPlacePath = nil
+        let asked = placeQuestion?.id
+        let answer = try? await client.explainPlace(handle: handle, path: path)
+        // The sheet was closed, or a newer question replaced this one.
+        guard let asked, placeQuestion?.id == asked else { return }
+        placeQuestion?.state = answer.map { .answered($0) } ?? .unavailable
+    }
+
+    /// Waits for the answer to a Finder question. Used by tests.
+    func waitForPlaceAnswer() async {
+        await placeTask?.value
+    }
+
     /// Goes up each time a cleanup or put back changes what can be put back, so an older question to
     /// the core can't overwrite a newer answer.
     private var cleanupRevision = 0
@@ -1251,9 +1289,14 @@ final class AppModel: ObservableObject {
             resetItems()
             LastScanSummary(overview: overview, scannedAt: now()).save(to: defaults)
             offerAccessAfterScan(overview)
+            await answerPlaceQuestion()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
             finish(handle, with: .failed(Self.message(for: error)))
+            if pendingPlacePath != nil {
+                pendingPlacePath = nil
+                placeQuestion?.state = .unavailable
+            }
         }
     }
 

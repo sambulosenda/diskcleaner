@@ -28,8 +28,8 @@ use crate::run::LastCleanup;
 use crate::types::{
     AndroidOverview, AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview,
     CleanupPreviewItem, CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail,
-    ItemSummary, LargeFiles, LibrarySize, Mode, Overview, PlanHandle, PutBackResult, ScanChanges,
-    ScanFinding, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    ItemSummary, LargeFiles, LibrarySize, Mode, Overview, PlaceAnswer, PlanHandle, PutBackResult,
+    ScanChanges, ScanFinding, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -426,6 +426,23 @@ impl RoomyCore {
             .item(&item_id)
             .and_then(|item| crate::backup::device_backup(&f, item));
         Ok(detail)
+    }
+
+    /// What the scan knows about a place the user picked in Finder ("What
+    /// is this?"): the item it is, the item it is inside, or how much the
+    /// folder holds that can be cleaned or checked. The answer holds no
+    /// path.
+    ///
+    /// This is the one command that takes a path from the app. It only
+    /// compares the path's text with the scan's items: it reads nothing
+    /// from disk, follows no links, and makes no plan. Nothing can be
+    /// moved by path; cleanup still takes item ids only.
+    pub fn explain_place(
+        &self,
+        handle: ScanHandle,
+        path: String,
+    ) -> Result<PlaceAnswer, CoreError> {
+        Ok(self.finished(handle)?.explain_place(Path::new(&path)))
     }
 
     /// What the JavaScript screen shows: each project's `node_modules` with

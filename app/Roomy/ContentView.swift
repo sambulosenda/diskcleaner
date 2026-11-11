@@ -21,6 +21,10 @@ struct ContentView: View {
             FullDiskAccessOnboarding()
                 .environmentObject(model)
         }
+        .sheet(item: $model.placeQuestion) { question in
+            PlaceAnswerSheet(question: question)
+                .environmentObject(model)
+        }
         .task { await model.windowDidAppear() }
     }
 }

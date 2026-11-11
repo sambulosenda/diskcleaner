@@ -16,5 +16,27 @@
 	<string>$(ROOMY_SPARKLE_PUBLIC_KEY)</string>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
+	<!-- Finder's right-click "Ask Roomy What This Is". Roomy only explains the chosen
+	     file or folder; see FinderQuestion.swift. -->
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Ask Roomy What This Is</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>explainInRoomy</string>
+			<key>NSPortName</key>
+			<string>Roomy</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+			<key>NSRequiredContext</key>
+			<dict/>
+		</dict>
+	</array>
 </dict>
 </plist>
