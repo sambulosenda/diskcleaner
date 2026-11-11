@@ -35,6 +35,8 @@ struct CategoryStrip: View {
         /// Share of this segment that is likely safe, 0 to 1.
         let likelySafeFraction: CGFloat
         let isFreeSpace: Bool
+        /// "Caches: 11.5 GB · 11.5 GB can be freed", shown when the pointer rests on the segment.
+        let help: String
     }
 
     /// One slice per part of the disk (see `DiskPart.parts(for:)`), so the segments always cover the
@@ -48,7 +50,8 @@ struct CategoryStrip: View {
                 color: part.color,
                 fraction: CGFloat(Double(part.bytes) / total),
                 likelySafeFraction: part.bytes == 0 ? 0 : CGFloat(min(Double(part.likelySafeBytes) / Double(part.bytes), 1)),
-                isFreeSpace: part.kind == .free
+                isFreeSpace: part.kind == .free,
+                help: "\(part.title): \(part.detail)"
             )
         }
     }
@@ -110,6 +113,16 @@ struct DiskPart: Identifiable, Equatable {
         }
     }
 
+    /// The colour of this part's swatch in a legend, matching the strip: solid when some of it can
+    /// likely be freed, pale when none can, so a swatch never looks brighter than its segment.
+    var swatch: Color {
+        switch kind {
+        case .outsideHome: return Color.secondary.opacity(0.4)
+        case .free: return Color.secondary.opacity(0.25)
+        case .category, .otherFiles: return likelySafeBytes > 0 ? color : color.opacity(0.4)
+        }
+    }
+
     /// What the part holds, shown when the pointer rests on its legend entry.
     var help: String? {
         switch kind {
@@ -164,6 +177,7 @@ private struct SegmentView: View {
                     .frame(width: geometry.size.width * segment.likelySafeFraction)
             }
         }
+        .help(segment.help)
     }
 }
 
@@ -176,7 +190,7 @@ struct CategoryLegend: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), alignment: .leading)], alignment: .leading, spacing: 8) {
                 ForEach(DiskPart.parts(for: overview)) { part in
                     LegendEntry(
-                        color: Self.swatch(for: part),
+                        color: part.swatch,
                         title: part.title,
                         detail: part.detail,
                         outlined: part.kind == .free
@@ -191,15 +205,6 @@ struct CategoryLegend: View {
             }
         }
         .accessibilityHidden(true) // The strip above reads the same information as one summary.
-    }
-
-    /// The swatch matches the strip: grey parts are drawn pale there, so they are pale here too.
-    private static func swatch(for part: DiskPart) -> Color {
-        switch part.kind {
-        case .outsideHome: return Color.secondary.opacity(0.4)
-        case .free: return Color.secondary.opacity(0.25)
-        case .category, .otherFiles: return part.color
-        }
     }
 
     /// The whole strip and legend as one sentence for VoiceOver.
