@@ -39,7 +39,8 @@ pub enum Problem {
     NotToml(String),
     /// The file has something other than `[[rule]]` entries.
     #[error(
-        "the file has a section the app does not know; rule files may only hold [[rule]] entries"
+        "the file has a section {product} does not know; rule files may only hold [[rule]] entries",
+        product = brand::PRODUCT_NAME
     )]
     UnknownSection,
     /// `rule` is not a list of tables.
@@ -106,7 +107,7 @@ pub enum Problem {
     #[error("a rule with low confidence can never be \"likely_safe\"; use \"review_first\" or raise the confidence")]
     LowConfidenceLikelySafe,
     /// `match.path` could match something hard-blocked.
-    #[error("this pattern could match {0}, which the app never removes")]
+    #[error("this pattern could match {0}, which {product} never removes", product = brand::PRODUCT_NAME)]
     MatchesHardBlocked(BlockReason),
     /// A `likely_safe` rule whose `match.path` could match a review-only item.
     #[error("this pattern could match {0}, which must always be reviewed one by one, so the rule cannot be \"likely_safe\"")]

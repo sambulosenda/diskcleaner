@@ -196,7 +196,7 @@ final class LowSpaceMonitor: ObservableObject {
     var summaryText: String {
         switch reading {
         case .unknown: return "Checking free space…"
-        case .failed: return "Roomy can't read your disk's free space."
+        case .failed: return "\(AppInfo.name) can't read your disk's free space."
         case let .read(free, total): return "\(Format.bytes(free)) free of \(Format.bytes(total))"
         }
     }
@@ -236,7 +236,7 @@ final class UserNotificationsNotifier: NSObject, LowSpaceNotifier, UNUserNotific
     func notifyLowSpace(freeBytes: UInt64) {
         let content = UNMutableNotificationContent()
         content.title = "Your Mac is nearly full"
-        content.body = "\(Format.bytes(freeBytes)) left. Open Roomy to see what's using space."
+        content.body = "\(Format.bytes(freeBytes)) left. Open \(AppInfo.name) to see what's using space."
         content.sound = .default
         // The same identifier replaces an earlier alert instead of stacking a second one.
         let request = UNNotificationRequest(identifier: Self.identifier, content: content, trigger: nil)

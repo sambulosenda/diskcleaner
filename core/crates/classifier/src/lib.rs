@@ -95,8 +95,8 @@ fn unknown_items(scan: &ScanResult, claimed: &HashMap<DirId, u64>) -> Vec<Classi
             rule_id: UNKNOWN_RULE_ID.to_string(),
             rule_version: UNKNOWN_RULE_VERSION,
             title: format!("Other items in {name}"),
-            explain: "Files and folders the app does not recognise yet.".to_string(),
-            risk: "These may be your own files, so the app does not offer to remove them."
+            explain: concat!("Files and folders ", brand::name!(), " does not recognise yet.").to_string(),
+            risk: concat!("These may be your own files, so ", brand::name!(), " does not offer to remove them.")
                 .to_string(),
             restore: None,
             category: Category::Unknown,

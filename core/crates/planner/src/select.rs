@@ -11,18 +11,18 @@ use crate::{Expected, ItemRequest};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum NotOffered {
     /// The item's tier is `keep`.
-    #[error("the app keeps this, so it is not offered for cleanup")]
+    #[error("{product} keeps this, so it is not offered for cleanup", product = brand::PRODUCT_NAME)]
     Keep,
     /// No rule describes the item.
-    #[error("the app does not know what this is, so it is not offered for cleanup")]
+    #[error("{product} does not know what this is, so it is not offered for cleanup", product = brand::PRODUCT_NAME)]
     Unknown,
     /// The item's action is a tool command or show only, not the Trash.
     /// Tool commands are not part of cleanup yet.
-    #[error("this is not something the app moves to the Trash")]
+    #[error("this is not something {product} moves to the Trash", product = brand::PRODUCT_NAME)]
     NotTrash,
     /// The scan did not record the item's modification time, so the
     /// executor could not check it is unchanged.
-    #[error("the app could not check this properly during the scan")]
+    #[error("{product} could not check this properly during the scan", product = brand::PRODUCT_NAME)]
     NoModifiedTime,
 }
 

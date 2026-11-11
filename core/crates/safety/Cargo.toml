@@ -6,6 +6,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+brand = { path = "../brand" }
 thiserror = "2"
 
 [dev-dependencies]

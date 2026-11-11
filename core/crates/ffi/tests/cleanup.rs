@@ -222,7 +222,7 @@ fn without_a_trash_nothing_can_move() {
         Err(CoreError::CleanupUnavailable { reason }) => {
             assert_eq!(
                 reason,
-                "Roomy couldn't open your Trash, so nothing can be moved."
+                "Diskwell couldn't open your Trash, so nothing can be moved."
             );
         }
         other => panic!("{other:?}"),

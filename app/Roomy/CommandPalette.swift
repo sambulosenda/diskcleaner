@@ -117,7 +117,7 @@ extension PaletteCommand {
             symbol: "gearshape", kind: .action, keywords: ["preferences", "options", "folders to keep"],
             action: .openSettings))
         actions.append(PaletteCommand(
-            id: "action.fullDiskAccess", title: "Full Disk Access", subtitle: "Lets Roomy measure the folders macOS keeps private.",
+            id: "action.fullDiskAccess", title: "Full Disk Access", subtitle: "Lets \(AppInfo.name) measure the folders macOS keeps private.",
             symbol: "lock.shield", kind: .action, keywords: ["permission", "privacy"], action: .showFullDiskAccess))
         return actions
     }

@@ -46,14 +46,14 @@ pub(crate) const FOLDERS: &[&str] = &[
 ];
 
 /// Shown when the search thread can't start.
-const COULD_NOT_START: &str = "Roomy couldn't start looking for copies. Please try again.";
+const COULD_NOT_START: &str = concat!(brand::name!(), " couldn't start looking for copies. Please try again.");
 /// Shown for anything unexpected, including a bug in the core.
 const SOMETHING_WENT_WRONG: &str =
     "Something went wrong while looking for copies. Please try again.";
 /// Shown when no search has finished.
 const NOT_SEARCHED: &str = "Look for copies first.";
 /// Shown for a copy the app can never move. Never holds a path.
-const STAYS: &str = "Roomy can't move this copy";
+const STAYS: &str = concat!(brand::name!(), " can't move this copy");
 
 /// The duplicate finder's state, shared with the search thread.
 #[derive(Debug, Default)]

@@ -231,7 +231,7 @@ private struct ToolReviewSheet: View {
                     itemRow(item)
                 }
                 .listStyle(.bordered)
-                Text("Roomy will run: \(preview.commandLine)")
+                Text("\(AppInfo.name) will run: \(preview.commandLine)")
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -279,7 +279,7 @@ private struct ToolReviewSheet: View {
         .listStyle(.bordered)
         .disabled(tools.review.isBusy)
         .accessibilityLabel("Installed packages")
-        Text("Roomy will run: sdkmanager --uninstall \(tools.selectedPackage ?? "<package>")")
+        Text("\(AppInfo.name) will run: sdkmanager --uninstall \(tools.selectedPackage ?? "<package>")")
             .font(.system(.callout, design: .monospaced))
             .foregroundStyle(.secondary)
             .lineLimit(1)

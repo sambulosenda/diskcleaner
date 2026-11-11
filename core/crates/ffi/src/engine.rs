@@ -35,9 +35,9 @@ use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
 
 /// Shown when the home folder cannot be scanned at all.
-const HOME_UNREADABLE: &str = "Roomy could not read your home folder.";
+const HOME_UNREADABLE: &str = concat!(brand::name!(), " could not read your home folder.");
 /// Shown when the scan threads could not start.
-const COULD_NOT_START: &str = "Roomy could not start the scan. Please try again.";
+const COULD_NOT_START: &str = concat!(brand::name!(), " could not start the scan. Please try again.");
 /// Shown for anything unexpected, including a bug in the core.
 const SOMETHING_WENT_WRONG: &str = "Something went wrong during the scan. Please try again.";
 

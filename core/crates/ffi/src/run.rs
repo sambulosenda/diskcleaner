@@ -23,10 +23,10 @@ const PLAN_GONE: &str = "This review is no longer open. Please review again.";
 const PLAN_EXPIRED: &str = "This review is more than ten minutes old. Please review again.";
 /// Shown when the Trash can't be opened.
 /// Shown when macOS refuses to let Roomy open the Trash (privacy protection).
-const TRASH_NOT_ALLOWED: &str = "macOS didn't let Roomy open your Trash, so nothing was moved. Turn on Full Disk Access for Roomy in System Settings, then try again.";
-const TRASH_UNAVAILABLE: &str = "Roomy couldn't open your Trash, so nothing was moved.";
+const TRASH_NOT_ALLOWED: &str = concat!("macOS didn't let ", brand::name!(), " open your Trash, so nothing was moved. Turn on Full Disk Access for ", brand::name!(), " in System Settings, then try again.");
+const TRASH_UNAVAILABLE: &str = concat!(brand::name!(), " couldn't open your Trash, so nothing was moved.");
 /// Shown when the home folder can't be opened.
-const HOME_UNAVAILABLE: &str = "Roomy couldn't open your home folder, so nothing was moved.";
+const HOME_UNAVAILABLE: &str = concat!(brand::name!(), " couldn't open your home folder, so nothing was moved.");
 /// Shown for a move or removal that failed partway.
 const MOVE_FAILED: &str = "The move to the Trash did not work.";
 

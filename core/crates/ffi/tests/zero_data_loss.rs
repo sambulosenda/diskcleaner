@@ -816,7 +816,7 @@ fn the_extra_checks_hold_things_back_and_lose_nothing() {
     let held: Vec<(&str, &str)> = vec![
         (
             fixtures::paths::DERIVED_DATA,
-            "in a folder you asked Roomy to keep",
+            "in a folder you asked Diskwell to keep",
         ),
         (fixtures::paths::GRADLE_CACHES, "Android Studio is open"),
         (

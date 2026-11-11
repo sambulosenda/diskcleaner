@@ -13,7 +13,7 @@
 
 [[rule]]
 id = "ollama.models"
-version = 1
+version = 2
 match.path = ".ollama/models"
 category = "developer_tools"
 tier = "review_first"
@@ -21,7 +21,7 @@ confidence = "high"
 regenerable = false
 mode = "developer"
 title = "Ollama models"
-explain = "AI models you downloaded with Ollama to run on this Mac. Models share parts, so Roomy shows their total size only."
+explain = "AI models you downloaded with Ollama to run on this Mac. Models share parts, so only their total size is shown."
 risk = "Removing models by hand would break the ones you keep. Use Ollama's own command instead."
 restore = "To remove one model, run: ollama rm <model name>. To get it back, run: ollama pull <model name>."
 action = "show_only"

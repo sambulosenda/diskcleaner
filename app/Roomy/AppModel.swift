@@ -891,7 +891,7 @@ final class AppModel: ObservableObject {
     /// Plain words for an error from the Android review.
     static func androidMessage(for error: Error) -> String {
         if case .UnknownItem = error as? CoreError {
-            return "Some of these are no longer where Roomy last looked. Please look again."
+            return "Some of these are no longer where \(AppInfo.name) last looked. Please look again."
         }
         return cleanupMessage(for: error)
     }
@@ -929,7 +929,7 @@ final class AppModel: ObservableObject {
             if case CoreError.InvalidPath(let reason) = error {
                 protectedFoldersMessage = reason
             } else {
-                protectedFoldersMessage = "Roomy couldn't save that folder. Please try again."
+                protectedFoldersMessage = "\(AppInfo.name) couldn't save that folder. Please try again."
             }
         }
     }
@@ -1293,9 +1293,9 @@ final class AppModel: ObservableObject {
         case .ScanFailed(let reason):
             return reason
         case .UnknownScan, .ScanNotFinished, .ScanCancelled, .UnknownItem:
-            return "Roomy lost track of this scan. Please scan again."
+            return "\(AppInfo.name) lost track of this scan. Please scan again."
         case .HomeNotFound:
-            return "Roomy couldn't find your home folder."
+            return "\(AppInfo.name) couldn't find your home folder."
         case .InvalidPath, .Io, .RulesInvalid:
             return "Something went wrong while scanning."
         case .NothingSelected:
@@ -1303,15 +1303,15 @@ final class AppModel: ObservableObject {
         case .CleanupUnavailable(let reason), .DockerUnavailable(let reason), .ToolUnavailable(let reason):
             return reason
         case .NothingToPutBack:
-            return "Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash."
+            return "\(AppInfo.name) can only put back its most recent cleanup, until \(AppInfo.name) quits. You can still drag items back from the Trash."
         case .UnknownApp:
-            return "Roomy lost track of this app. Please look again."
+            return "\(AppInfo.name) lost track of this app. Please look again."
         }
     }
 
     /// Plain words for an error from the cleanup review.
     static func cleanupMessage(for error: Error) -> String {
-        guard let coreError = error as? CoreError else { return "Roomy couldn't check these items." }
+        guard let coreError = error as? CoreError else { return "\(AppInfo.name) couldn't check these items." }
         switch coreError {
         case .UnknownItem:
             return "Some of these items are no longer in the scan. Please scan again."

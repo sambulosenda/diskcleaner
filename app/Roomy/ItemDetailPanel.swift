@@ -196,7 +196,7 @@ enum BackupWarning {
         timeZone: TimeZone = .current
     ) -> String {
         guard let seconds = backup.lastBackupUnixSeconds else {
-            return "Roomy couldn't tell when it was last backed up to this Mac."
+            return "\(AppInfo.name) couldn't tell when it was last backed up to this Mac."
         }
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -216,12 +216,12 @@ enum ItemDetailText {
         switch detail.tier {
         case .likelySafe:
             lead = detail.regenerable
-                ? "Roomy recognises this, and it comes back by itself if it is removed."
-                : "Roomy recognises this, and it is usually safe to remove."
+                ? "\(AppInfo.name) recognises this, and it comes back by itself if it is removed."
+                : "\(AppInfo.name) recognises this, and it is usually safe to remove."
         case .reviewFirst:
             lead = "It may hold something you want, so look at it before removing it."
         case .keep:
-            lead = "It is shown so you know where the space goes. Roomy won't offer to remove it."
+            lead = "It is shown so you know where the space goes. \(AppInfo.name) won't offer to remove it."
         }
         let reasons = detail.cautions.map(\.explanation)
         return ([lead] + reasons).joined(separator: " ")

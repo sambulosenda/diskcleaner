@@ -204,7 +204,7 @@ final class MenuBarScanSummaryTests: XCTestCase {
         XCTAssertTrue(summary.headline.contains(Format.bytes(overview.likelySafeBytes)))
         XCTAssertEqual(summary.detail, "Scanned \(Format.relative(scannedAt, now: now))")
         XCTAssertEqual(summary.action, .review)
-        XCTAssertEqual(summary.buttonTitle, "Review in Roomy\u{2026}")
+        XCTAssertEqual(summary.buttonTitle, "Review in Diskwell\u{2026}")
     }
 
     func testNoWordingSoundsAlarming() {

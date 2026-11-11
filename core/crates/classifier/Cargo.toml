@@ -7,6 +7,7 @@ publish = false
 description = "Matches scan results to rules. Pure: never touches the filesystem."
 
 [dependencies]
+brand = { path = "../brand" }
 rules = { path = "../rules" }
 safety = { path = "../safety" }
 scanner = { path = "../scanner" }

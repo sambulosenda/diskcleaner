@@ -164,7 +164,7 @@ private struct DockerOverviewView: View {
         switch overview.status {
         case .notInstalled:
             CenteredMessage(symbol: "shippingbox", title: "Docker isn't installed",
-                            message: "Roomy looked in the usual places and didn't find Docker.") {
+                            message: "\(AppInfo.name) looked in the usual places and didn't find Docker.") {
                 retry
             }
         case .notRunning:
@@ -173,7 +173,7 @@ private struct DockerOverviewView: View {
                 retry
             }
         case .unavailable(let reason):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't ask Docker",
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't ask Docker",
                             message: reason) {
                 retry
             }
@@ -196,7 +196,7 @@ private struct DockerOverviewView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Section(header: Text("Roomy can clean these up")) {
+            Section(header: Text("\(AppInfo.name) can clean these up")) {
                 cleanupRow(.unusedImages, row: overview.images,
                            detail: "\(Format.count(overview.images.count)) images, \(Format.count(overview.images.active)) in use")
                 cleanupRow(.buildCache, row: overview.buildCache,
@@ -205,11 +205,11 @@ private struct DockerOverviewView: View {
             Section(header: Text("Shown only")) {
                 infoRow(title: "Stopped containers",
                         size: overview.containers.reclaimableBytes,
-                        explain: "A stopped container can hold work that isn't saved anywhere else, so Roomy doesn't remove them. To remove them yourself, run:",
+                        explain: "A stopped container can hold work that isn't saved anywhere else, so \(AppInfo.name) doesn't remove them. To remove them yourself, run:",
                         command: "docker container prune")
                 infoRow(title: "Volumes",
                         size: overview.volumes.sizeBytes,
-                        explain: "Volumes hold your databases and other data. Roomy never removes them.",
+                        explain: "Volumes hold your databases and other data. \(AppInfo.name) never removes them.",
                         command: nil)
             }
             Section {
@@ -295,7 +295,7 @@ private struct DockerReviewSheet: View {
                     }
                 }
                 .listStyle(.bordered)
-                Text("Roomy will run: \(preview.commandLine)")
+                Text("\(AppInfo.name) will run: \(preview.commandLine)")
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(.secondary)
             }

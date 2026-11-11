@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// The product's name, in one place, for every word the app shows.
+///
+/// Change it here (and `brand::name!` in the core) to rename the product. It is for words only: never
+/// build a path, bundle id, defaults key or keychain name from it, or a rename would lose user data.
+enum AppInfo {
+    static let name = "Diskwell"
+}
+
 /// App entry point. The UI only; all real work happens in the Rust core.
 @main
 struct RoomyApp: App {
@@ -24,7 +32,7 @@ struct RoomyApp: App {
     }
 
     var body: some Scene {
-        Window("Roomy", id: "main") {
+        Window("\(AppInfo.name)", id: "main") {
             ContentView()
                 .environmentObject(model)
                 .background(MainWindowOpener(monitor: lowSpace))
@@ -39,7 +47,7 @@ struct RoomyApp: App {
                 Button("Scan") { model.startScan() }
                     .keyboardShortcut("r", modifiers: .command)
                     .disabled(model.isScanning)
-                Button("Search Roomy\u{2026}") { model.palette.toggle() }
+                Button("Search \(AppInfo.name)\u{2026}") { model.palette.toggle() }
                     .keyboardShortcut("k", modifiers: .command)
                     .disabled(!model.palette.isPresented && !model.palette.canOpen)
             }

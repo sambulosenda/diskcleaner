@@ -151,11 +151,11 @@ extension Caution {
     /// Why the core was more careful with an item, in one plain sentence. Never names a place.
     var explanation: String {
         switch self {
-        case .protected: return "It is, or holds, something Roomy always keeps."
+        case .protected: return "It is, or holds, something \(AppInfo.name) always keeps."
         case .reviewOnly: return "It holds something you should look at first."
-        case .nestedRule: return "Something else Roomy recognises is inside it."
-        case .rulesDisagree: return "Roomy isn't sure what part of it is."
-        case .lowConfidence: return "Roomy isn't sure what it is."
+        case .nestedRule: return "Something else \(AppInfo.name) recognises is inside it."
+        case .rulesDisagree: return "\(AppInfo.name) isn't sure what part of it is."
+        case .lowConfidence: return "\(AppInfo.name) isn't sure what it is."
         case .unreadable: return "Part of it couldn't be read."
         case .unusualName: return "A name inside it couldn't be checked."
         }

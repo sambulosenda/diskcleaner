@@ -72,11 +72,11 @@ struct CleanupReviewSheet: View {
         case .puttingBack:
             Working(text: "Putting things back\u{2026}")
         case .failed(let message):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't finish this", message: message) {
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't finish this", message: message) {
                 // macOS may refuse to let Roomy open the Trash without Full Disk Access.
                 if model.fullDiskAccess == .notGranted {
                     Button("Open Full Disk Access Settings") { FullDiskAccessSettings.open() }
-                        .accessibilityHint("Opens System Settings. Turn on Roomy, then try again.")
+                        .accessibilityHint("Opens System Settings. Turn on \(AppInfo.name), then try again.")
                 }
             }
             .task { await model.refreshFullDiskAccess() }
@@ -194,8 +194,8 @@ enum CleanupText {
     }
 
     static let confirmMessage =
-        "Roomy checks each item again first. The space comes back when you empty the Trash. "
-        + "Until then you can put them back, from here or from History, until Roomy quits."
+        "\(AppInfo.name) checks each item again first. The space comes back when you empty the Trash. "
+        + "Until then you can put them back, from here or from History, until \(AppInfo.name) quits."
 
     /// The confirm message, led by a warning for each iPhone or iPad backup that would move.
     static func confirmText(_ preview: CleanupPreview) -> String {
@@ -243,7 +243,7 @@ enum CleanupText {
             lines.append("The space comes back when you empty the Trash.")
         }
         if !result.savedToHistory {
-            lines.append("Roomy couldn't save this to History.")
+            lines.append("\(AppInfo.name) couldn't save this to History.")
         }
         return lines.isEmpty ? nil : lines.joined(separator: " ")
     }

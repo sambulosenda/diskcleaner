@@ -24,38 +24,38 @@ pub enum Refusal {
     #[error("the home folder setting is not valid")]
     InvalidHome,
     /// Step 1: the path does not start at the root.
-    #[error("the path is not a full path")]
+    #[error("its location is incomplete")]
     NotAbsolute,
     /// Step 1: the path has `.` or `..` parts, doubled or trailing slashes,
     /// or a NUL byte.
-    #[error("the path is written in an unusual way")]
+    #[error("its location is written in an unusual way")]
     NotCanonical,
     /// Step 2: the path is not inside the home folder.
-    #[error("the path is outside your home folder")]
+    #[error("it is outside your home folder")]
     OutsideHome,
     /// Step 3: a part of the path is a symlink.
-    #[error("part of the path is a link to somewhere else")]
+    #[error("part of its location is a shortcut to somewhere else")]
     Symlink {
         /// The first part of the path found to be a symlink.
         at: PathBuf,
     },
     /// Step 3: a part of the path could not be read, or does not exist.
-    #[error("part of the path could not be checked")]
+    #[error("part of its location could not be checked")]
     Unreadable {
         /// The part of the path that could not be read.
         at: PathBuf,
     },
     /// Step 4: the path is on a different disk from the scan.
-    #[error("the path is on a different disk")]
+    #[error("it is on a different disk")]
     OtherVolume,
     /// Step 5: the path is hard-blocked. There is no override.
-    #[error("this is {0}, which the app never removes")]
+    #[error("this is {0}, which {product} never removes", product = brand::PRODUCT_NAME)]
     HardBlocked(BlockReason),
     /// Step 6: the path is review-only and was not selected on its own.
     #[error("this is {0}, so you need to choose it yourself")]
     NeedsIndividualSelection(ReviewReason),
     /// Step 6: the path is review-only and may not be removed in v1 at all.
-    #[error("this is {0}, which you can open in Finder but the app does not remove")]
+    #[error("this is {0}, which you can open in Finder but {product} does not remove", product = brand::PRODUCT_NAME)]
     NotRemovableInV1(ReviewReason),
 }
 

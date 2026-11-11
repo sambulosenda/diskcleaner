@@ -395,7 +395,7 @@ struct OverviewFooter: View {
             Spacer(minLength: 12)
             Text("Scanned \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
                 .foregroundStyle(.secondary)
-                .help(quickRescan ? "Roomy measured again only the folders that changed since the scan before." : "")
+                .help(quickRescan ? "\(AppInfo.name) measured again only the folders that changed since the scan before." : "")
             UnmeasuredNote(unreadableCount: unreadableCount, unscanned: unscanned)
         }
         .font(.footnote)
@@ -417,7 +417,7 @@ struct UnmeasuredNote: View {
 
     var body: some View {
         if unreadableCount == 0 {
-            Text("Roomy could open every folder.")
+            Text("\(AppInfo.name) could open every folder.")
                 .foregroundStyle(.secondary)
         } else {
             HStack(spacing: 6) {
@@ -446,11 +446,11 @@ struct FullDiskAccessExplanation: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Some folders weren't measured")
                 .font(.headline)
-            Text("Roomy couldn't open some folders. Most often that's because macOS keeps them private, such as Mail, Messages and Safari data.")
+            Text("\(AppInfo.name) couldn't open some folders. Most often that's because macOS keeps them private, such as Mail, Messages and Safari data.")
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Full Disk Access lets Roomy measure the folders macOS protects. Roomy only reads sizes, and nothing leaves this Mac. Saying no is fine: the rest of the results are still right.")
+            Text("Full Disk Access lets \(AppInfo.name) measure the folders macOS protects. \(AppInfo.name) only reads sizes, and nothing leaves this Mac. Saying no is fine: the rest of the results are still right.")
                 .fixedSize(horizontal: false, vertical: true)
-            Text("To turn it on, open System Settings, go to Privacy & Security, then Full Disk Access, and switch on Roomy (or add it with the + button). Then scan again.")
+            Text("To turn it on, open System Settings, go to Privacy & Security, then Full Disk Access, and switch on \(AppInfo.name) (or add it with the + button). Then scan again.")
                 .fixedSize(horizontal: false, vertical: true)
             if let url = FullDiskAccessSettings.url {
                 Link("Open Full Disk Access settings", destination: url)

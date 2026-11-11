@@ -115,7 +115,7 @@ final class RustCoreClient: CoreClient {
 
     func dockerOverview() async -> DockerOverview {
         let fallback = DockerOverview(
-            status: .unavailable(reason: "Roomy couldn't start, so it can't ask Docker."),
+            status: .unavailable(reason: "\(AppInfo.name) couldn't start, so it can't ask Docker."),
             images: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
             containers: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
             volumes: DockerUsageRow(count: 0, active: 0, sizeBytes: 0, reclaimableBytes: 0),
@@ -128,7 +128,7 @@ final class RustCoreClient: CoreClient {
     func systemData(mode: Mode) async -> SystemData {
         let fallback = SystemData(
             snapshots: LocalSnapshots(
-                status: .unavailable(reason: "Roomy couldn't start, so it can't measure System Data."),
+                status: .unavailable(reason: "\(AppInfo.name) couldn't start, so it can't measure System Data."),
                 count: 0, oldestUnixSeconds: nil, newestUnixSeconds: nil),
             parts: [],
             totalBytes: 0)
@@ -177,7 +177,7 @@ final class RustCoreClient: CoreClient {
 
     func androidOverview(mode: Mode) async -> AndroidOverview {
         let fallback = AndroidOverview(sdkFound: false, parts: [], projects: [], totalBytes: 0, unusedBytes: 0,
-                                       note: "Roomy couldn't start, so it can't look at Android.")
+                                       note: "\(AppInfo.name) couldn't start, so it can't look at Android.")
         return (try? await offMain { $0.androidOverview(mode: mode) }) ?? fallback
     }
 

@@ -67,7 +67,7 @@ struct AppList: View {
             let apps = model.visibleApps
             if apps.isEmpty {
                 CenteredMessage(symbol: "xmark.bin", title: "No apps to remove",
-                                message: "Roomy didn't find any apps it can help remove. Apple's own apps aren't listed.") {
+                                message: "\(AppInfo.name) didn't find any apps it can help remove. Apple's own apps aren't listed.") {
                     EmptyView()
                 }
             } else {
@@ -138,14 +138,14 @@ struct AppReviewPanel: View {
         switch model.appReviewState {
         case .none:
             CenteredMessage(symbol: "xmark.bin", title: "Choose an app",
-                            message: "Roomy shows the app and everything it keeps on your Mac. Nothing is removed until you review and confirm.") {
+                            message: "\(AppInfo.name) shows the app and everything it keeps on your Mac. Nothing is removed until you review and confirm.") {
                 EmptyView()
             }
         case .loading:
             ProgressView("Looking at what this app keeps\u{2026}")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let message):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't look at this app", message: message) {
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't look at this app", message: message) {
                 Button("Look again") { model.loadApps() }
             }
         case .loaded(let review):
@@ -166,7 +166,7 @@ struct AppReviewContent: View {
             Divider()
             if review.parts.isEmpty {
                 CenteredMessage(symbol: "checkmark.circle", title: "Nothing to remove",
-                                message: review.note ?? "Roomy didn't find anything this app left in your home folder.") {
+                                message: review.note ?? "\(AppInfo.name) didn't find anything this app left in your home folder.") {
                     EmptyView()
                 }
             } else {
@@ -217,9 +217,9 @@ struct AppReviewContent: View {
     private var locationText: String {
         switch review.app.location {
         case .applications:
-            return "Roomy moves what \(review.app.name) keeps in your home folder. To remove the app itself, drag it from Applications to the Trash in Finder."
+            return "\(AppInfo.name) moves what \(review.app.name) keeps in your home folder. To remove the app itself, drag it from Applications to the Trash in Finder."
         case .homeApplications:
-            return "This app is in the Applications folder in your home folder, so Roomy can move it too."
+            return "This app is in the Applications folder in your home folder, so \(AppInfo.name) can move it too."
         }
     }
 

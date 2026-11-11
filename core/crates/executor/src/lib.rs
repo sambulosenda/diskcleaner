@@ -99,7 +99,7 @@ pub enum ExecuteError {
     TrashUnavailable,
     /// The system refused to open `~/.Trash` (EPERM or EACCES). On macOS
     /// this is privacy protection: the app needs Full Disk Access.
-    #[error("the system did not let the app open the Trash")]
+    #[error("macOS did not let {product} open the Trash", product = brand::PRODUCT_NAME)]
     TrashNotAllowed,
 }
 
@@ -113,7 +113,7 @@ pub enum ItemRefusal {
     #[error("this changed since you reviewed it")]
     ChangedSinceReview,
     /// Something inside the item is hard-blocked.
-    #[error("it holds {reason}, which the app never removes")]
+    #[error("it holds {reason}, which {product} never removes", product = brand::PRODUCT_NAME)]
     ContainsProtected {
         /// The protected path inside the item.
         at: PathBuf,
@@ -130,7 +130,7 @@ pub enum ItemRefusal {
         reason: ReviewReason,
     },
     /// Something inside the item may not be removed in v1 at all.
-    #[error("it holds {reason}, which the app does not remove")]
+    #[error("it holds {reason}, which {product} does not remove", product = brand::PRODUCT_NAME)]
     ContainsNotRemovable {
         /// The path inside the item.
         at: PathBuf,
@@ -160,16 +160,16 @@ pub enum ItemRefusal {
         at: PathBuf,
     },
     /// A name inside the item is not valid text, so it could not be checked.
-    #[error("part of it has a name the app cannot check")]
+    #[error("part of it has a name {product} cannot check", product = brand::PRODUCT_NAME)]
     UnusualName {
         /// The path with the unusual name.
         at: PathBuf,
     },
     /// The item is inside a folder the user asked to keep.
-    #[error("it is in a folder you asked Roomy to keep")]
+    #[error("it is in a folder you asked {product} to keep", product = brand::PRODUCT_NAME)]
     InFolderYouKeep,
     /// The item holds a folder the user asked to keep.
-    #[error("it holds a folder you asked Roomy to keep")]
+    #[error("it holds a folder you asked {product} to keep", product = brand::PRODUCT_NAME)]
     HoldsFolderYouKeep,
     /// The app that uses the item is open.
     #[error("{app} is open and may be using it, so quit {app} and try again")]
@@ -179,7 +179,7 @@ pub enum ItemRefusal {
     },
     /// The running apps could not be listed, so the app that uses the item
     /// may be open.
-    #[error("the app couldn't check whether {app} is open, so it was left alone")]
+    #[error("{product} couldn't check whether {app} is open, so it was left alone", product = brand::PRODUCT_NAME)]
     AppNotChecked {
         /// The app's name.
         app: String,

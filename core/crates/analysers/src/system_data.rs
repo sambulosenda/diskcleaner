@@ -490,20 +490,20 @@ pub fn local_snapshots(query: &dyn SnapshotQuery) -> SnapshotState {
         reason: reason.to_string(),
     };
     match query.list_local_snapshots() {
-        Err(RunError::NotFound) => unavailable("Roomy couldn't ask Time Machine on this Mac."),
+        Err(RunError::NotFound) => unavailable(concat!(brand::name!(), " couldn't ask Time Machine on this Mac.")),
         Err(RunError::TimedOut) => {
             unavailable("Time Machine took too long to answer. Try again in a moment.")
         }
         Err(RunError::Other(reason)) => SnapshotState::Unavailable { reason },
         Ok(out) if !out.success => {
             tracing::warn!(stderr = %out.stderr.trim(), "tmutil listlocalsnapshots failed");
-            unavailable("Time Machine reported a problem, so Roomy couldn't list snapshots.")
+            unavailable(concat!("Time Machine reported a problem, so ", brand::name!(), " couldn't list snapshots."))
         }
         Ok(out) => match parse_snapshot_list(&out.stdout) {
             Ok(snapshots) => SnapshotState::Listed(snapshots),
             Err(err) => {
                 tracing::warn!(%err, "tmutil output not understood");
-                unavailable("Roomy couldn't read Time Machine's answer.")
+                unavailable(concat!(brand::name!(), " couldn't read Time Machine's answer."))
             }
         },
     }

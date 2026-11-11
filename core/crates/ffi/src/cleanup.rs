@@ -21,12 +21,12 @@ use crate::CoreError;
 
 /// Shown when the Trash cannot be opened, so nothing could move.
 /// Shown when macOS refuses to let Roomy open the Trash (privacy protection).
-const TRASH_NOT_ALLOWED: &str = "macOS didn't let Roomy open your Trash, so nothing can be moved. Turn on Full Disk Access for Roomy in System Settings, then try again.";
-const TRASH_UNAVAILABLE: &str = "Roomy couldn't open your Trash, so nothing can be moved.";
+const TRASH_NOT_ALLOWED: &str = concat!("macOS didn't let ", brand::name!(), " open your Trash, so nothing can be moved. Turn on Full Disk Access for ", brand::name!(), " in System Settings, then try again.");
+const TRASH_UNAVAILABLE: &str = concat!(brand::name!(), " couldn't open your Trash, so nothing can be moved.");
 /// Shown when the home folder cannot be opened, so nothing could move.
-const HOME_UNAVAILABLE: &str = "Roomy couldn't open your home folder, so nothing can be moved.";
+const HOME_UNAVAILABLE: &str = concat!(brand::name!(), " couldn't open your home folder, so nothing can be moved.");
 /// Shown for anything else that stops the whole preview.
-const PREVIEW_FAILED: &str = "Roomy couldn't check these items. Please scan again.";
+const PREVIEW_FAILED: &str = concat!(brand::name!(), " couldn't check these items. Please scan again.");
 /// Shown for an item inside another chosen item. The classifier never makes
 /// such items, so this is a guard, not something users should see.
 const INSIDE_ANOTHER: &str = "It is inside another item you chose.";

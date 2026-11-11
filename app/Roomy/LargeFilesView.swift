@@ -96,7 +96,7 @@ struct LargeFilesBody: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Loading files")
         case .failed(let message):
-            CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't list these", message: message) {
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "\(AppInfo.name) couldn't list these", message: message) {
                 Button("Scan again") { model.startScan() }
             }
         case .loaded(let files):
@@ -216,7 +216,7 @@ enum LargeFilesText {
 
     static func emptyMessage(_ list: AppModel.FilesList, days: UInt32) -> String {
         switch list {
-        case .largest: return "Roomy didn't find any large files of yours."
+        case .largest: return "\(AppInfo.name) didn't find any large files of yours."
         case .oldDownloads: return "Everything in Downloads was opened or changed in the last \(days) days."
         }
     }
