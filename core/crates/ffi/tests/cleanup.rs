@@ -120,6 +120,22 @@ fn preview_says_what_would_move_and_moves_nothing() {
 }
 
 #[test]
+fn the_preview_says_how_each_item_comes_back() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Simple);
+    let likely = items(&s.core, h, Tier::LikelySafe);
+
+    let preview = s.core.preview_cleanup(h, chosen(&likely)).unwrap();
+
+    // The same words as the item's detail, so the review and the detail agree.
+    for row in &preview.items {
+        let detail = s.core.item_detail(h, row.item_id.clone()).unwrap();
+        assert_eq!(row.restore, detail.restore, "{}", row.title);
+    }
+    assert!(preview.items.iter().any(|i| i.restore.is_some()));
+}
+
+#[test]
 fn keep_items_are_never_offered() {
     let s = setup(true);
     let h = finished_scan(&s.core, Mode::Developer);

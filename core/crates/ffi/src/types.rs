@@ -450,6 +450,10 @@ pub struct CleanupPreviewItem {
     /// For an iPhone or iPad backup only: which device it belongs to, as in
     /// [`ItemDetail::device_backup`].
     pub device_backup: Option<DeviceBackup>,
+    /// What happens after it is removed: how it comes back, in the rule's
+    /// own words, as in [`ItemDetail::restore`]. `None` if it does not come
+    /// back by itself (it can still be put back from the Trash).
+    pub restore: Option<String>,
 }
 
 /// The dry run: exactly what would move to the Trash. Nothing has moved.

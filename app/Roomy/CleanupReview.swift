@@ -202,6 +202,16 @@ enum CleanupText {
         return lines.isEmpty ? nil : lines.joined(separator: " ")
     }
 
+    /// What happens after an item that would move is removed, said where the decision is made.
+    /// `nil` for an item that stays where it is.
+    static func afterwards(_ item: CleanupPreviewItem) -> String? {
+        guard item.check == .willMove else { return nil }
+        if let restore = item.restore, !restore.isEmpty {
+            return "Afterwards: \(restore)"
+        }
+        return "Afterwards: it doesn't come back by itself. You can put it back until you empty the Trash."
+    }
+
     static func putBackHeadline(_ result: PutBackResult) -> String {
         let count = result.items.filter(\.done).count
         if count == 0 { return "Nothing could be put back" }
@@ -315,6 +325,12 @@ struct CleanupPreviewRow: View {
                 Text(statusText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if let afterwards = CleanupText.afterwards(item) {
+                    Text(afterwards)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if willMove, let backup = item.deviceBackup {
                     BackupWarningBox(backup: backup, compact: true)
                         .padding(.top, 2)

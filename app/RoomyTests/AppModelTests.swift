@@ -765,7 +765,7 @@ final class AppModelTests: XCTestCase {
             CleanupPreview(
                 plan: PlanHandle(id: 1),
                 items: [CleanupPreviewItem(itemId: "a", title: "iPhone or iPad backup", sizeBytes: 10,
-                                           check: check, path: nil, deviceBackup: device)],
+                                           check: check, path: nil, deviceBackup: device, restore: nil)],
                 bytesToMove: 10,
                 expiresInSeconds: 600
             )

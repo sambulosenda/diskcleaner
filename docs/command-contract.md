@@ -399,6 +399,7 @@ the main window's review is left alone. Throws the same errors as `preview_clean
 | `check` | `CleanupCheck` | |
 | `path` | `String?` | **Developer mode only**, display string starting `~/`, like `ItemDetail.path`. Always `nil` in simple mode |
 | `device_backup` | `DeviceBackup?` | As `ItemDetail.device_backup` |
+| `restore` | `String?` | How it comes back after removal, as `ItemDetail.restore`; `nil` if it does not come back by itself |
 
 ### `CleanupPreview` (record)
 | Field | Type | Meaning |

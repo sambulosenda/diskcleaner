@@ -165,7 +165,7 @@ final class MockCoreClient: CoreClient {
                 let check: CleanupCheck = choice.chosenAlone
                     ? .willMove : .wontMove(reason: "This is something you need to choose yourself.")
                 rows.append(CleanupPreviewItem(itemId: file.itemId, title: file.name, sizeBytes: file.sizeBytes,
-                                               check: check, path: file.path, deviceBackup: nil))
+                                               check: check, path: file.path, deviceBackup: nil, restore: nil))
                 continue
             }
             guard let item = MockData.lookup(choice.itemId, in: scenario) else { throw CoreError.UnknownItem }
@@ -184,7 +184,9 @@ final class MockCoreClient: CoreClient {
             let path = modes[handle] == .developer ? "~/Library/Mock/\(item.id)" : nil
             rows.append(CleanupPreviewItem(itemId: item.id, title: item.title, sizeBytes: item.sizeBytes,
                                            check: check, path: path,
-                                           deviceBackup: MockData.deviceBackup(for: item)))
+                                           deviceBackup: MockData.deviceBackup(for: item),
+                                           restore: item.tier == .likelySafe
+                                               ? "It comes back by itself when it is needed." : nil))
         }
         return rows
     }
@@ -516,7 +518,7 @@ final class MockCoreClient: CoreClient {
         for id in partIds {
             guard let part = parts.first(where: { $0.itemId == id }) else { throw CoreError.UnknownItem }
             rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
-                                           check: .willMove, path: nil, deviceBackup: nil))
+                                           check: .willMove, path: nil, deviceBackup: nil, restore: nil))
         }
         return makePendingPlan(rows)
     }
@@ -552,7 +554,7 @@ extension MockCoreClient {
                 throw CoreError.UnknownItem
             }
             rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
-                                           check: .willMove, path: nil, deviceBackup: nil))
+                                           check: .willMove, path: nil, deviceBackup: nil, restore: nil))
         }
         return makePendingPlan(rows)
     }
@@ -598,7 +600,7 @@ extension MockCoreClient {
                     reason: "Keep at least one copy of \u{201c}\(group.name)\u{201d}. Untick one copy, then review again.")
             }
             rows.append(CleanupPreviewItem(itemId: id, title: group.name, sizeBytes: group.sizeBytes,
-                                           check: .willMove, path: nil, deviceBackup: nil))
+                                           check: .willMove, path: nil, deviceBackup: nil, restore: nil))
         }
         return makePendingPlan(rows)
     }
