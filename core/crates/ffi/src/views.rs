@@ -1,14 +1,14 @@
 //! Builds what the app sees from a finished scan. Pure: no filesystem access.
 
 use std::collections::{BTreeMap, HashMap};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use classifier::ClassifiedItem;
 
 use crate::place::{place, PlaceFrom};
 use crate::types::{
-    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, LibrarySize, Mode, PlaceAnswer,
-    PlaceMatch, PrivateArea, Sort, Tier, UnreadableArea,
+    Category, CategoryTotal, Caution, ItemDetail, ItemSummary, LibrarySize, Mode, PrivateArea,
+    Sort, Tier, UnreadableArea,
 };
 use crate::CoreError;
 
@@ -240,64 +240,6 @@ impl Finished {
             path,
             device_backup: None,
         })
-    }
-}
-
-impl Finished {
-    /// What the scan knows about `place`: the item it is, the item it is
-    /// inside, or the items it holds. Pure: compares path text only, reads
-    /// nothing from disk and follows no links. A place that is not a plain
-    /// absolute path inside the home folder is `OutsideHome`.
-    pub fn explain_place(&self, place: &Path) -> PlaceAnswer {
-        let answer = |matched, item: Option<&ClassifiedItem>| PlaceAnswer {
-            matched,
-            item: item.map(|i| self.summary_of(i)),
-            item_count: 0,
-            likely_safe_bytes: 0,
-            review_first_bytes: 0,
-        };
-        let plain = place.is_absolute()
-            && place
-                .components()
-                .all(|c| matches!(c, Component::RootDir | Component::Normal(_)));
-        if !plain || !place.starts_with(&self.home) {
-            return answer(PlaceMatch::OutsideHome, None);
-        }
-        // The deepest item that is the place or holds it.
-        let around = self
-            .items
-            .iter()
-            .filter(|i| place.starts_with(&i.path))
-            .max_by_key(|i| i.path.components().count());
-        if let Some(item) = around {
-            let matched = if item.path == place {
-                PlaceMatch::Item
-            } else {
-                PlaceMatch::InsideItem
-            };
-            return answer(matched, Some(item));
-        }
-        let inside: Vec<&ClassifiedItem> = self
-            .items
-            .iter()
-            .filter(|i| i.path.starts_with(place))
-            .collect();
-        if inside.is_empty() {
-            return answer(PlaceMatch::NotListed, None);
-        }
-        let bytes_of = |tier: Tier| {
-            inside
-                .iter()
-                .filter(|i| Tier::from(i.tier) == tier)
-                .fold(0u64, |sum, i| sum.saturating_add(i.size_bytes))
-        };
-        PlaceAnswer {
-            matched: PlaceMatch::HoldsItems,
-            item: None,
-            item_count: inside.len() as u64,
-            likely_safe_bytes: bytes_of(Tier::LikelySafe),
-            review_first_bytes: bytes_of(Tier::ReviewFirst),
-        }
     }
 }
 

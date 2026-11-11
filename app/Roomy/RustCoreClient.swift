@@ -104,10 +104,6 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.putBackCleanup(cleanup: cleanup) }
     }
 
-    func explainPlace(handle: ScanHandle, path: String) async throws -> PlaceAnswer {
-        try await offMain { try $0.explainPlace(handle: handle, path: path) }
-    }
-
     func restorableCleanup() async -> CleanupResult? {
         (try? await offMain { $0.restorableCleanup() }) ?? nil
     }
