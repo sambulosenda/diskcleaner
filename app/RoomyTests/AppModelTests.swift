@@ -111,17 +111,20 @@ final class AppModelTests: XCTestCase {
         let model = makeModel()
         XCTAssertFalse(model.sidebarSections.flatMap { $0 }.contains(where: \.isDeveloperOnly))
         model.mode = .developer
-        XCTAssertEqual(model.sidebarSections.count, 3)
+        XCTAssertEqual(model.sidebarSections.count, 5)
         XCTAssertTrue(model.sidebarSections.contains(SidebarItem.developerItems))
     }
 
     func testSidebarListsEveryWireframeEntryInOrder() {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
-            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Duplicates",
-            "Apps and caches",
-            "System Data", "Remove apps", "Cleanup", "History",
+            "Overview", "Everything found",
+            "Backups", "Photos, Mail and Music", "Downloads and installers", "Apps and caches", "System Data",
+            "Large files", "Duplicates",
+            "Remove apps", "History",
         ])
+        XCTAssertEqual(model.sidebarSections.map { SidebarItem.heading(for: $0) },
+                       [nil, "Where space goes", "Find", "More"])
         model.mode = .developer
         XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker", "Tool clean-ups"])
     }
@@ -510,6 +513,30 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.checkedItemIDs, ["xcode-derived-data", "iphone-backup"])
     }
 
+    // MARK: - Scan progress
+
+    func testTheScanBarFillsOnlyWhenThereIsAnEarlierScanToCompareWith() {
+        let half = ScanProgress(bytesSeen: 50, itemsSeen: 1, phase: .scanning)
+        XCTAssertNil(ScanText.fraction(progress: half, expectedBytes: nil))
+        XCTAssertNil(ScanText.fraction(progress: half, expectedBytes: 0))
+        XCTAssertEqual(ScanText.fraction(progress: half, expectedBytes: 100) ?? 0, 0.45, accuracy: 0.001)
+        // A disk that grew since the last scan never shows a full bar while still measuring.
+        let more = ScanProgress(bytesSeen: 500, itemsSeen: 1, phase: .scanning)
+        XCTAssertEqual(ScanText.fraction(progress: more, expectedBytes: 100) ?? 0, ScanText.measuringLimit, accuracy: 0.001)
+        let sorting = ScanProgress(bytesSeen: 500, itemsSeen: 1, phase: .classifying)
+        XCTAssertEqual(ScanText.fraction(progress: sorting, expectedBytes: 100) ?? 0, 0.95, accuracy: 0.001)
+        XCTAssertEqual(ScanText.percent(0.45), "About 45% done")
+    }
+
+    func testAFinishedScanIsRememberedForTheNextScansBar() async {
+        let model = makeModel()
+        XCTAssertNil(model.expectedScanBytes)
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertEqual(model.expectedScanBytes, model.overview?.scannedBytes)
+        XCTAssertNotNil(model.expectedScanBytes)
+    }
+
     // MARK: - Quick select (F13)
 
     func testSelectAllTicksOnlyLikelySafeRows() async {
@@ -874,7 +901,9 @@ final class AppModelTests: XCTestCase {
     // MARK: - App uninstaller
 
     func testRemoveAppsIsInTheCleanUpGroup() {
-        XCTAssertEqual(SidebarItem.actionItems, [.apps, .cleanup, .history])
+        XCTAssertEqual(SidebarItem.actionItems, [.apps, .history])
+        // The list of everything sits under Overview, where the Overview's buttons lead.
+        XCTAssertEqual(SidebarItem.topItems, [.overview, .cleanup])
         XCTAssertEqual(SidebarItem.apps.title, "Remove apps")
         XCTAssertNil(SidebarItem.apps.itemFilter)
     }
@@ -1116,7 +1145,7 @@ final class AppModelTests: XCTestCase {
     }
 
     func testLibrariesScreenIsInTheSidebarAndIsNotAList() {
-        XCTAssertEqual(SidebarItem.mainItems.prefix(3), [.overview, .backups, .libraries])
+        XCTAssertEqual(SidebarItem.placeItems.prefix(2), [.backups, .libraries])
         XCTAssertNil(SidebarItem.libraries.itemFilter)
         XCTAssertFalse(SidebarItem.libraries.isDeveloperOnly)
     }
@@ -1244,7 +1273,7 @@ final class AppModelTests: XCTestCase {
     func testDuplicatesSitsWithTheEverydayScreens() {
         XCTAssertEqual(SidebarItem.duplicates.title, "Duplicates")
         XCTAssertNil(SidebarItem.duplicates.itemFilter)
-        XCTAssertTrue(SidebarItem.mainItems.contains(.duplicates))
+        XCTAssertTrue(SidebarItem.findItems.contains(.duplicates))
         XCTAssertFalse(SidebarItem.duplicates.isDeveloperOnly)
     }
 

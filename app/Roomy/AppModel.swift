@@ -175,6 +175,8 @@ final class AppModel: ObservableObject {
     static let protectedFoldersKey = "roomy.protectedFolders"
     /// Whether Roomy measures the home folder when it opens. On unless the user turned it off.
     static let scanOnOpenKey = "roomy.scanOnOpen"
+    /// How much the last finished scan measured, so the next scan can show how far along it is.
+    static let lastScannedBytesKey = "roomy.lastScannedBytes"
 
     @Published private(set) var scanState: ScanState = .neverScanned
     @Published var selection: SidebarItem? = .overview {
@@ -311,7 +313,13 @@ final class AppModel: ObservableObject {
         self.mode = Mode(storageKey: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
         self.scanOnOpen = defaults.object(forKey: Self.scanOnOpenKey) as? Bool ?? true
         self.protectedFolders = defaults.stringArray(forKey: Self.protectedFoldersKey) ?? []
+        let last = defaults.object(forKey: Self.lastScannedBytesKey) as? NSNumber
+        self.expectedScanBytes = last.map(\.uint64Value).flatMap { $0 > 0 ? $0 : nil }
     }
+
+    /// How much the last finished scan measured, or `nil` before the first one. The scanning screen
+    /// uses it to show roughly how far along a scan is. A guide only: nothing else depends on it.
+    private(set) var expectedScanBytes: UInt64?
 
     var isScanning: Bool {
         if case .scanning = scanState { return true }
@@ -1113,6 +1121,10 @@ final class AppModel: ObservableObject {
             loadedHandle = handle
             scanChanges = changes
             scanState = .loaded(overview, scannedAt: now())
+            if overview.scannedBytes > 0 {
+                expectedScanBytes = overview.scannedBytes
+                defaults.set(NSNumber(value: overview.scannedBytes), forKey: Self.lastScannedBytesKey)
+            }
             resetItems()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
