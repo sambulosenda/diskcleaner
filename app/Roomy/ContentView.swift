@@ -46,10 +46,8 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func sectionHeader(for items: [SidebarItem]) -> some View {
-        if items == SidebarItem.developerItems {
-            Text("Developer")
-        } else if items == SidebarItem.actionItems {
-            Text("Clean up")
+        if let heading = SidebarItem.heading(for: items) {
+            Text(heading)
         } else {
             EmptyView()
         }

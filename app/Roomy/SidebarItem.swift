@@ -22,14 +22,27 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    /// The first group: Overview and the everyday categories.
-    static let mainItems: [SidebarItem] = [
-        .overview, .backups, .libraries, .downloads, .largeFiles, .duplicates, .appsAndCaches, .systemData,
-    ]
+    /// The first group, with no heading: the answer, then every item the scan found in one list.
+    static let topItems: [SidebarItem] = [.overview, .cleanup]
+    /// "Where space goes": the everyday places, one screen each.
+    static let placeItems: [SidebarItem] = [.backups, .libraries, .downloads, .appsAndCaches, .systemData]
+    /// "Find": searches for single files.
+    static let findItems: [SidebarItem] = [.largeFiles, .duplicates]
     /// Shown only in Developer mode.
     static let developerItems: [SidebarItem] = [.projects, .xcode, .android, .javascript, .docker, .tools]
-    /// The last group: acting on things and looking back.
-    static let actionItems: [SidebarItem] = [.apps, .cleanup, .history]
+    /// The last group: removing apps and looking back.
+    static let actionItems: [SidebarItem] = [.apps, .history]
+
+    /// The heading above a group in the sidebar, or `nil` for the first group.
+    static func heading(for items: [SidebarItem]) -> String? {
+        switch items {
+        case placeItems: return "Where space goes"
+        case findItems: return "Find"
+        case developerItems: return "Developer"
+        case actionItems: return "More"
+        default: return nil
+        }
+    }
 
     var title: String {
         switch self {
@@ -48,7 +61,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .docker: return "Docker"
         case .tools: return "Tool clean-ups"
         case .apps: return "Remove apps"
-        case .cleanup: return "Cleanup"
+        case .cleanup: return "Everything found"
         case .history: return "History"
         }
     }
@@ -71,7 +84,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .docker: return "shippingbox"
         case .tools: return "wrench.and.screwdriver"
         case .apps: return "xmark.bin"
-        case .cleanup: return "sparkles"
+        case .cleanup: return "list.bullet"
         case .history: return "clock.arrow.circlepath"
         }
     }
@@ -111,6 +124,8 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
 
     /// The sidebar entries to show for a mode, as groups in order.
     static func sections(for mode: Mode) -> [[SidebarItem]] {
-        mode == .developer ? [mainItems, developerItems, actionItems] : [mainItems, actionItems]
+mode == .developer
+            ? [topItems, placeItems, findItems, developerItems, actionItems]
+            : [topItems, placeItems, findItems, actionItems]
     }
 }

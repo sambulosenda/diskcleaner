@@ -175,6 +175,8 @@ final class AppModel: ObservableObject {
     static let protectedFoldersKey = "roomy.protectedFolders"
     /// Whether Roomy measures the home folder when it opens. On unless the user turned it off.
     static let scanOnOpenKey = "roomy.scanOnOpen"
+    /// How much the last finished scan measured, so the next scan can show how far along it is.
+    static let lastScannedBytesKey = "roomy.lastScannedBytes"
 
     @Published private(set) var scanState: ScanState = .neverScanned
     @Published var selection: SidebarItem? = .overview {
@@ -208,6 +210,11 @@ final class AppModel: ObservableObject {
     /// Ticked rows, which the cleanup review checks. Nothing is ticked for the user, and `keep` items
     /// can never be ticked.
     @Published private(set) var checkedItemIDs: Set<String> = []
+    /// The ticked rows that "Select all Likely safe" ticked, not the user one by one. The core is told
+    /// these were not chosen alone, so its safety gate refuses any of them that needs a tick of its own.
+    private(set) var groupCheckedIDs: Set<String> = []
+    /// The ticked rows that are Likely safe items. A review of only these needs no second confirm.
+    private(set) var likelySafeCheckedIDs: Set<String> = []
     /// The cleanup review sheet.
     @Published private(set) var cleanupState: CleanupState = .closed
     /// The most recent cleanup, while it can still be put back (until the app quits).
@@ -306,7 +313,13 @@ final class AppModel: ObservableObject {
         self.mode = Mode(storageKey: defaults.string(forKey: Self.modeKey) ?? "") ?? .simple
         self.scanOnOpen = defaults.object(forKey: Self.scanOnOpenKey) as? Bool ?? true
         self.protectedFolders = defaults.stringArray(forKey: Self.protectedFoldersKey) ?? []
+        let last = defaults.object(forKey: Self.lastScannedBytesKey) as? NSNumber
+        self.expectedScanBytes = last.map(\.uint64Value).flatMap { $0 > 0 ? $0 : nil }
     }
+
+    /// How much the last finished scan measured, or `nil` before the first one. The scanning screen
+    /// uses it to show roughly how far along a scan is. A guide only: nothing else depends on it.
+    private(set) var expectedScanBytes: UInt64?
 
     var isScanning: Bool {
         if case .scanning = scanState { return true }
@@ -377,12 +390,59 @@ final class AppModel: ObservableObject {
     /// Ticks or unticks a row. `keep` items can never be ticked. Ticking changes nothing on disk.
     func setChecked(_ checked: Bool, for item: ItemSummary) {
         guard item.tier != .keep else { return }
+        // A tick the user made on this row is theirs, whatever ticked it before.
+        groupCheckedIDs.remove(item.id)
         if checked {
             checkedItemIDs.insert(item.id)
             checkedSizes[item.id] = item.sizeBytes
+            if item.tier == .likelySafe { likelySafeCheckedIDs.insert(item.id) }
         } else {
             checkedItemIDs.remove(item.id)
             checkedSizes[item.id] = nil
+            likelySafeCheckedIDs.remove(item.id)
+        }
+    }
+
+    /// The Likely safe rows showing in the list. The only rows "Select all Likely safe" may tick.
+    var visibleLikelySafeItems: [ItemSummary] {
+        visibleItems.filter { $0.tier == .likelySafe }
+    }
+
+    /// Whether every Likely safe row showing is ticked (and there is at least one).
+    var allVisibleLikelySafeChecked: Bool {
+        let items = visibleLikelySafeItems
+        return !items.isEmpty && items.allSatisfy { checkedItemIDs.contains($0.id) }
+    }
+
+    /// Ticks every Likely safe row showing in the list (PRD F13). Never ticks a Review first or Keep
+    /// row, and leaves rows the user ticked themselves as they are. Ticking changes nothing on disk:
+    /// the review still lists each item, and the core checks each one again.
+    func selectAllLikelySafe() {
+        for item in visibleLikelySafeItems where !checkedItemIDs.contains(item.id) {
+            checkedItemIDs.insert(item.id)
+            checkedSizes[item.id] = item.sizeBytes
+            likelySafeCheckedIDs.insert(item.id)
+            groupCheckedIDs.insert(item.id)
+        }
+    }
+
+    /// Unticks every Likely safe row showing in the list. Review first ticks are left alone.
+    func deselectAllLikelySafe() {
+        for item in visibleLikelySafeItems {
+            checkedItemIDs.remove(item.id)
+            checkedSizes[item.id] = nil
+            likelySafeCheckedIDs.remove(item.id)
+            groupCheckedIDs.remove(item.id)
+        }
+    }
+
+    /// Whether the review can go straight from its Move to Trash button to moving, with no second
+    /// question. True only when every item that would move is a Likely safe item ticked in the list.
+    /// Review first items, files, backups, app leftovers and copies always get the second question.
+    func canSkipSecondConfirm(_ preview: CleanupPreview) -> Bool {
+        let moving = preview.items.filter { $0.check == .willMove }
+        return !moving.isEmpty && moving.allSatisfy {
+            likelySafeCheckedIDs.contains($0.itemId) && $0.deviceBackup == nil
         }
     }
 
@@ -522,7 +582,8 @@ final class AppModel: ObservableObject {
     // MARK: - Cleanup review (dry run)
 
     /// Opens the cleanup review: asks the core to check every ticked row the way a cleanup would.
-    /// Nothing moves. Each row was ticked on its own, so each is sent as chosen alone.
+    /// Nothing moves. A row the user ticked is sent as chosen alone. A row ticked by "Select all
+    /// Likely safe" is not, so the core refuses it if it turns out to need a tick of its own.
     func reviewCleanup() {
         guard let handle = loadedHandle, !checkedItemIDs.isEmpty, cleanupState == .closed else { return }
         let sizes = checkedSizes
@@ -530,7 +591,8 @@ final class AppModel: ObservableObject {
             let a = sizes[$0] ?? 0, b = sizes[$1] ?? 0
             return a != b ? a > b : $0 < $1
         }
-        let choices = ids.map { CleanupChoice(itemId: $0, chosenAlone: true) }
+        let group = groupCheckedIDs
+        let choices = ids.map { CleanupChoice(itemId: $0, chosenAlone: !group.contains($0)) }
         let client = self.client
         let kept = protectedFolders
         cleanupState = .checking
@@ -890,6 +952,8 @@ final class AppModel: ObservableObject {
                 self.needsRescan = true
                 self.checkedItemIDs = []
                 self.checkedSizes = [:]
+                self.groupCheckedIDs = []
+                self.likelySafeCheckedIDs = []
                 self.lastCleanup = result.cleanup
                 self.lastCleanupResult = result.cleanup == nil ? nil : result
                 self.historyMessage = nil
@@ -1057,6 +1121,10 @@ final class AppModel: ObservableObject {
             loadedHandle = handle
             scanChanges = changes
             scanState = .loaded(overview, scannedAt: now())
+            if overview.scannedBytes > 0 {
+                expectedScanBytes = overview.scannedBytes
+                defaults.set(NSNumber(value: overview.scannedBytes), forKey: Self.lastScannedBytesKey)
+            }
             resetItems()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
@@ -1078,6 +1146,8 @@ final class AppModel: ObservableObject {
         if !cleanupState.isBusy && !cleanupState.showsOutcome { closeCleanupReview() }
         checkedItemIDs = []
         checkedSizes = [:]
+        groupCheckedIDs = []
+        likelySafeCheckedIDs = []
         selectedItemID = nil
         reloadItems()
         reloadJavaScript()

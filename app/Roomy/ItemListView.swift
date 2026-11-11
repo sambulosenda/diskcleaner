@@ -79,10 +79,38 @@ struct ItemListControls: View {
             }
             .fixedSize()
             Spacer()
+            if !model.visibleLikelySafeItems.isEmpty {
+                QuickSelectButton()
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
+}
+
+/// "Select all Likely safe": ticks every Likely safe row showing, and nothing else. Review first rows
+/// are never ticked this way. Shown only when the list has Likely safe rows.
+struct QuickSelectButton: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let allChecked = model.allVisibleLikelySafeChecked
+        Button(QuickSelectText.title(allChecked: allChecked)) {
+            if allChecked { model.deselectAllLikelySafe() } else { model.selectAllLikelySafe() }
+        }
+        .help(QuickSelectText.help)
+        .accessibilityHint(QuickSelectText.help)
+    }
+}
+
+/// The words of the quick select button, kept together so tests can check them.
+enum QuickSelectText {
+    static func title(allChecked: Bool) -> String {
+        allChecked ? "Deselect Likely safe" : "Select all Likely safe"
+    }
+
+    static let help =
+        "Ticks only the Likely safe items in this list. Items to check first are left for you to choose. Nothing is moved."
 }
 
 /// The rows, or what to say when there are none.
