@@ -33,6 +33,7 @@
 
 mod compiled;
 mod item;
+mod live;
 mod walk;
 
 use std::collections::HashMap;
@@ -43,6 +44,7 @@ use scanner::{DirId, RecordFiles, ScanResult};
 
 pub use compiled::{check_ties, RuleTie};
 pub use item::{ClassifiedItem, ItemId, ItemKind, Lowered, UNKNOWN_RULE_ID, UNKNOWN_RULE_VERSION};
+pub use live::{LiveKind, LiveMatcher, Look};
 
 /// Classifies everything in `scan` with `rules`, as shown in `mode`.
 ///

@@ -92,6 +92,24 @@ was none or History could not be used. Each finished scan leaves a short record 
 How far the scan has got. Throws `unknown_scan` for a handle the core does not know (never
 issued, or closed).
 
+### `scan_findings(handle: ScanHandle) -> [ScanFinding]` throws
+What the scan has recognised so far, for the scanning screen: one row per kind of thing (rule
+title), with how many folders of that kind were found and the bytes counted in them, largest
+first. The app may poll it alongside `scan_progress`. Throws `unknown_scan` like `scan_progress`.
+
+It is an early look and never a result:
+
+- A row has a title, a category, a count and a size. It has **no tier, no path and no item id**,
+  so nothing in it can be chosen for cleanup. Items only come from `list_items` on the finished
+  scan, which classifies everything from scratch.
+- A folder is only listed when its path alone settles which rule describes it. Rules with
+  `match.requires`, tied rules, rules whose tier is `keep` and protected places are left out, so
+  the list is shorter than the result.
+- Sizes are lower bounds (hard-linked files are counted when the walk ends). A listed folder may
+  still end up as `keep` in the result, for example when it holds a git repository.
+- A quick rescan (`start_rescan` reusing the last scan) reads too little to say anything: its
+  list stays empty. The list of a finished scan stays as it was when the walk ended.
+
 ### `cancel_scan(handle: ScanHandle)`
 Asks the scan to stop. Safe to call more than once, after the scan has finished, or with an
 unknown handle (it then does nothing). A scan that has already finished stays finished.
@@ -199,6 +217,14 @@ Ties are always broken by `ItemId`, so the order is the same every time.
 | `phase` | `ScanPhase` | See above |
 
 After `finished`, `bytes_seen` equals the scan's total.
+
+### `ScanFinding` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `title` | `String` | The rule's title, such as "Xcode build data" |
+| `category` | `Category` | The rule's category |
+| `count` | `u32` | Folders of this kind found so far |
+| `size_bytes` | `u64` | Allocated bytes counted in them so far (a lower bound) |
 
 ### `Overview` (record)
 | Field | Type | Meaning |

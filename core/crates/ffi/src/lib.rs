@@ -32,6 +32,7 @@ mod engine;
 mod files;
 mod folders;
 mod javascript;
+mod live;
 mod low_space;
 mod place;
 mod run;
@@ -73,8 +74,8 @@ pub use types::{
     CleanupResultItem, Confidence, DeviceBackup, DuplicateCopy, DuplicateGroup, DuplicateReport,
     DuplicateSearch, FileRow, FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState,
     ItemChange, ItemDetail, ItemSummary, LargeFiles, LibraryKind, LibrarySize, Mode, Overview,
-    PlaceAnswer, PlaceMatch, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle,
-    ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
+    PlaceAnswer, PlaceMatch, PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanFinding,
+    ScanHandle, ScanPhase, ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");

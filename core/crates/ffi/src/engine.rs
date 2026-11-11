@@ -29,7 +29,7 @@ use crate::types::{
     AndroidOverview, AppReview, AppSummary, Category, CleanupChoice, CleanupHandle, CleanupPreview,
     CleanupPreviewItem, CleanupResult, DuplicateSearch, FullDiskAccess, HistoryEntry, ItemDetail,
     ItemSummary, LargeFiles, LibrarySize, Mode, Overview, PlaceAnswer, PlanHandle, PutBackResult,
-    ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
+    ScanChanges, ScanFinding, ScanHandle, ScanPhase, ScanProgress, Sort, Tier,
 };
 use crate::views::Finished;
 use crate::{embedded_rules, read_disk_summary, CoreError};
@@ -134,6 +134,8 @@ struct Slot {
     files: AtomicU64,
     /// Where the scan has got to.
     state: Mutex<State>,
+    /// What a full scan has recognised so far. Shown while it runs only.
+    findings: crate::live::Findings,
 }
 
 /// Where a scan has got to, with its result once there is one.
@@ -341,6 +343,14 @@ impl RoomyCore {
             items_seen: slot.files.load(Ordering::Relaxed),
             phase,
         })
+    }
+
+    /// What the scan has recognised so far, one row per kind of thing,
+    /// largest first. For showing while the scan runs: sizes are lower
+    /// bounds and nothing here can be chosen for cleanup. A quick rescan
+    /// reads too little of the disk to say anything, so its list is empty.
+    pub fn scan_findings(&self, handle: ScanHandle) -> Result<Vec<ScanFinding>, CoreError> {
+        Ok(self.slot(handle)?.findings.list())
     }
 
     /// Asks the scan to stop. Does nothing for a finished or unknown scan.
@@ -905,6 +915,8 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         // full scan's list forward instead; each row is checked again.
         largest_files: crate::files::SCANNED_LARGE_FILES,
         largest_in: Some(crate::files::largest_in()),
+        // Only a full scan reads enough to say what it has found so far.
+        watch: Some(slot.findings.watch(rules, rule_mode)),
         ..ScanOptions::default()
     };
     // Noted before anything is read, so whatever changes during the walk
@@ -918,6 +930,7 @@ fn scan_and_classify(job: &Job, slot: &Slot) -> State {
         let quick_opts = ScanOptions {
             largest_files: 0,
             largest_in: None,
+            watch: None,
             ..opts.clone()
         };
         quick_rescan(job, &quick_opts, &progress)

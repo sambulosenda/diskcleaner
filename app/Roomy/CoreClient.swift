@@ -16,6 +16,11 @@ protocol CoreClient: AnyObject {
     /// How far the scan has got. Throws `CoreError.UnknownScan` for a handle the core doesn't know.
     func scanProgress(handle: ScanHandle) async throws -> ScanProgress
 
+    /// What a running scan has recognised so far, one row per kind of thing, largest first. An early look
+    /// only: no safety level, no path, nothing that can be chosen. Empty when the core has nothing to say
+    /// (a quick rescan, or a handle it doesn't know).
+    func scanFindings(handle: ScanHandle) async -> [ScanFinding]
+
     /// Asks the scan to stop. Safe to call more than once, or after it has finished.
     func cancelScan(handle: ScanHandle) async
 

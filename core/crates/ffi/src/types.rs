@@ -123,6 +123,23 @@ pub struct ScanProgress {
     pub phase: ScanPhase,
 }
 
+/// One kind of thing found so far by a scan that is still running: every
+/// folder with the same rule title, added up.
+///
+/// It is an early look, not a result. It has no tier and no path, the size
+/// is a lower bound, and only the finished scan says what may be cleaned.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ScanFinding {
+    /// The rule's title, such as "Xcode build files".
+    pub title: String,
+    /// The rule's category.
+    pub category: Category,
+    /// How many folders of this kind have been found.
+    pub count: u32,
+    /// Allocated bytes counted in them so far.
+    pub size_bytes: u64,
+}
+
 /// Size of one category, and how much of it is likely safe.
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct CategoryTotal {

@@ -257,6 +257,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var checkedAndroidIDs: Set<String> = []
     /// What grew or shrank between the previous scan and the one showing, if there was a previous one.
     @Published private(set) var scanChanges: ScanChanges?
+
+    /// What the running scan has recognised so far, for the scanning screen. An early look only: the
+    /// items come from the finished scan.
+    @Published private(set) var scanFindings: [ScanFinding] = []
     /// Set once something has moved after the current scan started, so its sizes are out of date.
     /// Cleared when a new scan starts. A scan that was already running when files moved is followed by
     /// another one.
@@ -1044,6 +1048,7 @@ final class AppModel: ObservableObject {
         needsRescan = false
         stateBeforeScan = scanState
         scanState = .scanning(ScanProgress(bytesSeen: 0, itemsSeen: 0, phase: .scanning))
+        scanFindings = []
         scanTask = Task { [weak self] in
             await self?.runScan()
         }
@@ -1094,11 +1099,15 @@ final class AppModel: ObservableObject {
 
     // MARK: - Scanning
 
+    /// "Found so far" is read on every fifth progress poll: often enough to feel live, slow enough to read.
+    private static let pollsPerFindings = 5
+
     private func runScan() async {
         let handle = await client.startScan(mode: mode)
         guard !Task.isCancelled else { return await client.closeScan(handle: handle) }
         activeHandle = handle
         do {
+            var polls = 0
             while true {
                 let progress = try await client.scanProgress(handle: handle)
                 guard !Task.isCancelled else { return }
@@ -1107,6 +1116,12 @@ final class AppModel: ObservableObject {
                     if scanState != .scanning(progress) {
                         scanState = .scanning(progress)
                     }
+                    if polls % Self.pollsPerFindings == 0 {
+                        let found = await client.scanFindings(handle: handle)
+                        guard !Task.isCancelled else { return }
+                        if scanFindings != found { scanFindings = found }
+                    }
+                    polls += 1
                     try await Task.sleep(nanoseconds: pollInterval)
                     continue
                 case .finished:

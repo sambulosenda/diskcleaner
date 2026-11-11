@@ -44,6 +44,10 @@ struct ScanningView: View {
             Button("Cancel", role: .cancel) { model.cancelScan() }
                 .keyboardShortcut(.cancelAction)
                 .accessibilityHint("Stops the scan. Nothing has been changed.")
+            if !ScanFindingsText.shown(model.scanFindings).isEmpty {
+                ScanFindingsList(findings: model.scanFindings)
+                    .padding(.top, 8)
+            }
             if let last = model.earlierScanSummary {
                 LastScanNote(summary: last, isChecking: true)
                     .padding(.top, 4)

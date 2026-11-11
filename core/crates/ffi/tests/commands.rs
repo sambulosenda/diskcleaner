@@ -557,3 +557,55 @@ fn items_say_when_something_inside_last_changed() {
             .last_changed_unix_seconds
             .is_some_and(|t| (t - unix(old)).abs() <= 2)));
 }
+
+#[test]
+fn what_a_scan_finds_on_the_way_agrees_with_its_result() {
+    let s = setup();
+    for mode in [Mode::Simple, Mode::Developer] {
+        let h = finished_scan(&s.core, mode);
+        let findings = s.core.scan_findings(h).unwrap();
+        assert!(
+            !findings.is_empty(),
+            "{mode:?}: the fixture home has caches"
+        );
+        let items = all_items(&s.core, h);
+        for pair in findings.windows(2) {
+            assert!(pair[0].size_bytes >= pair[1].size_bytes, "largest first");
+        }
+        for finding in &findings {
+            let same: Vec<&ItemSummary> =
+                items.iter().filter(|i| i.title == finding.title).collect();
+            assert!(
+                same.len() >= finding.count as usize,
+                "{mode:?}: {} was found {} times on the way but the result has {}",
+                finding.title,
+                finding.count,
+                same.len()
+            );
+            let total: u64 = same.iter().map(|i| i.size_bytes).sum();
+            assert!(
+                finding.size_bytes <= total,
+                "{mode:?}: {} was {} bytes on the way, {total} in the result",
+                finding.title,
+                finding.size_bytes
+            );
+            assert!(same.iter().all(|i| i.category == finding.category));
+        }
+    }
+}
+
+#[test]
+fn an_unknown_or_closed_scan_has_no_findings() {
+    let s = setup();
+    let first = finished_scan(&s.core, Mode::Developer);
+    assert!(!s.core.scan_findings(first).unwrap().is_empty());
+    assert!(matches!(
+        s.core.scan_findings(ScanHandle { id: 999 }),
+        Err(CoreError::UnknownScan)
+    ));
+    s.core.close_scan(first);
+    assert!(matches!(
+        s.core.scan_findings(first),
+        Err(CoreError::UnknownScan)
+    ));
+}

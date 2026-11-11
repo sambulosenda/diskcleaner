@@ -105,6 +105,24 @@ final class MockCoreClient: CoreClient {
         return ScanProgress(bytesSeen: seen, itemsSeen: items, phase: fraction >= 0.8 ? .classifying : .scanning)
     }
 
+    /// Made-up findings that grow as the pretend scan goes on. Nothing for the first few steps, as in a
+    /// real scan, and nothing once the handle is closed.
+    func scanFindings(handle: ScanHandle) async -> [ScanFinding] {
+        guard let step = steps[handle], step >= 3 else { return [] }
+        let fraction = Double(min(step, totalSteps)) / Double(totalSteps)
+        let developer = modes[handle] == .developer
+        let kinds: [(String, Roomy.Category, UInt32, Double)] = [
+            ("Xcode build data", .build, 3, developer ? 18.4e9 : 0),
+            ("Project packages (node_modules)", .build, 11, developer ? 9.7e9 : 0),
+            ("Chrome cache", .cache, 1, 2.1e9),
+            ("Spotify cache", .cache, 1, 1.6e9),
+            ("App logs", .logs, 2, 0.4e9)
+        ]
+        return kinds.filter { $0.3 > 0 }.map { title, category, count, bytes in
+            ScanFinding(title: title, category: category, count: count, sizeBytes: UInt64(bytes * fraction))
+        }
+    }
+
     func cancelScan(handle: ScanHandle) async {
         guard let step = steps[handle], step < totalSteps else { return }
         cancelled.insert(handle)
