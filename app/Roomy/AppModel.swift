@@ -457,6 +457,9 @@ final class AppModel: ObservableObject {
             return detail.path.flatMap { Reveal.url(forDisplayPath: $0) }
         }
         guard let detail = try? await client.itemDetail(handle: handle, itemId: itemID) else { return nil }
+        // The mode or the scan may have changed while the core answered: a Simple mode switch or a
+        // new scan means this path no longer belongs on screen.
+        guard canShowFiles, loadedHandle == handle else { return nil }
         return detail.path.flatMap { Reveal.url(forDisplayPath: $0) }
     }
 

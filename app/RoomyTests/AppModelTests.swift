@@ -552,6 +552,9 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(url.path.hasSuffix("/Library/Mock/\(first.id)"), url.path)
         // The mock's places don't exist, so none of them is a single file for Quick Look.
         model.selectedItemID = first.id
+        await model.waitForItems()
+        guard case .loaded(let detail) = model.detailState else { return XCTFail("\(model.detailState)") }
+        XCTAssertNotNil(detail.path)
         XCTAssertNil(model.selectedQuickLookURL)
         XCTAssertFalse(model.toggleQuickLook())
     }
