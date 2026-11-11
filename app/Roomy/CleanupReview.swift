@@ -85,7 +85,11 @@ struct CleanupReviewSheet: View {
         case .done(let result):
             VStack(alignment: .leading, spacing: 12) {
                 if result.bytesMoved > 0 {
-                    CleanupFinish(result: result, overview: model.overview)
+                    // Copies can share their space with the one that's kept, so moving them may free
+                    // less than their size. No estimate is shown for them.
+                    CleanupFinish(result: result,
+                                  overview: model.selection == .duplicates ? nil : model.overview,
+                                  estimatesSpace: model.selection != .duplicates)
                         .padding(.horizontal, 20)
                 }
                 CleanupResultList(
@@ -211,6 +215,15 @@ enum CleanupText {
         let noun = count == 1 ? "item" : "items"
         return "Moved \(count) \(noun), \(Format.bytes(result.bytesMoved)), to the Trash"
     }
+
+    /// The finish panel's headline. Promises space only when the bytes moved are what comes back.
+    static func finishHeadline(bytesMoved: UInt64, estimatesSpace: Bool) -> String {
+        estimatesSpace ? "\(Format.bytes(bytesMoved)) ready to free" : "\(Format.bytes(bytesMoved)) moved to the Trash"
+    }
+
+    static let emptyTrashNote = "The space comes back when you empty the Trash."
+    static let sharedSpaceNote =
+        "Empty the Trash to get space back. Copies that share space with the one you kept free less than their size."
 
     /// Under the Move to Trash button's sheet, before anything moves.
     static let readyNote = "Nothing has been moved yet. You can put things back afterwards."
@@ -379,6 +392,9 @@ struct CleanupFinish: View {
     let result: CleanupResult
     /// The last scan's Overview, for the free space figures. `nil` leaves that line out.
     let overview: Overview?
+    /// False when the bytes moved may be more than emptying the Trash frees, as with copies that
+    /// share space. The panel then says what moved and promises no figure.
+    var estimatesSpace = true
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -387,7 +403,7 @@ struct CleanupFinish: View {
                 .foregroundStyle(.green)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(Format.bytes(result.bytesMoved)) ready to free")
+                Text(CleanupText.finishHeadline(bytesMoved: result.bytesMoved, estimatesSpace: estimatesSpace))
                     .font(.title.weight(.bold))
                     .accessibilityAddTraits(.isHeader)
                 if let overview {
@@ -396,7 +412,7 @@ struct CleanupFinish: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("The space comes back when you empty the Trash.")
+                    Text(estimatesSpace ? CleanupText.emptyTrashNote : CleanupText.sharedSpaceNote)
                         .foregroundStyle(.secondary)
                 }
             }

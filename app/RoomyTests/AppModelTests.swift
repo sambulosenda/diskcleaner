@@ -601,6 +601,9 @@ final class AppModelTests: XCTestCase {
         // Never claims more free space than the disk holds.
         let capped = CleanupText.freeSpaceLine(freeNow: 90, moved: 50, diskTotal: 100)
         XCTAssertTrue(capped.contains(Format.bytes(100)))
+        // Copies may share space, so their finish headline promises no figure.
+        XCTAssertTrue(CleanupText.finishHeadline(bytesMoved: 5_000_000, estimatesSpace: true).hasSuffix("ready to free"))
+        XCTAssertTrue(CleanupText.finishHeadline(bytesMoved: 5_000_000, estimatesSpace: false).hasSuffix("moved to the Trash"))
         XCTAssertEqual(TrashFolder.url(home: URL(fileURLWithPath: "/Users/someone")).path, "/Users/someone/.Trash")
     }
 
