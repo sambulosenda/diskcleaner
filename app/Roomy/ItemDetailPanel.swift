@@ -98,7 +98,7 @@ private struct DeveloperDetails: View {
                 LabeledRow(label: "Command", value: command, monospaced: true)
             }
             if let path = detail.path, let url = Reveal.url(forDisplayPath: path) {
-                Button("Reveal in Finder") { Reveal.inFinder(url) }
+                Button(ItemRowMenuText.showInFinder) { Reveal.inFinder(url) }
                     .padding(.top, 4)
                     .accessibilityHint("Opens a Finder window showing this item. Nothing is changed.")
             }
@@ -233,7 +233,7 @@ enum ItemDetailText {
     }
 }
 
-/// Reveal in Finder, in Developer mode only (Sam's choice for T11).
+/// Reveal in Finder, Quick Look and Copy Path, in Developer mode only (Sam's choice for T11).
 ///
 /// The core gives Developer mode a display path starting `~/`. Swift turns it back into a place inside
 /// the home folder for Finder only; it is never sent to the core, and nothing is changed on disk.
@@ -253,5 +253,21 @@ enum Reveal {
     /// Opens a Finder window with the item selected.
     static func inFinder(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    /// Puts the full path on the clipboard, as plain text.
+    static func copyPath(_ url: URL) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(url.path, forType: .string)
+    }
+
+    /// Whether `url` is one ordinary file: not a folder, not a package, and not a symbolic link.
+    /// Reads metadata only; the link itself is checked, never followed.
+    static func isSingleFile(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]) else {
+            return false
+        }
+        return values.isRegularFile == true && values.isSymbolicLink != true
     }
 }
