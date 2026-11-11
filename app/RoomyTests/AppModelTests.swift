@@ -111,17 +111,20 @@ final class AppModelTests: XCTestCase {
         let model = makeModel()
         XCTAssertFalse(model.sidebarSections.flatMap { $0 }.contains(where: \.isDeveloperOnly))
         model.mode = .developer
-        XCTAssertEqual(model.sidebarSections.count, 3)
+        XCTAssertEqual(model.sidebarSections.count, 5)
         XCTAssertTrue(model.sidebarSections.contains(SidebarItem.developerItems))
     }
 
     func testSidebarListsEveryWireframeEntryInOrder() {
         let model = makeModel()
         XCTAssertEqual(model.sidebarSections.flatMap { $0 }.map(\.title), [
-            "Overview", "Backups", "Photos, Mail and Music", "Downloads and installers", "Large files", "Duplicates",
-            "Apps and caches",
-            "System Data", "Remove apps", "Cleanup", "History",
+            "Overview", "Everything found",
+            "Backups", "Photos, Mail and Music", "Downloads and installers", "Apps and caches", "System Data",
+            "Large files", "Duplicates",
+            "Remove apps", "History",
         ])
+        XCTAssertEqual(model.sidebarSections.map { SidebarItem.heading(for: $0) },
+                       [nil, "Where space goes", "Find", "More"])
         model.mode = .developer
         XCTAssertEqual(SidebarItem.developerItems.map(\.title), ["Projects", "Xcode", "Android", "JavaScript", "Docker", "Tool clean-ups"])
     }
@@ -566,6 +569,127 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.checkedItemIDs, ["xcode-derived-data", "iphone-backup"])
     }
 
+    // MARK: - Scan progress
+
+    func testTheScanBarFillsOnlyWhenThereIsAnEarlierScanToCompareWith() {
+        let half = ScanProgress(bytesSeen: 50, itemsSeen: 1, phase: .scanning)
+        XCTAssertNil(ScanText.fraction(progress: half, expectedBytes: nil))
+        XCTAssertNil(ScanText.fraction(progress: half, expectedBytes: 0))
+        XCTAssertEqual(ScanText.fraction(progress: half, expectedBytes: 100) ?? 0, 0.45, accuracy: 0.001)
+        // A disk that grew since the last scan never shows a full bar while still measuring.
+        let more = ScanProgress(bytesSeen: 500, itemsSeen: 1, phase: .scanning)
+        XCTAssertEqual(ScanText.fraction(progress: more, expectedBytes: 100) ?? 0, ScanText.measuringLimit, accuracy: 0.001)
+        let sorting = ScanProgress(bytesSeen: 500, itemsSeen: 1, phase: .classifying)
+        XCTAssertEqual(ScanText.fraction(progress: sorting, expectedBytes: 100) ?? 0, 0.95, accuracy: 0.001)
+        XCTAssertEqual(ScanText.percent(0.45), "About 45% done")
+    }
+
+    func testAFinishedScanIsRememberedForTheNextScansBar() async {
+        let model = makeModel()
+        XCTAssertNil(model.expectedScanBytes)
+        model.startScan()
+        await model.waitForScan()
+        XCTAssertEqual(model.expectedScanBytes, model.overview?.scannedBytes)
+        XCTAssertNotNil(model.expectedScanBytes)
+    }
+
+    // MARK: - Quick select (F13)
+
+    func testSelectAllTicksOnlyLikelySafeRows() async {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let safe = Set(all.filter { $0.tier == .likelySafe }.map(\.id))
+        XCTAssertFalse(safe.isEmpty)
+        XCTAssertTrue(all.contains { $0.tier == .reviewFirst })
+        XCTAssertFalse(model.allVisibleLikelySafeChecked)
+
+        model.selectAllLikelySafe()
+        XCTAssertEqual(model.checkedItemIDs, safe)
+        XCTAssertTrue(model.allVisibleLikelySafeChecked)
+        XCTAssertEqual(model.checkedBytes, all.filter { $0.tier == .likelySafe }.reduce(0) { $0 + $1.sizeBytes })
+
+        model.deselectAllLikelySafe()
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
+    func testDeselectingLikelySafeLeavesReviewFirstTicks() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.setChecked(true, for: backup)
+        model.selectAllLikelySafe()
+        model.deselectAllLikelySafe()
+        XCTAssertEqual(model.checkedItemIDs, ["iphone-backup"])
+    }
+
+    func testRowsTickedTogetherAreNotSentAsChosenAlone() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.selectAllLikelySafe()
+        model.setChecked(true, for: backup)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        let sent = try XCTUnwrap((model.client as? MockCoreClient)?.lastPreviewChoices)
+        for choice in sent {
+            // Only the row the user ticked by hand counts as chosen alone.
+            XCTAssertEqual(choice.chosenAlone, choice.itemId == "iphone-backup", choice.itemId)
+        }
+    }
+
+    func testATickByHandAfterSelectAllCountsAsChosenAlone() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let first = try XCTUnwrap(all.first { $0.tier == .likelySafe })
+        model.selectAllLikelySafe()
+        model.setChecked(false, for: first)
+        model.setChecked(true, for: first)
+        XCTAssertFalse(model.groupCheckedIDs.contains(first.id))
+        XCTAssertTrue(model.likelySafeCheckedIDs.contains(first.id))
+    }
+
+    func testOnlyLikelySafeReviewsSkipTheSecondQuestion() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.selectAllLikelySafe()
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let safeOnly) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(model.canSkipSecondConfirm(safeOnly))
+        model.closeCleanupReview()
+
+        // One Review first item in the plan brings the second question back.
+        model.setChecked(true, for: backup)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let mixed) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertFalse(model.canSkipSecondConfirm(mixed))
+    }
+
+    func testAReviewWithNothingToMoveNeverSkipsTheSecondQuestion() {
+        let model = makeModel()
+        let empty = CleanupPreview(plan: nil, items: [], bytesToMove: 0, expiresInSeconds: 0)
+        XCTAssertFalse(model.canSkipSecondConfirm(empty))
+    }
+
+    func testQuickSelectAndFinishWords() {
+        XCTAssertEqual(QuickSelectText.title(allChecked: false), "Select all Likely safe")
+        XCTAssertEqual(QuickSelectText.title(allChecked: true), "Deselect Likely safe")
+        let line = CleanupText.freeSpaceLine(freeNow: 20_000_000_000, moved: 18_000_000_000,
+                                             diskTotal: 500_000_000_000)
+        XCTAssertTrue(line.contains("free now"))
+        XCTAssertTrue(line.contains("once you empty the Trash"))
+        // Never claims more free space than the disk holds.
+        let capped = CleanupText.freeSpaceLine(freeNow: 90, moved: 50, diskTotal: 100)
+        XCTAssertTrue(capped.contains(Format.bytes(100)))
+        // Copies may share space, so their finish headline promises no figure.
+        XCTAssertTrue(CleanupText.finishHeadline(bytesMoved: 5_000_000, estimatesSpace: true).hasSuffix("ready to free"))
+        XCTAssertTrue(CleanupText.finishHeadline(bytesMoved: 5_000_000, estimatesSpace: false).hasSuffix("moved to the Trash"))
+        XCTAssertEqual(TrashFolder.url(home: URL(fileURLWithPath: "/Users/someone")).path, "/Users/someone/.Trash")
+    }
+
     func testClosingTheReviewDiscardsItsPlan() async throws {
         let model = await scannedModel()
         let all = await items(on: .cleanup, in: model)
@@ -851,7 +975,9 @@ final class AppModelTests: XCTestCase {
     // MARK: - App uninstaller
 
     func testRemoveAppsIsInTheCleanUpGroup() {
-        XCTAssertEqual(SidebarItem.actionItems, [.apps, .cleanup, .history])
+        XCTAssertEqual(SidebarItem.actionItems, [.apps, .history])
+        // The list of everything sits under Overview, where the Overview's buttons lead.
+        XCTAssertEqual(SidebarItem.topItems, [.overview, .cleanup])
         XCTAssertEqual(SidebarItem.apps.title, "Remove apps")
         XCTAssertNil(SidebarItem.apps.itemFilter)
     }
@@ -1093,7 +1219,7 @@ final class AppModelTests: XCTestCase {
     }
 
     func testLibrariesScreenIsInTheSidebarAndIsNotAList() {
-        XCTAssertEqual(SidebarItem.mainItems.prefix(3), [.overview, .backups, .libraries])
+        XCTAssertEqual(SidebarItem.placeItems.prefix(2), [.backups, .libraries])
         XCTAssertNil(SidebarItem.libraries.itemFilter)
         XCTAssertFalse(SidebarItem.libraries.isDeveloperOnly)
     }
@@ -1221,7 +1347,7 @@ final class AppModelTests: XCTestCase {
     func testDuplicatesSitsWithTheEverydayScreens() {
         XCTAssertEqual(SidebarItem.duplicates.title, "Duplicates")
         XCTAssertNil(SidebarItem.duplicates.itemFilter)
-        XCTAssertTrue(SidebarItem.mainItems.contains(.duplicates))
+        XCTAssertTrue(SidebarItem.findItems.contains(.duplicates))
         XCTAssertFalse(SidebarItem.duplicates.isDeveloperOnly)
     }
 

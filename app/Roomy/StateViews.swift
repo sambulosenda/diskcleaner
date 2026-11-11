@@ -30,15 +30,15 @@ struct ScanningView: View {
         VStack(spacing: 16) {
             Text("Scanning your Mac")
                 .font(.title2.weight(.semibold))
-            ProgressView()
+            progressBar
                 .progressViewStyle(.linear)
                 .frame(maxWidth: 360)
                 .accessibilityLabel("Scan progress")
-                .accessibilityValue(summary)
+                .accessibilityValue(spokenProgress)
             Text(summary)
                 .font(.body.monospacedDigit())
                 .accessibilityHidden(true)
-            Text(phaseText)
+            Text(detailText)
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Button("Cancel", role: .cancel) { model.cancelScan() }
@@ -57,6 +57,30 @@ struct ScanningView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// A bar that fills when Roomy knows roughly how much there is to measure, from the last scan.
+    /// The first scan has nothing to go on, so its bar just shows that work is happening.
+    @ViewBuilder
+    private var progressBar: some View {
+        if let fraction {
+            ProgressView(value: fraction)
+        } else {
+            ProgressView()
+        }
+    }
+
+    private var fraction: Double? {
+        ScanText.fraction(progress: progress, expectedBytes: model.expectedScanBytes)
+    }
+
+    private var spokenProgress: String {
+        fraction.map { "\(ScanText.percent($0)), \(summary)" } ?? summary
+    }
+
+    private var detailText: String {
+        guard let fraction, progress.phase == .scanning else { return phaseText }
+        return "\(phaseText) \(ScanText.percent(fraction))"
+    }
+
     private var summary: String {
         "Looked at \(Format.bytes(progress.bytesSeen)) in \(Format.items(progress.itemsSeen))"
     }
@@ -67,6 +91,31 @@ struct ScanningView: View {
         case .classifying: return "Sorting what was found…"
         case .finished, .cancelled, .failed: return "Finishing…"
         }
+    }
+}
+
+/// How far along a scan is, worked out from how much the last scan measured.
+enum ScanText {
+    /// The most the bar shows while folders are still being measured. The disk may have grown since
+    /// the last scan, so the bar never claims to be finished before the scan is.
+    static let measuringLimit = 0.9
+
+    /// 0 to 1, or `nil` when there is no earlier scan to compare with.
+    static func fraction(progress: ScanProgress, expectedBytes: UInt64?) -> Double? {
+        guard let expectedBytes, expectedBytes > 0 else { return nil }
+        switch progress.phase {
+        case .scanning:
+            return min(Double(progress.bytesSeen) / Double(expectedBytes), 1) * measuringLimit
+        case .classifying:
+            return 0.95
+        case .finished, .cancelled, .failed:
+            return 1
+        }
+    }
+
+    /// "About 40% done".
+    static func percent(_ fraction: Double) -> String {
+        "About \(Int((fraction * 100).rounded()))% done"
     }
 }
 

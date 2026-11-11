@@ -27,6 +27,8 @@ final class MockCoreClient: CoreClient {
     private var nextPlan: UInt64 = 1
     /// Every plan `discardCleanup` was called with, in order. Tests read it.
     private(set) var discardedPlans: [PlanHandle] = []
+    /// The choices of the most recent `previewCleanup`, so tests can see how each row was sent.
+    private(set) var lastPreviewChoices: [CleanupChoice] = []
     /// The rows of the one waiting plan, as the core keeps one plan at a time.
     private var pendingPlan: (handle: PlanHandle, rows: [CleanupPreviewItem])?
     /// The last cleanup that can be put back, and what it moved.
@@ -227,6 +229,7 @@ final class MockCoreClient: CoreClient {
     /// Follows the core's rules: `keep` items never move, and Review first items move only when
     /// chosen on their own. Nothing here touches the disk.
     func previewCleanup(handle: ScanHandle, choices: [CleanupChoice]) async throws -> CleanupPreview {
+        lastPreviewChoices = choices
         let rows = try await checkedRows(handle: handle, choices: choices)
         let moving = rows.filter { $0.check == .willMove }
         var plan: PlanHandle?

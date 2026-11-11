@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The bar under a category list once something is ticked: how much is chosen, and the button that
@@ -82,12 +83,22 @@ struct CleanupReviewSheet: View {
         case .ready(let preview):
             CleanupPreviewList(preview: preview)
         case .done(let result):
-            CleanupResultList(
-                headline: CleanupText.movedHeadline(result),
-                note: CleanupText.movedNote(result),
-                items: result.items,
-                doneText: "Moved to the Trash."
-            )
+            VStack(alignment: .leading, spacing: 12) {
+                if result.bytesMoved > 0 {
+                    // Copies can share their space with the one that's kept, so moving them may free
+                    // less than their size. No estimate is shown for them.
+                    CleanupFinish(result: result,
+                                  overview: model.selection == .duplicates ? nil : model.overview,
+                                  estimatesSpace: model.selection != .duplicates)
+                        .padding(.horizontal, 20)
+                }
+                CleanupResultList(
+                    headline: CleanupText.movedHeadline(result),
+                    note: CleanupText.movedNote(result, showsFinish: result.bytesMoved > 0),
+                    items: result.items,
+                    doneText: "Moved to the Trash."
+                )
+            }
         case .putBack(let result):
             CleanupResultList(
                 headline: CleanupText.putBackHeadline(result),
@@ -103,7 +114,7 @@ struct CleanupReviewSheet: View {
         HStack {
             switch model.cleanupState {
             case .ready(let preview):
-                Text(preview.plan == nil ? "Nothing has been moved." : "Nothing has been moved yet.")
+                Text(preview.plan == nil ? "Nothing has been moved." : CleanupText.readyNote)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -113,11 +124,25 @@ struct CleanupReviewSheet: View {
                 } else {
                     Button("Cancel") { model.closeCleanupReview() }
                         .keyboardShortcut(.cancelAction)
-                    Button("Move to Trash\u{2026}") { confirming = true }
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
+                    // Only Likely safe items the user ticked in the list: this sheet already lists each
+                    // one, so its button is the confirmation. Anything else gets the second question.
+                    if model.canSkipSecondConfirm(preview) {
+                        Button("Move to Trash") { model.moveToTrash() }
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                            .accessibilityHint("Moves the items listed to the Trash. You can put them back.")
+                    } else {
+                        Button("Move to Trash\u{2026}") { confirming = true }
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                    }
                 }
-            case .done:
+            case .done(let result):
+                if result.bytesMoved > 0 {
+                    Button("Open Trash") { TrashFolder.open() }
+                        .help("Shows the Trash in Finder. Empty it there when you want the space back.")
+                        .accessibilityHint("Shows the Trash in Finder. Nothing is removed.")
+                }
                 Spacer()
                 if model.lastCleanup != nil {
                     Button("Put back") { model.putBack() }
@@ -191,9 +216,30 @@ enum CleanupText {
         return "Moved \(count) \(noun), \(Format.bytes(result.bytesMoved)), to the Trash"
     }
 
-    static func movedNote(_ result: CleanupResult) -> String? {
+    /// The finish panel's headline. Promises space only when the bytes moved are what comes back.
+    static func finishHeadline(bytesMoved: UInt64, estimatesSpace: Bool) -> String {
+        estimatesSpace ? "\(Format.bytes(bytesMoved)) ready to free" : "\(Format.bytes(bytesMoved)) moved to the Trash"
+    }
+
+    static let emptyTrashNote = "The space comes back when you empty the Trash."
+    static let sharedSpaceNote =
+        "Empty the Trash to get space back. Copies that share space with the one you kept free less than their size."
+
+    /// Under the Move to Trash button's sheet, before anything moves.
+    static let readyNote = "Nothing has been moved yet. You can put things back afterwards."
+
+    /// "20.4 GB free now. About 38.6 GB once you empty the Trash." Free space is the figure from the
+    /// last scan, so the second number is an estimate and never more than the disk.
+    static func freeSpaceLine(freeNow: UInt64, moved: UInt64, diskTotal: UInt64) -> String {
+        let (sum, overflow) = freeNow.addingReportingOverflow(moved)
+        let after = overflow ? diskTotal : min(sum, diskTotal)
+        return "\(Format.bytes(freeNow)) free now. About \(Format.bytes(after)) once you empty the Trash."
+    }
+
+    /// `showsFinish` is true when the finish panel above the list already says how to get the space back.
+    static func movedNote(_ result: CleanupResult, showsFinish: Bool = false) -> String? {
         var lines: [String] = []
-        if result.bytesMoved > 0 {
+        if result.bytesMoved > 0 && !showsFinish {
             lines.append("The space comes back when you empty the Trash.")
         }
         if !result.savedToHistory {
@@ -353,5 +399,55 @@ struct CleanupPreviewRow: View {
         case .wontMove(let reason):
             return reason
         }
+    }
+}
+
+/// The top of the sheet after a cleanup: how much moved, in large type, and what that does to free
+/// space once the Trash is emptied. Roomy never empties the Trash itself.
+struct CleanupFinish: View {
+    let result: CleanupResult
+    /// The last scan's Overview, for the free space figures. `nil` leaves that line out.
+    let overview: Overview?
+    /// False when the bytes moved may be more than emptying the Trash frees, as with copies that
+    /// share space. The panel then says what moved and promises no figure.
+    var estimatesSpace = true
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 34))
+                .foregroundStyle(.green)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(CleanupText.finishHeadline(bytesMoved: result.bytesMoved, estimatesSpace: estimatesSpace))
+                    .font(.title.weight(.bold))
+                    .accessibilityAddTraits(.isHeader)
+                if let overview {
+                    Text(CleanupText.freeSpaceLine(freeNow: overview.diskFree, moved: result.bytesMoved,
+                                                   diskTotal: overview.diskTotal))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(estimatesSpace ? CleanupText.emptyTrashNote : CleanupText.sharedSpaceNote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.green.opacity(0.10)))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Showing the user's Trash in Finder. Only opens a Finder window: Roomy never empties the Trash.
+enum TrashFolder {
+    static func url(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        home.appendingPathComponent(".Trash", isDirectory: true)
+    }
+
+    static func open() {
+        NSWorkspace.shared.open(url())
     }
 }
