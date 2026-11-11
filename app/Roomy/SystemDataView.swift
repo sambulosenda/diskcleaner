@@ -191,8 +191,9 @@ private struct SystemDataHost: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .accessibilityLabel("Show")
             .fixedSize()
-            .padding(.vertical, 10)
+            .padding(.vertical, Space.s)
             Divider()
             switch tab {
             case .breakdown:
@@ -218,15 +219,16 @@ private struct SystemDataHost: View {
     private func breakdown(_ systemData: SystemData) -> some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Space.xs) {
                     Text("Roomy measured \(Format.bytes(systemData.totalBytes)) of System Data")
                         .font(.title3.weight(.semibold))
+                        .heading()
                     Text("macOS counts more than this as System Data, such as app data in your Library folder and space macOS keeps for itself, so the two numbers won't match. Nothing on this page is removed.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, Space.xs)
             }
             Section {
                 SnapshotsRow(snapshots: systemData.snapshots)
@@ -259,7 +261,7 @@ private struct SnapshotsRow: View {
     let snapshots: LocalSnapshots
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             HStack(alignment: .firstTextBaseline) {
                 Text(SystemDataText.snapshotsTitle).font(.headline)
                 Spacer()
@@ -279,7 +281,7 @@ private struct SnapshotsRow: View {
             Text(SystemDataText.snapshotsAdvice).font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .combine)
     }
 }
@@ -292,7 +294,7 @@ private struct PartRow: View {
     @State private var expanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             HStack(alignment: .firstTextBaseline) {
                 Text(SystemDataText.title(part.kind)).font(.headline)
                 Spacer()
@@ -320,10 +322,10 @@ private struct PartRow: View {
                 ForEach(part.places, id: \.id) { place in
                     PlaceRow(place: place, showsPath: showsPaths)
                 }
-                .padding(.leading, 12)
+                .padding(.leading, Space.m)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
     }
 }
 
@@ -333,7 +335,7 @@ private struct PlaceRow: View {
     let showsPath: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Space.xxs) {
             HStack(alignment: .firstTextBaseline) {
                 Text(SystemDataText.place(place.id))
                 if place.owner == .system {

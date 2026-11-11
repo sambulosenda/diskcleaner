@@ -16,7 +16,7 @@ struct CommandPaletteOverlay: View {
                     .accessibilityHidden(true)
                 PaletteSettingsBridge()
                     .padding(.top, 64)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, Space.xxl)
             }
         }
     }
@@ -57,7 +57,7 @@ struct CommandPalettePanel: View {
         let highlighted = palette.clampedHighlight(count: results.count)
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
-                HStack(spacing: 10) {
+                HStack(spacing: Space.s) {
                     Image(systemName: "magnifyingglass")
                         .font(.title3)
                         .foregroundStyle(.secondary)
@@ -77,17 +77,17 @@ struct CommandPalettePanel: View {
                     )
                     .frame(height: 28)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, Space.l)
+                .padding(.vertical, Space.m)
                 Divider()
                 if results.isEmpty {
                     Text("Nothing matches \u{201C}\(palette.query)\u{201D}.")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
+                        .padding(Space.l)
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 2) {
+                        LazyVStack(spacing: Space.xxs) {
                             ForEach(Array(results.enumerated()), id: \.element.id) { index, command in
                                 Button {
                                     palette.run(command, openSettings: openSettings)
@@ -102,7 +102,7 @@ struct CommandPalettePanel: View {
                                 .accessibilityAddTraits(index == highlighted ? .isSelected : [])
                             }
                         }
-                        .padding(6)
+                        .padding(Space.s)
                     }
                     .frame(maxHeight: 360)
                 }
@@ -111,15 +111,15 @@ struct CommandPalettePanel: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, Space.l)
+                    .padding(.vertical, Space.s)
             }
         }
         .frame(width: 600)
         .fixedSize(horizontal: false, vertical: true)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(.regularMaterial, in: Radius.shape(Radius.large))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            Radius.shape(Radius.large)
                 .strokeBorder(Color.primary.opacity(0.1))
         )
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
@@ -134,11 +134,11 @@ private struct PaletteRow: View {
     let isHighlighted: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.m) {
             Image(systemName: command.symbol)
                 .frame(width: 22)
                 .foregroundStyle(isHighlighted ? Color.white : Color.secondary)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(command.title)
                     .lineLimit(1)
                 if !command.subtitle.isEmpty {
@@ -148,17 +148,17 @@ private struct PaletteRow: View {
                         .foregroundStyle(isHighlighted ? Color.white.opacity(0.85) : Color.secondary)
                 }
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: Space.s)
             Text(command.kind.label)
                 .font(.caption)
                 .foregroundStyle(isHighlighted ? Color.white.opacity(0.85) : Color.secondary)
         }
         .foregroundStyle(isHighlighted ? Color.white : Color.primary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, Space.s)
+        .padding(.vertical, Space.s)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            Radius.shape(Radius.medium)
                 .fill(isHighlighted ? Color.accentColor : Color.clear)
         )
         .contentShape(Rectangle())

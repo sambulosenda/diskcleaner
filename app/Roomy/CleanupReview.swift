@@ -7,7 +7,7 @@ struct CleanupBar: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.m) {
             Text(summary)
                 .font(.callout.monospacedDigit())
             Spacer()
@@ -15,14 +15,30 @@ struct CleanupBar: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityHint("Checks what would move to the Trash. Nothing is moved.")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
     }
 
     private var summary: String {
         let count = model.checkedItemIDs.count
         let noun = count == 1 ? "item" : "items"
         return "\(count) \(noun) chosen, \(Format.bytes(model.checkedBytes))"
+    }
+}
+
+/// Where the cleanup bar goes under a list. Empty until something is ticked, then the bar fades in.
+struct CleanupBarSlot: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !model.checkedItemIDs.isEmpty {
+                Divider()
+                CleanupBar()
+                    .transition(.opacity)
+            }
+        }
+        .motion(value: model.checkedItemIDs.isEmpty)
     }
 }
 
@@ -34,17 +50,15 @@ struct CleanupReviewSheet: View {
     @State private var confirming = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.title2.weight(.semibold))
-                .padding([.horizontal, .top], 20)
-                .padding(.bottom, 12)
+        ReviewSheet(title: title) {
             content
-            Divider()
+                .transition(.opacity)
+                .id(step)
+        } footer: {
             footer
-                .padding(16)
         }
-        .frame(width: 560, height: 480)
+        .motion(value: step)
+        .onChange(of: step) { _ in Announce.say(CleanupText.spoken(model.cleanupState)) }
         .interactiveDismissDisabled(model.cleanupState.isBusy)
         .alert(confirmTitle, isPresented: $confirming) {
             Button("Move to Trash") { model.moveToTrash() }
@@ -62,15 +76,28 @@ struct CleanupReviewSheet: View {
         }
     }
 
+    /// Which step of the sheet shows, so the content fades from one step to the next.
+    private var step: Int {
+        switch model.cleanupState {
+        case .closed, .checking: return 0
+        case .ready: return 1
+        case .moving: return 2
+        case .done: return 3
+        case .puttingBack: return 4
+        case .putBack: return 5
+        case .failed: return 6
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
         switch model.cleanupState {
         case .closed, .checking:
-            Working(text: "Checking each item\u{2026}")
+            ReviewWorking(text: "Checking each item\u{2026}")
         case .moving:
-            Working(text: "Moving to the Trash\u{2026}")
+            ReviewWorking(text: "Moving to the Trash\u{2026}")
         case .puttingBack:
-            Working(text: "Putting things back\u{2026}")
+            ReviewWorking(text: "Putting things back\u{2026}")
         case .failed(let message):
             CenteredMessage(symbol: "exclamationmark.triangle", title: "Roomy couldn't finish this", message: message) {
                 // macOS may refuse to let Roomy open the Trash without Full Disk Access.
@@ -83,14 +110,14 @@ struct CleanupReviewSheet: View {
         case .ready(let preview):
             CleanupPreviewList(preview: preview)
         case .done(let result):
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Space.m) {
                 if result.bytesMoved > 0 {
                     // Copies can share their space with the one that's kept, so moving them may free
                     // less than their size. No estimate is shown for them.
                     CleanupFinish(result: result,
                                   overview: model.selection == .duplicates ? nil : model.overview,
                                   estimatesSpace: model.selection != .duplicates)
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, Space.xl)
                 }
                 CleanupResultList(
                     headline: CleanupText.movedHeadline(result),
@@ -111,7 +138,7 @@ struct CleanupReviewSheet: View {
 
     @ViewBuilder
     private var footer: some View {
-        HStack {
+        Group {
             switch model.cleanupState {
             case .ready(let preview):
                 Text(preview.plan == nil ? "Nothing has been moved." : CleanupText.readyNote)
@@ -170,21 +197,6 @@ struct CleanupReviewSheet: View {
     }
 }
 
-/// A spinner and a line of text.
-private struct Working: View {
-    let text: String
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// The words of the cleanup sheet, kept together so tests can check them.
 enum CleanupText {
     static func confirmTitle(_ preview: CleanupPreview) -> String {
@@ -207,6 +219,28 @@ enum CleanupText {
             "\(BackupWarning.headline(backup)) \(BackupWarning.lastBackedUp(backup))"
         }
         return (lines + [BackupWarning.checkICloud, confirmMessage]).joined(separator: "\n\n")
+    }
+
+    /// "3 items, 2.1 GB, would move to the Trash".
+    static func previewHeadline(_ preview: CleanupPreview) -> String {
+        let moving = preview.items.filter { $0.check == .willMove }.count
+        if moving == 0 { return "Nothing here would move to the Trash" }
+        let noun = moving == 1 ? "item" : "items"
+        return "\(moving) \(noun), \(Format.bytes(preview.bytesToMove)), would move to the Trash"
+    }
+
+    /// What VoiceOver says when the sheet moves to a new step by itself. Empty for steps that
+    /// need no announcement.
+    static func spoken(_ state: AppModel.CleanupState) -> String {
+        switch state {
+        case .closed, .checking: return ""
+        case .ready(let preview): return previewHeadline(preview)
+        case .moving: return "Moving to the Trash"
+        case .done(let result): return movedHeadline(result)
+        case .puttingBack: return "Putting things back"
+        case .putBack(let result): return putBackHeadline(result)
+        case .failed(let message): return "Roomy couldn't finish this. \(message)"
+        }
     }
 
     static func movedHeadline(_ result: CleanupResult) -> String {
@@ -274,38 +308,16 @@ struct CleanupResultList: View {
     let doneText: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(headline)
-                .font(.headline)
-                .padding(.horizontal, 20)
-            if let note {
-                Text(note)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
-            }
+        VStack(alignment: .leading, spacing: Space.s) {
+            ReviewSummary(headline: headline, note: note)
             List(items, id: \.itemId) { item in
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Image(systemName: item.done ? "checkmark.circle.fill" : "minus.circle")
-                        .foregroundStyle(item.done ? Color.green : Color.secondary)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title)
-                            .font(.body.weight(.medium))
-                        Text(item.reason ?? doneText)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 12)
-                    if item.done {
-                        Text(Format.bytes(item.sizeBytes))
-                            .font(.body.monospacedDigit())
-                    }
+                ReviewRow(marker: item.done ? .included : .excluded, title: item.title,
+                          sizeBytes: item.done ? item.sizeBytes : nil) {
+                    ReviewDetailLine(item.reason ?? doneText)
                 }
-                .padding(.vertical, 3)
-                .accessibilityElement(children: .combine)
             }
             .listStyle(.inset)
+            .accessibilityLabel(headline)
         }
     }
 }
@@ -315,29 +327,17 @@ struct CleanupPreviewList: View {
     let preview: CleanupPreview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(headline)
-                .font(.headline)
-                .padding(.horizontal, 20)
-            if wontMoveCount > 0 {
-                Text(wontMoveText)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
-            }
+        VStack(alignment: .leading, spacing: Space.s) {
+            ReviewSummary(headline: headline, note: wontMoveCount > 0 ? wontMoveText : nil)
             List(preview.items, id: \.itemId) { item in
                 CleanupPreviewRow(item: item)
             }
             .listStyle(.inset)
+            .accessibilityLabel(headline)
         }
     }
 
-    private var headline: String {
-        let moving = preview.items.count - wontMoveCount
-        if moving == 0 { return "Nothing here would move to the Trash" }
-        let noun = moving == 1 ? "item" : "items"
-        return "\(moving) \(noun), \(Format.bytes(preview.bytesToMove)), would move to the Trash"
-    }
+    private var headline: String { CleanupText.previewHeadline(preview) }
 
     private var wontMoveCount: Int {
         preview.items.filter { $0.check != .willMove }.count
@@ -353,41 +353,24 @@ struct CleanupPreviewRow: View {
     let item: CleanupPreviewItem
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: willMove ? "checkmark.circle.fill" : "minus.circle")
-                .foregroundStyle(willMove ? Color.green : Color.secondary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.body.weight(.medium))
-                if let path = item.path {
-                    Text(path)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                }
-                Text(statusText)
-                    .font(.callout)
+        ReviewRow(marker: willMove ? .included : .excluded, title: item.title, sizeBytes: item.sizeBytes) {
+            if let path = item.path {
+                Text(path)
+                    .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
-                if let afterwards = CleanupText.afterwards(item) {
-                    Text(afterwards)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if willMove, let backup = item.deviceBackup {
-                    BackupWarningBox(backup: backup, compact: true)
-                        .padding(.top, 2)
-                }
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
             }
-            Spacer(minLength: 12)
-            Text(Format.bytes(item.sizeBytes))
-                .font(.body.monospacedDigit())
+            ReviewDetailLine(statusText)
+            if let afterwards = CleanupText.afterwards(item) {
+                ReviewDetailLine(afterwards)
+            }
+            if willMove, let backup = item.deviceBackup {
+                BackupWarningBox(backup: backup, compact: true)
+                    .padding(.top, Space.xxs)
+            }
         }
-        .padding(.vertical, 3)
-        .accessibilityElement(children: .combine)
     }
 
     private var willMove: Bool { item.check == .willMove }
@@ -413,31 +396,16 @@ struct CleanupFinish: View {
     var estimatesSpace = true
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 34))
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(CleanupText.finishHeadline(bytesMoved: result.bytesMoved, estimatesSpace: estimatesSpace))
-                    .font(.title.weight(.bold))
-                    .accessibilityAddTraits(.isHeader)
-                if let overview {
-                    Text(CleanupText.freeSpaceLine(freeNow: overview.diskFree, moved: result.bytesMoved,
-                                                   diskTotal: overview.diskTotal))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text(estimatesSpace ? CleanupText.emptyTrashNote : CleanupText.sharedSpaceNote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
+        FinishPanel(headline: CleanupText.finishHeadline(bytesMoved: result.bytesMoved, estimatesSpace: estimatesSpace),
+                    detail: detail)
+    }
+
+    private var detail: String {
+        if let overview {
+            return CleanupText.freeSpaceLine(freeNow: overview.diskFree, moved: result.bytesMoved,
+                                             diskTotal: overview.diskTotal)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.green.opacity(0.10)))
-        .accessibilityElement(children: .combine)
+        return estimatesSpace ? CleanupText.emptyTrashNote : CleanupText.sharedSpaceNote
     }
 }
 

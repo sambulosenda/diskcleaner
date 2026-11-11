@@ -19,7 +19,7 @@ struct HistoryScreen: View {
                 if let message = model.historyMessage {
                     Section {
                         Label(message, systemImage: "exclamationmark.circle")
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Space.xs)
                     }
                 }
                 // Tied to the cleanup Put back undoes, not to the newest History row, so it is right even
@@ -31,12 +31,13 @@ struct HistoryScreen: View {
                             Spacer()
                             if model.isPuttingBack {
                                 ProgressView().controlSize(.small)
+                                    .accessibilityLabel("Putting things back")
                             }
                             Button("Put back") { model.putBack() }
                                 .disabled(model.isPuttingBack)
                                 .help("Moves these items from the Trash back to where they were.")
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, Space.xs)
                     }
                 }
                 ForEach(model.history, id: \.id) { entry in
@@ -58,22 +59,22 @@ struct HistoryRow: View {
     let item: HistoryItem
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
             Image(systemName: HistoryText.symbol(item.state))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(item.title)
                     .font(.body.weight(.medium))
                 Text(HistoryText.state(item.state))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Format.bytes(item.sizeBytes))
                 .font(.body.monospacedDigit())
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Space.xxs)
         .accessibilityElement(children: .combine)
     }
 }

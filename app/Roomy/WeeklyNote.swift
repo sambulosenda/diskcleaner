@@ -105,11 +105,11 @@ struct WeeklyNoteRow: View {
     let notNow: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.s) {
             Text(text)
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
+            HStack(spacing: Space.s) {
                 Button("Review in Roomy\u{2026}", action: review)
                 Button("Not This Week", action: notNow)
                     .buttonStyle(.borderless)
@@ -117,8 +117,8 @@ struct WeeklyNoteRow: View {
             .controlSize(.small)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
         .background(Tier.likelySafe.tint.opacity(0.12))
         .accessibilityElement(children: .contain)
     }
@@ -129,7 +129,10 @@ struct WeeklyNoteSettingsSection: View {
     @ObservedObject var weeklyNote: WeeklyNoteModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.s) {
+            Text("Weekly note")
+                .font(.headline)
+                .heading()
             Toggle("Tell me once a week when there's space to free", isOn: $weeklyNote.isEnabled)
             Text("A quiet line in the menu bar panel, not a notification. Roomy never removes anything by itself.")
                 .font(.callout)

@@ -10,6 +10,35 @@ struct ItemDetailPanel: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Details")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Spacer()
+                Button {
+                    model.selectedItemID = nil
+                } label: {
+                    Label("Hide Details", systemImage: "xmark")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .help("Hide details")
+                .accessibilityHint("Closes this panel and clears the selection. Ticks stay as they are.")
+            }
+            .padding(.horizontal, Space.l)
+            .padding(.vertical, Space.s)
+            Divider()
+            detail
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Details")
+    }
+
+    @ViewBuilder
+    private var detail: some View {
         Group {
             switch model.detailState {
             case .none:
@@ -25,7 +54,42 @@ struct ItemDetailPanel: View {
                 ItemDetailContent(detail: detail, mode: model.mode)
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A list with the detail panel beside it. The panel takes no room until a row is selected, then
+/// slides in from the right; the list has the whole width the rest of the time.
+struct ListWithDetail<Content: View>: View {
+    @EnvironmentObject private var model: AppModel
+    let list: () -> Content
+
+    init(@ViewBuilder list: @escaping () -> Content) {
+        self.list = list
+    }
+
+    /// Whether a row is selected, so there is something for the panel to show.
+    private var showsDetail: Bool {
+        if case .none = model.detailState { return false }
+        return true
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                list()
+                if showsDetail {
+                    HStack(spacing: 0) {
+                        Divider()
+                        ItemDetailPanel()
+                    }
+                    .frame(width: DetailPane.width(in: geometry.size.width))
+                    .transition(.move(edge: .trailing))
+                }
+            }
+            .motion(Motion.settle, value: showsDetail)
+        }
+        .clipped()
     }
 }
 
@@ -36,12 +100,12 @@ struct ItemDetailContent: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.l) {
+                VStack(alignment: .leading, spacing: Space.xs) {
                     Text(detail.title)
                         .font(.title2.weight(.semibold))
-                        .accessibilityAddTraits(.isHeader)
-                    HStack(spacing: 10) {
+                        .heading()
+                    HStack(spacing: Space.s) {
                         Text(Format.bytes(detail.sizeBytes))
                             .font(.title3.monospacedDigit())
                         TierLabel(tier: detail.tier)
@@ -58,7 +122,7 @@ struct ItemDetailContent: View {
                     DeveloperDetails(detail: detail)
                 }
             }
-            .padding(20)
+            .padding(Space.xl)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -70,10 +134,10 @@ private struct DetailSection: View {
     let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Text(title)
                 .font(.headline)
-                .accessibilityAddTraits(.isHeader)
+                .heading()
             Text(text)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -87,7 +151,7 @@ private struct DeveloperDetails: View {
     let detail: ItemDetail
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.s) {
             Divider()
             if let path = detail.path {
                 LabeledRow(label: "Location", value: path, monospaced: true)
@@ -99,7 +163,7 @@ private struct DeveloperDetails: View {
             }
             if let path = detail.path, let url = Reveal.url(forDisplayPath: path) {
                 Button(ItemRowMenuText.showInFinder) { Reveal.inFinder(url) }
-                    .padding(.top, 4)
+                    .padding(.top, Space.xs)
                     .accessibilityHint("Opens a Finder window showing this item. Nothing is changed.")
             }
         }
@@ -112,7 +176,7 @@ private struct LabeledRow: View {
     var monospaced = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Space.xxs) {
             Text(label)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -133,11 +197,11 @@ struct BackupWarningBox: View {
     var compact = false
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text(BackupWarning.headline(backup))
                     .font(compact ? .callout.weight(.semibold) : .body.weight(.semibold))
                 Text(compact ? BackupWarning.shortDetails(backup) : BackupWarning.details(backup))
@@ -146,9 +210,9 @@ struct BackupWarningBox: View {
             }
             .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(compact ? 8 : 12)
+        .padding(compact ? Space.s : Space.m)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.orange.opacity(0.12), in: Radius.shape(Radius.medium))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Warning. \(BackupWarning.headline(backup)) \(BackupWarning.details(backup))")
     }

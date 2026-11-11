@@ -48,12 +48,12 @@ struct AndroidContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-                .padding(16)
+                .padding(Space.l)
             Divider()
             List {
                 if let note = overview.note {
                     Label(note, systemImage: "info.circle")
-                        .padding(.vertical, 4)
+                        .padding(.vertical, Space.xs)
                 }
                 ForEach(AndroidGroup.allCases) { group in
                     let parts = model.visibleAndroidParts.filter { group.kinds.contains($0.kind) }
@@ -77,16 +77,17 @@ struct AndroidContent: View {
             .accessibilityLabel("Android tools")
             Divider()
             footer
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, Space.l)
+                .padding(.vertical, Space.s)
         }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top, spacing: Space.m) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text("Android tools use \(Format.bytes(overview.totalBytes))")
                     .font(.title2.weight(.semibold))
+                    .heading()
                 Text(summary)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -113,7 +114,7 @@ struct AndroidContent: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.m) {
             let count = overview.parts.filter { model.isAndroidChecked($0) }.count
             Text("\(count) \(count == 1 ? "item" : "items") chosen, \(Format.bytes(model.checkedAndroidBytes))")
                 .font(.callout.monospacedDigit())
@@ -160,7 +161,7 @@ struct AndroidPartRow: View {
     let part: AndroidPart
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Space.s) {
             Toggle("Choose \(part.title)", isOn: Binding(
                 get: { model.isAndroidChecked(part) },
                 set: { model.setAndroidChecked($0, for: part) }
@@ -168,16 +169,12 @@ struct AndroidPartRow: View {
             .toggleStyle(.checkbox)
             .labelsHidden()
             .help("Choose this to review it for removal.")
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                HStack(spacing: Space.s) {
                     Text(part.title)
                         .font(.body.weight(.medium))
                     if let badge = AndroidUsageBadge(usage: part.usage) {
-                        Text(badge.text)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Capsule().fill(badge.color.opacity(0.2)))
+                        Badge(text: badge.text, tint: badge.color)
                     }
                 }
                 if let detail = part.detail {
@@ -199,11 +196,11 @@ struct AndroidPartRow: View {
                         .textSelection(.enabled)
                 }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Format.bytes(part.sizeBytes))
                 .font(.body.monospacedDigit())
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(part.title), \(Format.bytes(part.sizeBytes))\(usageLine.map { ", \($0)" } ?? "")")
     }
@@ -240,7 +237,7 @@ struct AndroidProjectRow: View {
 
     var body: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(project.name)
                     .font(.body.weight(.medium))
                 if let path = project.path {
@@ -250,14 +247,14 @@ struct AndroidProjectRow: View {
                         .textSelection(.enabled)
                 }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             if let seconds = project.lastActivityUnixSeconds {
                 Text("Last worked on \(Format.relative(Date(timeIntervalSince1970: TimeInterval(seconds))))")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Space.xxs)
         .accessibilityElement(children: .combine)
     }
 }

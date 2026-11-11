@@ -31,7 +31,7 @@ struct OverviewContent: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: Space.xxl) {
                 OverviewHeadline(overview: overview)
                 DiskBar(overview: overview)
                 if overview.likelySafeBytes > 0 {
@@ -40,7 +40,7 @@ struct OverviewContent: View {
                 WorthALookList(overview: overview, items: model.worthReviewing(in: overview),
                                searchText: model.searchText)
                 DiskMapSection(overview: overview)
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Space.l) {
                     Divider()
                     OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,
                                    quickRescan: overview.quickRescan,
@@ -48,11 +48,12 @@ struct OverviewContent: View {
                                    hasChanges: model.scanChanges != nil, showingChanges: $showingChanges)
                     if showingChanges, let changes = model.scanChanges {
                         ChangesSinceLastScan(changes: changes)
+                            .transition(.opacity)
                     }
                 }
             }
-            .padding(.horizontal, 36)
-            .padding(.vertical, 32)
+            .padding(.horizontal, Space.screen)
+            .padding(.vertical, Space.screen)
             // One readable column, centred, so a wide window gets even margins instead of an empty right side.
             .frame(maxWidth: Self.columnWidth)
             .frame(maxWidth: .infinity)
@@ -65,10 +66,10 @@ struct OverviewHeadline: View {
     let overview: Overview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Text(Self.headline(for: overview))
                 .font(.largeTitle.weight(.bold))
-                .accessibilityAddTraits(.isHeader)
+                .heading()
             Text(Self.freeLine(for: overview))
                 .font(.title3)
                 .foregroundStyle(.secondary)
@@ -103,11 +104,11 @@ struct DiskBar: View {
     @State private var showingBreakdown = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
             CategoryStrip(overview: overview)
-            HStack(spacing: 18) {
+            HStack(spacing: Space.l) {
                 ForEach(Self.labelled(overview)) { part in
-                    HStack(spacing: 6) {
+                    HStack(spacing: Space.s) {
                         Circle()
                             .fill(part.kind == .outsideHome ? Color.secondary.opacity(0.4) : part.color)
                             .frame(width: 8, height: 8)
@@ -115,18 +116,22 @@ struct DiskBar: View {
                         Text("\(part.title) \(Format.bytes(part.bytes))")
                     }
                     .help(part.help ?? "")
+                    // The bar above already reads every part, these three included.
+                    .accessibilityHidden(true)
                 }
-                Spacer(minLength: 12)
+                Spacer(minLength: Space.m)
                 Button(showingBreakdown ? "Hide breakdown" : "Show breakdown") {
-                    withAnimation(.easeInOut(duration: 0.2)) { showingBreakdown.toggle() }
+                    Motion.animate { showingBreakdown.toggle() }
                 }
                 .buttonStyle(.link)
+                .accessibilityHint("Lists every part of the disk with its size.")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
             if showingBreakdown {
                 CategoryLegend(overview: overview)
-                    .padding(.top, 6)
+                    .padding(.top, Space.s)
+                    .transition(.opacity)
             }
         }
     }
@@ -144,42 +149,42 @@ struct ReadyToCleanCard: View {
     let overview: Overview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Space.m) {
+            HStack(alignment: .center, spacing: Space.l) {
+                VStack(alignment: .leading, spacing: Space.xxs) {
                     Text("Ready to clean \u{00B7} \(Format.bytes(overview.likelySafeBytes))")
                         .font(.headline)
-                        .accessibilityAddTraits(.isHeader)
+                        .heading()
                     Text("These come back by themselves when they\u{2019}re needed. You choose what goes, and it moves to the Trash.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 12)
+                Spacer(minLength: Space.m)
                 Button("Review and clean\u{2026}") { model.showItems(tier: .likelySafe) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .accessibilityHint("Opens the Likely safe items. Nothing is chosen for you.")
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: Space.s)], spacing: Space.s) {
                 ForEach(Self.tiles(overview), id: \.category) { entry in
-                    HStack(spacing: 10) {
+                    HStack(spacing: Space.s) {
                         CategoryIcon(category: entry.category)
                         Text(entry.category.title)
-                        Spacer(minLength: 8)
+                        Spacer(minLength: Space.s)
                         Text(Format.bytes(entry.likelySafeBytes))
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
+                    .padding(.horizontal, Space.m)
+                    .padding(.vertical, Space.s)
+                    .background(Radius.shape(Radius.medium).fill(Color(nsColor: .controlBackgroundColor)))
                     .accessibilityElement(children: .combine)
                 }
             }
         }
-        .padding(20)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color.secondary.opacity(0.08)))
+        .padding(Space.xl)
+        .cardBackground()
     }
 
     /// Categories with Likely safe space, most first.
@@ -225,11 +230,11 @@ struct WorthALookList: View {
 
     var body: some View {
         let groups = Array(ItemGroup.groups(items.filter { $0.tier == .reviewFirst }).prefix(Self.rowLimit))
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.s) {
                 Text("Worth a look")
                     .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
+                    .heading()
                 if overview.reviewFirstBytes > 0 {
                     Text("+\(Format.bytes(overview.reviewFirstBytes)) to check first")
                         .font(.callout)
@@ -243,7 +248,7 @@ struct WorthALookList: View {
             if groups.isEmpty {
                 Text(emptyText)
                     .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Space.xs)
             } else {
                 VStack(spacing: 0) {
                     ForEach(groups) { group in
@@ -253,7 +258,7 @@ struct WorthALookList: View {
                         }
                     }
                 }
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: .separatorColor)))
+                .rowGroupBackground()
             }
         }
     }
@@ -273,9 +278,9 @@ struct WorthALookRow: View {
         Button {
             model.showItems(tier: .reviewFirst, select: group.id)
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: Space.m) {
                 CategoryIcon(category: group.category)
-                HStack(spacing: 4) {
+                HStack(spacing: Space.xs) {
                     Text(group.title)
                     if let detail = group.detail {
                         Text("\u{00B7} \(detail)")
@@ -284,7 +289,7 @@ struct WorthALookRow: View {
                             .truncationMode(.middle)
                     }
                 }
-                Spacer(minLength: 12)
+                Spacer(minLength: Space.m)
                 Text(Format.bytes(group.bytes))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -293,8 +298,8 @@ struct WorthALookRow: View {
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Space.m)
+            .padding(.vertical, Space.s)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -328,7 +333,7 @@ struct ItemTitle: View {
     let item: ItemSummary
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
             Text(item.title)
                 .font(.body.weight(.medium))
                 .layoutPriority(1)
@@ -338,9 +343,9 @@ struct ItemTitle: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                    .padding(.horizontal, Space.s)
+                    .padding(.vertical, Space.xxs)
+                    .background(Capsule().fill(Color.secondary.opacity(0.15)))
             }
         }
     }
@@ -359,7 +364,7 @@ struct TierLabel: View {
     let tier: Tier
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Space.xs) {
             Image(systemName: tier.symbol)
                 .foregroundStyle(tier.tint)
                 .accessibilityHidden(true)
@@ -367,9 +372,9 @@ struct TierLabel: View {
                 .foregroundStyle(.primary)
         }
         .font(.caption.weight(.medium))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(tier.tint.opacity(0.14)))
+        .padding(.horizontal, Space.s)
+        .padding(.vertical, Space.xxs)
+        .background(Capsule().fill(tier.tint.opacity(0.15)))
         .accessibilityElement(children: .combine)
     }
 }
@@ -386,16 +391,17 @@ struct OverviewFooter: View {
     @Binding var showingChanges: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.m) {
             if hasChanges {
                 Button(showingChanges ? "Hide changes since your last scan" : "What changed since your last scan") {
-                    withAnimation(.easeInOut(duration: 0.2)) { showingChanges.toggle() }
+                    Motion.animate { showingChanges.toggle() }
                 }
                 .buttonStyle(.link)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text("Scanned \(scannedAt.formatted(date: .abbreviated, time: .shortened))")
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Scanned \(scannedAt.formatted(date: .long, time: .shortened))")
                 .help(quickRescan ? "Roomy measured again only the folders that changed since the scan before." : "")
             UnmeasuredNote(unreadableCount: unreadableCount, unscanned: unscanned)
         }
@@ -421,7 +427,7 @@ struct UnmeasuredNote: View {
             Text("Roomy could open every folder.")
                 .foregroundStyle(.secondary)
         } else {
-            HStack(spacing: 6) {
+            HStack(spacing: Space.s) {
                 Text(Self.text(for: unreadableCount))
                     .foregroundStyle(.secondary)
                 Button("Why?") { showingExplanation = true }
@@ -444,9 +450,10 @@ struct UnmeasuredNote: View {
 /// What Full Disk Access is and how to turn it on.
 struct FullDiskAccessExplanation: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
             Text("Some folders weren't measured")
                 .font(.headline)
+                .heading()
             Text("Roomy couldn't open some folders. Most often that's because macOS keeps them private, such as Mail, Messages and Safari data.")
                 .fixedSize(horizontal: false, vertical: true)
             Text("Full Disk Access lets Roomy measure the folders macOS protects. Roomy only reads sizes, and nothing leaves this Mac. Saying no is fine: the rest of the results are still right.")
@@ -459,7 +466,7 @@ struct FullDiskAccessExplanation: View {
             }
         }
         .font(.callout)
-        .padding(16)
+        .padding(Space.l)
         .frame(width: 360)
     }
 }
@@ -471,16 +478,16 @@ struct ChangesSinceLastScan: View {
     static let rowLimit = 5
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
             Text("Since your last scan")
                 .font(.title3.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
+                .heading()
             Text(Self.summary(for: changes))
                 .foregroundStyle(.secondary)
             if changes.items.isEmpty {
                 Text("Nothing changed by more than 10 MB.")
                     .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Space.xs)
             } else {
                 let rows = Array(changes.items.prefix(Self.rowLimit))
                 VStack(spacing: 0) {
@@ -491,14 +498,7 @@ struct ChangesSinceLastScan: View {
                         }
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(Color(nsColor: .separatorColor))
-                )
+                .rowGroupBackground()
             }
         }
     }
@@ -523,21 +523,21 @@ struct ChangeRow: View {
     let change: ItemChange
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: Space.m) {
             CategoryIcon(category: change.category)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(change.title)
                     .font(.body.weight(.medium))
                 Text(change.kind.label)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Self.difference(for: change))
                 .font(.body.monospacedDigit())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.m)
+        .padding(.vertical, Space.s)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(change.title), \(change.kind.label), \(Self.difference(for: change))")
     }

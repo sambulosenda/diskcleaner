@@ -23,33 +23,25 @@ struct JavaScriptScreen: View {
     }
 }
 
-/// The list on the left two thirds and the detail panel on the right third, as on the other lists.
+/// The list, with the detail panel beside it once a row is selected, as on the other lists.
 struct JavaScriptBrowser: View {
     @EnvironmentObject private var model: AppModel
     let unreadableCount: UInt64
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    JavaScriptControls()
-                    Divider()
-                    JavaScriptListBody()
-                    if !model.checkedItemIDs.isEmpty {
-                        Divider()
-                        CleanupBar()
-                    }
-                    Divider()
-                    UnmeasuredNote(unreadableCount: unreadableCount)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+        ListWithDetail {
+            VStack(spacing: 0) {
+                JavaScriptControls()
                 Divider()
-                ItemDetailPanel()
-                    .frame(width: max(geometry.size.width / 3, 280))
+                JavaScriptListBody()
+                CleanupBarSlot()
+                Divider()
+                UnmeasuredNote(unreadableCount: unreadableCount)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Space.l)
+                    .padding(.vertical, Space.s)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .sheet(isPresented: Binding(
@@ -67,7 +59,7 @@ struct JavaScriptControls: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Space.l) {
             Text(summary)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -79,8 +71,8 @@ struct JavaScriptControls: View {
             }
             .fixedSize()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
     }
 
     private var summary: String {
@@ -152,7 +144,7 @@ struct JavaScriptProjectRow: View {
     let project: JsProject
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: Space.s) {
             checkbox
                 .frame(width: 20)
             Image(systemName: "shippingbox")
@@ -160,7 +152,7 @@ struct JavaScriptProjectRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(project.name)
                     .font(.body.weight(.medium))
                 Text(JavaScriptText.subtitle(project, now: Date()))
@@ -169,13 +161,13 @@ struct JavaScriptProjectRow: View {
                     .lineLimit(1)
                     .help(JavaScriptText.sourceHelp(project))
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Format.bytes(project.item.sizeBytes))
                 .font(.body.monospacedDigit())
             TierLabel(tier: project.item.tier)
                 .frame(width: 110, alignment: .trailing)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
             "\(project.name), \(JavaScriptText.lastWorkedOn(project, now: Date())), \(Format.bytes(project.item.sizeBytes))"

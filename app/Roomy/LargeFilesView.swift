@@ -41,19 +41,16 @@ struct LargeFilesBrowser: View {
             LargeFilesControls()
             Divider()
             LargeFilesBody()
-            if !model.checkedItemIDs.isEmpty {
-                Divider()
-                CleanupBar()
-            }
+            CleanupBarSlot()
             Divider()
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text(LargeFilesText.footnote)
                 UnmeasuredNote(unreadableCount: unreadableCount)
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Space.l)
+            .padding(.vertical, Space.s)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -64,7 +61,7 @@ struct LargeFilesControls: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Space.l) {
             Picker("Show:", selection: $model.filesList) {
                 ForEach(AppModel.FilesList.allCases) { list in
                     Text(list.label).tag(list)
@@ -80,8 +77,8 @@ struct LargeFilesControls: View {
             .fixedSize()
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
     }
 }
 
@@ -111,8 +108,8 @@ struct LargeFilesBody: View {
                     Text(LargeFilesText.intro(model.filesList, days: files.oldAfterDays))
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, Space.l)
+                        .padding(.vertical, Space.s)
                     List {
                         ForEach(rows) { row in
                             FileRowView(row: row)
@@ -136,7 +133,7 @@ struct FileRowView: View {
     let row: FileRow
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: Space.s) {
             Toggle("Choose \(row.name)", isOn: Binding(
                 get: { model.isChecked(row) },
                 set: { model.setChecked($0, for: row) }
@@ -150,7 +147,7 @@ struct FileRowView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(row.name)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
@@ -161,7 +158,7 @@ struct FileRowView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(LargeFilesText.lastOpened(row))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -172,7 +169,7 @@ struct FileRowView: View {
             TierLabel(tier: .reviewFirst)
                 .frame(width: 110, alignment: .trailing)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(row.name), \(Format.bytes(row.sizeBytes)), \(LargeFilesText.lastOpened(row))")
     }

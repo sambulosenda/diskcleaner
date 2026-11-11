@@ -39,15 +39,14 @@ enum ScanFindingsText {
 /// The scanning screen's short list of what the scan has recognised so far.
 struct ScanFindingsList: View {
     let findings: [ScanFinding]
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let rows = ScanFindingsText.shown(findings)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
             Text(ScanFindingsText.heading)
                 .font(.headline)
-                .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 8) {
+                .heading()
+            VStack(spacing: Space.s) {
                 ForEach(rows, id: \.title) { finding in
                     ScanFindingRow(finding: finding)
                         .transition(.opacity)
@@ -63,10 +62,10 @@ struct ScanFindingsList: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(16)
+        .padding(Space.l)
         .frame(maxWidth: 440, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: rows.map(\.title))
+        .cardBackground()
+        .motion(value: rows.map(\.title))
     }
 }
 
@@ -75,7 +74,7 @@ private struct ScanFindingRow: View {
     let finding: ScanFinding
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Space.s) {
             Image(systemName: finding.category.symbol)
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
@@ -88,7 +87,7 @@ private struct ScanFindingRow: View {
                     .lineLimit(1)
                     .layoutPriority(-1)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Format.bytes(finding.sizeBytes))
                 .font(.body.monospacedDigit())
                 .foregroundStyle(.secondary)

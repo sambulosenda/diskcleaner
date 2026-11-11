@@ -237,7 +237,7 @@ struct MenuBarPanel: View {
                 Divider()
             }
             FreeSpaceSection(monitor: monitor, overview: model.overview)
-                .padding(16)
+                .padding(Space.l)
             Divider()
             readySection
             Divider()
@@ -268,12 +268,12 @@ struct MenuBarPanel: View {
         case .neverScanned:
             PanelMessage(symbol: "magnifyingglass", text: "Scan to see what you can free. Scanning only measures; nothing is removed.")
         case .scanning:
-            HStack(spacing: 8) {
+            HStack(spacing: Space.s) {
                 ProgressView().controlSize(.small)
                 Text("Scanning\u{2026}").foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(24)
+            .padding(Space.xxl)
         case let .failed(message):
             PanelMessage(symbol: "exclamationmark.circle", text: message)
         case .loaded:
@@ -287,7 +287,7 @@ private struct PanelHeader: View {
     @ObservedObject var monitor: LowSpaceMonitor
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Space.s) {
             Image(systemName: "internaldrive")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
@@ -310,8 +310,8 @@ private struct PanelHeader: View {
             .fixedSize()
             .accessibilityLabel("More")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
     }
 
     /// The startup disk's name as Finder shows it, such as "Macintosh HD". Reads the name only.
@@ -345,7 +345,7 @@ private struct FreeSpaceSection: View {
     let overview: Overview?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
             HStack(alignment: .firstTextBaseline) {
                 freeText
                 Spacer()
@@ -377,7 +377,7 @@ private struct FreeSpaceSection: View {
     private var freeText: some View {
         switch monitor.reading {
         case let .read(free, _):
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.s) {
                 Text(Format.bytes(free))
                     .font(.system(size: 30, weight: .semibold).monospacedDigit())
                 Text("free")
@@ -407,7 +407,7 @@ struct DiskGauge: View {
 
     var body: some View {
         GeometryReader { geo in
-            HStack(spacing: 2) {
+            HStack(spacing: Space.xxs) {
                 segment(parts.other, Color.primary.opacity(0.35), width: geo.size.width)
                 segment(parts.reviewFirst, Tier.reviewFirst.tint, width: geo.size.width)
                 segment(parts.likelySafe, Tier.likelySafe.tint, width: geo.size.width)
@@ -441,7 +441,7 @@ private struct GaugeKey: View {
     let showsTiers: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.m) {
             if showsTiers {
                 key(Tier.likelySafe.tint, Tier.likelySafe.label)
                 key(Tier.reviewFirst.tint, Tier.reviewFirst.label)
@@ -455,7 +455,7 @@ private struct GaugeKey: View {
     }
 
     private func key(_ color: Color, _ text: String) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Space.xs) {
             Circle().fill(color).frame(width: 7, height: 7)
             Text(text)
         }
@@ -481,9 +481,9 @@ private struct ReadyList: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 6)
+            .padding(.horizontal, Space.l)
+            .padding(.top, Space.m)
+            .padding(.bottom, Space.s)
             content
         }
     }
@@ -495,18 +495,19 @@ private struct ReadyList: View {
             ProgressView()
                 .controlSize(.small)
                 .frame(maxWidth: .infinity)
-                .padding(20)
+                .padding(Space.xl)
+                .accessibilityLabel("Loading what you can free")
         case let .loaded(groups) where groups.isEmpty:
             PanelMessage(symbol: "checkmark.circle", text: "Nothing to free right now.")
         case let .loaded(groups):
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: Space.xxs) {
                     ForEach(groups) { group in
                         GroupRow(group: group, openRoomy: openRoomy, panel: panel, model: model)
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
+                .padding(.horizontal, Space.s)
+                .padding(.bottom, Space.s)
             }
             .frame(maxHeight: 340)
         }
@@ -528,14 +529,14 @@ private struct GroupRow: View {
             Button {
                 Task { await panel.toggle(group.category, model: model) }
             } label: {
-                HStack(spacing: 10) {
+                HStack(spacing: Space.s) {
                     Image(systemName: group.category.symbol)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
-                        .background(RoundedRectangle(cornerRadius: 7).fill(group.category.color.gradient))
+                        .background(Radius.shape(Radius.medium).fill(group.category.color.gradient))
                         .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: Space.xxs) {
                         Text(group.category.title)
                             .font(.body.weight(.medium))
                         Text(group.countText)
@@ -552,13 +553,15 @@ private struct GroupRow: View {
                         .rotationEffect(.degrees(isOpen ? 90 : 0))
                         .accessibilityHidden(true)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
+                .padding(.horizontal, Space.s)
+                .padding(.vertical, Space.s)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(hovering ? 0.06 : 0)))
+            .background(Radius.shape(Radius.medium).fill(Color.primary.opacity(hovering ? 0.06 : 0)))
             .onHover { hovering = $0 }
+            .motion(Motion.quick, value: hovering)
+            .motion(value: isOpen)
             .accessibilityLabel("\(group.category.title), \(group.countText), \(Format.bytes(group.totalBytes))")
             .accessibilityHint(isOpen ? "Hides its items." : "Shows its items.")
 
@@ -568,7 +571,7 @@ private struct GroupRow: View {
                         Text("Roomy couldn\u{2019}t check these just now. The review checks them again.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Space.xs)
                     }
                     ForEach(group.items) { item in
                         PanelItemRow(item: item, lock: panel.locks[item.id],
@@ -582,11 +585,11 @@ private struct GroupRow: View {
                         }
                         .buttonStyle(.link)
                         .font(.caption)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, Space.xs)
                     }
                 }
-                .padding(.leading, 44)
-                .padding(.trailing, 8)
+                .padding(.leading, Space.s + 26 + Space.s)
+                .padding(.trailing, Space.s)
             }
         }
     }
@@ -600,11 +603,11 @@ private struct PanelItemRow: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.s) {
             leading
                 .frame(width: 16, height: 16)
-                .padding(.top, 1)
-            VStack(alignment: .leading, spacing: 1) {
+                .padding(.top, Space.xxs)
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(item.place.map { "\(item.title) \u{00B7} \($0)" } ?? item.title)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -615,12 +618,12 @@ private struct PanelItemRow: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: Space.s)
             Text(Format.bytes(item.sizeBytes))
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, Space.xs)
         .help(lock ?? item.explain)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityText)
@@ -635,6 +638,7 @@ private struct PanelItemRow: View {
                 .accessibilityLabel("Locked. \(lock)")
         } else if isChecking {
             ProgressView().controlSize(.mini)
+                .accessibilityLabel("Checking \(item.accessibleTitle)")
         } else {
             Toggle("Choose \(item.accessibleTitle)", isOn: Binding(
                 get: { model.isChecked(item) },
@@ -658,7 +662,7 @@ private struct PanelMessage: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.s) {
             Image(systemName: symbol)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
@@ -668,7 +672,7 @@ private struct PanelMessage: View {
         }
         .font(.callout)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Space.l)
     }
 }
 
@@ -678,7 +682,7 @@ private struct PanelFooter: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Space.s) {
             Text(MenuBarPanelContent.footerText(for: model.scanState))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -694,8 +698,8 @@ private struct PanelFooter: View {
             Spacer()
             mainButton
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
     }
 
     @ViewBuilder

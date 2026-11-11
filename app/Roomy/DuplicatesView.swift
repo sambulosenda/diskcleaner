@@ -247,15 +247,15 @@ struct DuplicatesContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-                .padding(16)
+                .padding(Space.l)
             Divider()
             content
         }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top, spacing: Space.m) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text("Files with exactly the same content in Desktop, Documents, Downloads, Movies, Music and Pictures. Roomy compares what is inside each file, not its name.")
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Nothing is chosen for you, and Roomy always keeps at least one copy.")
@@ -314,10 +314,10 @@ struct DuplicatesContent: View {
         List {
             Label("Removing copies could free up to \(Format.bytes(report.couldFreeBytes)).",
                   systemImage: "info.circle")
-                .padding(.vertical, 4)
+                .padding(.vertical, Space.xs)
             if duplicates.isOutOfDate {
                 Label("Some copies were put back. Look again to see them.", systemImage: "arrow.clockwise")
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Space.xs)
             }
             ForEach(duplicates.visibleGroups) { group in
                 Section {
@@ -333,12 +333,12 @@ struct DuplicatesContent: View {
         .accessibilityLabel("Copies")
         Divider()
         footer
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Space.l)
+            .padding(.vertical, Space.s)
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.m) {
             let count = duplicates.checkedCount
             Text("\(count) \(count == 1 ? "copy" : "copies") chosen, \(Format.bytes(duplicates.checkedBytes))")
                 .font(.callout.monospacedDigit())
@@ -356,7 +356,7 @@ struct DuplicateSearchProgressView: View {
     let progress: DuplicateSearch
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Space.m) {
             switch progress {
             case .comparing(let filesSeen, let done, let total):
                 ProgressView(value: Double(min(done, total)), total: Double(max(total, 1))) {
@@ -372,6 +372,7 @@ struct DuplicateSearchProgressView: View {
                     .foregroundStyle(.secondary)
             default:
                 ProgressView()
+                    .accessibilityLabel("Looking for copies")
             }
         }
         .frame(maxWidth: 420)
@@ -407,7 +408,7 @@ struct DuplicateCopyRow: View {
 
     var body: some View {
         let checked = duplicates.isChecked(copy)
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Space.s) {
             Toggle("Choose the copy in \(copy.location)", isOn: Binding(
                 get: { duplicates.isChecked(copy) },
                 set: { duplicates.setChecked($0, for: copy, in: group) }
@@ -416,8 +417,8 @@ struct DuplicateCopyRow: View {
             .labelsHidden()
             .disabled(!duplicates.canCheck(copy, in: group))
             .help(helpText)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                HStack(spacing: Space.s) {
                     Text(copy.location)
                         .font(.body.weight(.medium))
                     if !checked {
@@ -443,7 +444,7 @@ struct DuplicateCopyRow: View {
                         .textSelection(.enabled)
                 }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             if let path = copy.path {
                 Button("Show in Finder") {
                     let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
@@ -452,7 +453,7 @@ struct DuplicateCopyRow: View {
                 .help("Shows this copy in Finder. Nothing is moved.")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(copy.name) in \(copy.location)\(checked ? ", chosen" : ", kept")")
     }
@@ -478,10 +479,6 @@ private struct DuplicateTag: View {
     let text: String
 
     var body: some View {
-        Text(text)
-            .font(.caption)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+        Badge(text: text)
     }
 }

@@ -258,7 +258,7 @@ private struct LibraryRow: View {
     let row: LibrarySize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             HStack(alignment: .firstTextBaseline) {
                 Label(LibraryText.title(row.kind), systemImage: LibraryText.symbol(row.kind))
                     .font(.headline)
@@ -284,9 +284,9 @@ private struct LibraryRow: View {
                     Button("Show in Finder") { LibraryActions.showMessagesAttachments() }
                 }
             }
-            .padding(.top, 2)
+            .padding(.top, Space.xxs)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
     }
 

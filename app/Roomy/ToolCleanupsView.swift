@@ -122,6 +122,31 @@ enum ToolText {
         }
     }
 
+    /// What the tool would remove, in one line. The Android SDK review has its own heading.
+    static func reviewHeadline(_ preview: ToolCleanupPreview) -> String {
+        let amount = "\(Format.items(UInt64(preview.items.count))), about \(Format.bytes(preview.totalBytes))"
+        switch preview.kind {
+        case .homebrew: return "Homebrew would remove \(amount)"
+        case .unavailableSimulators: return "Xcode would delete \(amount), with their apps and data"
+        case .androidSdkPackage: return "Choose one package to uninstall"
+        }
+    }
+
+    /// Said under the heading of every tool review: none of these go to the Trash.
+    static func cannotUndo(_ kind: ToolCleanupKind) -> String {
+        switch kind {
+        case .homebrew: return "This can't be undone, but Homebrew downloads them again if you install them."
+        case .unavailableSimulators: return "This can't be undone."
+        case .androidSdkPackage:
+            return "This can't be undone, but Android Studio's SDK Manager can install it again."
+        }
+    }
+
+    /// "About 1.2 GB freed", or "Done" when the tool didn't say how much.
+    static func doneHeadline(_ result: ToolCleanupResult) -> String {
+        result.reclaimedBytes.map { "About \(Format.bytes($0)) freed" } ?? "Done"
+    }
+
     /// Text for a thrown error, without a path.
     static func message(for error: Error) -> String {
         if let error = error as? CoreError {
@@ -177,11 +202,11 @@ private struct ToolCleanupsContent: View {
     }
 
     private func row(_ kind: ToolCleanupKind) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.m) {
             Image(systemName: ToolText.symbol(kind))
                 .frame(width: 20)
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text(ToolText.title(kind)).font(.headline)
                 Text(ToolText.explain(kind)).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -190,24 +215,31 @@ private struct ToolCleanupsContent: View {
             Button("Review\u{2026}") { tools.startReview(kind) }
                 .accessibilityHint("Lists what would be removed. Nothing is removed yet.")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
     }
 }
 
-/// The review: what the tool would remove, and the button that removes it.
+/// The review: what the tool would remove, and the button that removes it. It sits in the same frame
+/// as the main cleanup review, so reviewing looks the same everywhere.
 private struct ToolReviewSheet: View {
     @ObservedObject var tools: ToolCleanupModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ReviewSheet(title: title) {
             content
-            Spacer(minLength: 0)
-            Divider()
+        } footer: {
             footer
         }
-        .padding(20)
-        .frame(width: 560, height: 460)
         .interactiveDismissDisabled(tools.review.isBusy)
+    }
+
+    private var title: String {
+        switch tools.review {
+        case .previewing(let kind): return ToolText.title(kind)
+        case .ready(let preview), .running(let preview): return ToolText.title(preview.kind)
+        case .done(let result): return ToolText.title(result.kind)
+        case .closed, .failed: return "Tool clean-ups"
+        }
     }
 
     @ViewBuilder
@@ -216,85 +248,66 @@ private struct ToolReviewSheet: View {
         case .closed:
             EmptyView()
         case .previewing(let kind):
-            Text(ToolText.title(kind)).font(.title2.weight(.semibold))
-            ProgressView(ToolText.asking(kind))
+            ReviewWorking(text: ToolText.asking(kind))
         case .ready(let preview), .running(let preview):
-            Text(ToolText.title(preview.kind)).font(.title2.weight(.semibold))
             if preview.items.isEmpty {
-                Text("There is nothing to remove right now.")
+                CenteredMessage(symbol: "checkmark.circle", title: "Nothing to remove",
+                                message: "There is nothing to remove right now.") { EmptyView() }
             } else if preview.kind == .androidSdkPackage {
                 packagePicker(preview)
             } else {
-                Text(summary(preview))
-                    .fixedSize(horizontal: false, vertical: true)
-                List(preview.items, id: \.id) { item in
-                    itemRow(item)
+                VStack(alignment: .leading, spacing: Space.s) {
+                    ReviewSummary(headline: ToolText.reviewHeadline(preview), warning: ToolText.cannotUndo(preview.kind))
+                    List(preview.items, id: \.id) { item in
+                        itemRow(item, marker: .included)
+                    }
+                    .listStyle(.inset)
+                    .accessibilityLabel(ToolText.reviewHeadline(preview))
+                    ReviewCommandLine(text: "Roomy will run: \(preview.commandLine)")
                 }
-                .listStyle(.bordered)
-                Text("Roomy will run: \(preview.commandLine)")
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(.secondary)
             }
         case .done(let result):
-            Text(ToolText.title(result.kind)).font(.title2.weight(.semibold))
-            if result.success {
-                if let freed = result.reclaimedBytes {
-                    Text("Done. About \(Format.bytes(freed)) freed.")
+            VStack(alignment: .leading, spacing: Space.m) {
+                if result.success {
+                    FinishPanel(headline: ToolText.doneHeadline(result))
                 } else {
-                    Text("Done.")
+                    Label("The tool reported a problem, so it may not have removed everything. History has its full answer.",
+                          systemImage: "exclamationmark.triangle")
                 }
-            } else {
-                Text("The tool reported a problem, so it may not have removed everything. History has its full answer.")
+                Text(result.commandLine)
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                if !result.savedToHistory {
+                    Text("This couldn't be saved to History.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
-            Text(result.commandLine)
-                .font(.system(.callout, design: .monospaced))
-                .foregroundStyle(.secondary)
-            if !result.savedToHistory {
-                Text("This couldn't be saved to History.").foregroundStyle(.secondary)
-            }
+            .padding(.horizontal, Space.xl)
         case .failed(let message):
-            Text("Nothing was removed").font(.title2.weight(.semibold))
-            Text(message)
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "Nothing was removed",
+                            message: message) { EmptyView() }
         }
     }
 
-    private func summary(_ preview: ToolCleanupPreview) -> String {
-        switch preview.kind {
-        case .homebrew:
-            return "Homebrew would remove \(Format.items(UInt64(preview.items.count))), about \(Format.bytes(preview.totalBytes)). This can't be undone, but Homebrew downloads them again if you install them."
-        case .unavailableSimulators:
-            return "Xcode would delete \(Format.items(UInt64(preview.items.count))), about \(Format.bytes(preview.totalBytes)), with their apps and data. This can't be undone."
-        case .androidSdkPackage:
-            return ""
-        }
-    }
-
-    @ViewBuilder
     private func packagePicker(_ preview: ToolCleanupPreview) -> some View {
-        Text("Choose one package to uninstall. This can't be undone, but Android Studio's SDK Manager can install it again.")
-            .fixedSize(horizontal: false, vertical: true)
-        List(preview.items, id: \.id, selection: $tools.selectedPackage) { item in
-            itemRow(item).tag(item.id)
+        VStack(alignment: .leading, spacing: Space.s) {
+            ReviewSummary(headline: "Choose one package to uninstall",
+                          warning: ToolText.cannotUndo(.androidSdkPackage))
+            List(preview.items, id: \.id, selection: $tools.selectedPackage) { item in
+                itemRow(item, marker: .none).tag(item.id)
+            }
+            .listStyle(.inset)
+            .disabled(tools.review.isBusy)
+            .accessibilityLabel("Installed packages")
+            ReviewCommandLine(text: "Roomy will run: sdkmanager --uninstall \(tools.selectedPackage ?? "<package>")")
         }
-        .listStyle(.bordered)
-        .disabled(tools.review.isBusy)
-        .accessibilityLabel("Installed packages")
-        Text("Roomy will run: sdkmanager --uninstall \(tools.selectedPackage ?? "<package>")")
-            .font(.system(.callout, design: .monospaced))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .truncationMode(.middle)
     }
 
-    private func itemRow(_ item: ToolPreviewItem) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).lineLimit(1).truncationMode(.middle)
-                Text(item.detail).font(.caption).foregroundStyle(.secondary)
-                    .lineLimit(1).truncationMode(.middle)
-            }
-            Spacer()
-            Text(Format.bytes(item.sizeBytes)).font(.body.monospacedDigit())
+    private func itemRow(_ item: ToolPreviewItem, marker: ReviewMarker) -> some View {
+        ReviewRow(marker: marker, title: item.title, sizeBytes: item.sizeBytes) {
+            ReviewDetailLine(item.detail)
         }
     }
 
@@ -309,26 +322,31 @@ private struct ToolReviewSheet: View {
 
     @ViewBuilder
     private var footer: some View {
-        HStack {
-            if case .running = tools.review {
-                ProgressView().controlSize(.small)
-                Text("Removing\u{2026}")
-            }
-            Spacer()
-            switch tools.review {
-            case .ready(let preview) where preview.plan != nil:
-                Button("Cancel", role: .cancel) { tools.closeReview() }
-                    .keyboardShortcut(.cancelAction)
-                Button(confirmTitle) { tools.confirm() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!tools.canConfirm)
-                    .accessibilityHint("Runs the command shown. This can't be undone.")
-            case .previewing, .running:
-                EmptyView()
-            default:
-                Button("Done") { tools.closeReview() }
-                    .keyboardShortcut(.defaultAction)
-            }
+        if case .running = tools.review {
+            ProgressView().controlSize(.small)
+            Text("Removing\u{2026}")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } else if case .ready(let preview) = tools.review, preview.plan != nil {
+            Text("Nothing has been removed yet.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        Spacer()
+        switch tools.review {
+        case .ready(let preview) where preview.plan != nil:
+            Button("Cancel", role: .cancel) { tools.closeReview() }
+                .keyboardShortcut(.cancelAction)
+            // No Return key for this button: what the tool removes doesn't go to the Trash.
+            Button(confirmTitle) { tools.confirm() }
+                .buttonStyle(.borderedProminent)
+                .disabled(!tools.canConfirm)
+                .accessibilityHint("Runs the command shown. This can't be undone.")
+        case .previewing, .running:
+            EmptyView()
+        default:
+            Button("Done") { tools.closeReview() }
+                .keyboardShortcut(.defaultAction)
         }
     }
 }

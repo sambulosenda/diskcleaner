@@ -244,11 +244,11 @@ struct DiskMapSection: View {
     let overview: Overview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.s) {
                 Text("The map")
                     .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
+                    .heading()
                 Text("Bigger blocks take more space")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -274,11 +274,12 @@ struct DiskMap: View {
     static let gap: CGFloat = 14
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Space.m) {
             if !isLoaded {
                 ProgressView()
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, minHeight: 80)
+                    .accessibilityLabel("Drawing the map")
             } else if groups.isEmpty {
                 Text("Nothing to clean or check right now, so there's nothing to map.")
                     .foregroundStyle(.secondary)
@@ -297,6 +298,7 @@ struct DiskMap: View {
                 .accessibilityLabel("Map of what the scan found")
                 if let tile = selected {
                     DiskMapExplanation(tile: tile)
+                        .transition(.opacity)
                 } else {
                     Text("Choose a block to see what it is.")
                         .font(.callout)
@@ -308,6 +310,7 @@ struct DiskMap: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .motion(value: selected?.id)
         .task(id: scanKey) {
             let items = await model.scannedItems()
             groups = DiskMapContent.groups(for: items)
@@ -332,7 +335,7 @@ struct DiskMapSide: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 5) {
+            HStack(spacing: Space.xs) {
                 Image(systemName: group.tier.symbol)
                     .foregroundStyle(group.tier.tint)
                     .accessibilityHidden(true)
@@ -346,7 +349,7 @@ struct DiskMapSide: View {
             .lineLimit(1)
             .frame(height: Self.headingHeight, alignment: .top)
             .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
+            .heading()
             GeometryReader { proxy in
                 let tiles = DiskMapContent.fitted(group.tiles, in: proxy.size)
                 let rects = Treemap.layout(tiles.map { Double($0.bytes) },
@@ -380,15 +383,15 @@ struct DiskMapBlock: View {
                 // A neutral card with only a hint of the tier's colour, and the colour itself in the
                 // outline. A stronger wash turns muddy on a dark window, and a map full of Review first
                 // items should not read as an alarm.
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                Radius.shape(Radius.medium)
                     .fill(Color.primary.opacity(0.05))
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                Radius.shape(Radius.medium)
                     .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.3 : 0.09))
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                Radius.shape(Radius.medium)
                     .strokeBorder(isSelected ? Color.primary.opacity(0.9) : DiskMapContent.color(for: tile).opacity(0.55),
                                   lineWidth: isSelected ? 2 : 1)
                 if Self.showsName(in: size) {
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: Space.xxs) {
                         Text(tile.title)
                             .font(.caption.weight(.semibold))
                             .lineLimit(Self.titleLines(in: size))
@@ -406,12 +409,13 @@ struct DiskMapBlock: View {
                             .lineLimit(1)
                     }
                     .foregroundStyle(.primary)
-                    .padding(7)
+                    .padding(Space.s)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .motion(Motion.quick, value: isSelected)
         .help("\(tile.spokenTitle), \(Format.bytes(tile.bytes))")
         .accessibilityLabel(Self.spokenLabel(for: tile))
         .accessibilityHint(tile.explain)
@@ -448,18 +452,18 @@ struct DiskMapExplanation: View {
     let tile: DiskMapTile
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Space.m) {
             if let category = tile.category {
                 CategoryIcon(category: category)
             }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.s) {
                     Text(tile.spokenTitle)
                         .font(.body.weight(.medium))
                     if let tier = tile.tier {
                         TierLabel(tier: tier)
                     }
-                    Spacer(minLength: 12)
+                    Spacer(minLength: Space.m)
                     Text(Format.bytes(tile.bytes))
                         .font(.body.monospacedDigit())
                 }
@@ -475,11 +479,11 @@ struct DiskMapExplanation: View {
                     model.showItems(tier: tier, select: tile.itemID)
                 }
                 .buttonStyle(.link)
-                .padding(.top, 2)
+                .padding(.top, Space.xxs)
             }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.secondary.opacity(0.08)))
+        .padding(Space.m)
+        .noteBackground(.primary, opacity: 0.05)
         .accessibilityElement(children: .contain)
     }
 }
