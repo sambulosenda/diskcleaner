@@ -362,13 +362,31 @@ final class AppModelTests: XCTestCase {
         return (AppModel(client: client, defaults: defaults, pollInterval: 0, now: { date }), client)
     }
 
-    func testFirstLaunchWithoutAccessOpensTheAccessScreen() async {
+    func testFirstLaunchWithoutAccessShowsResultsBeforeAsking() async {
         let (model, _) = makeModel(access: .notGranted)
         XCTAssertNil(model.fullDiskAccess)
         await model.windowDidAppear()
         XCTAssertEqual(model.fullDiskAccess, .notGranted)
-        XCTAssertTrue(model.showsAccessOnboarding)
-        XCTAssertFalse(model.isScanning, "nothing starts until the user chooses")
+        XCTAssertFalse(model.showsAccessOnboarding, "Roomy shows what it can find first")
+        XCTAssertTrue(model.isScanning)
+        await model.waitForScan()
+        XCTAssertNotNil(model.overview)
+        XCTAssertTrue(model.showsAccessOnboarding, "the scan met folders it couldn't read")
+        XCTAssertEqual(AccessText.title(granted: false, overview: model.overview),
+                       "There's more Roomy couldn't measure")
+        XCTAssertTrue(AccessText.subtitle(granted: false, overview: model.overview).contains("so far"))
+        XCTAssertEqual(AccessText.title(granted: false, overview: nil), "Let Roomy see your whole Mac")
+    }
+
+    func testAScanWithNothingUnreadableNeverAsksForAccess() async {
+        let client = MockCoreClient(scenario: .nothingFound, totalSteps: 5)
+        client.access = .notGranted
+        let model = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        await model.windowDidAppear()
+        await model.waitForScan()
+        if model.overview?.unreadableCount == 0 {
+            XCTAssertFalse(model.showsAccessOnboarding)
+        }
     }
 
     func testFirstLaunchWithAccessNeverShowsTheAccessScreen() async {
@@ -414,11 +432,14 @@ final class AppModelTests: XCTestCase {
     func testContinuingWithoutAccessDoesNotAskAgainOnNextLaunch() async {
         let (model, client) = makeModel(access: .notGranted)
         await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertTrue(model.showsAccessOnboarding)
         model.finishAccessOnboarding(scan: false)
         XCTAssertFalse(model.showsAccessOnboarding)
         XCTAssertFalse(model.isScanning)
         let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
         await next.windowDidAppear()
+        await next.waitForScan()
         XCTAssertFalse(next.showsAccessOnboarding)
         XCTAssertEqual(next.fullDiskAccess, .notGranted)
     }
@@ -426,15 +447,19 @@ final class AppModelTests: XCTestCase {
     func testQuittingBeforeChoosingAsksAgainOnNextLaunch() async {
         let (model, client) = makeModel(access: .notGranted)
         await model.windowDidAppear()
+        await model.waitForScan()
         XCTAssertTrue(model.showsAccessOnboarding)
         let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
         await next.windowDidAppear()
+        await next.waitForScan()
         XCTAssertTrue(next.showsAccessOnboarding)
     }
 
     func testAccessSwitchedOnIsNoticedAndScanStarts() async {
         let (model, client) = makeModel(access: .notGranted)
         await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertTrue(model.showsAccessOnboarding)
         client.access = .granted
         await model.refreshFullDiskAccess()
         XCTAssertEqual(model.fullDiskAccess, .granted)

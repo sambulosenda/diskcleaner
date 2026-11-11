@@ -462,24 +462,30 @@ final class AppModel: ObservableObject {
 
     // MARK: - Full Disk Access
 
-    /// Called once when the window first appears. Asks the core about Full Disk Access and, on first
-    /// launch only, opens the Full Disk Access screen if access is off. If it is already on, or the core
-    /// can't tell, the screen is never shown by itself.
+    /// Called once when the window first appears. Asks the core about Full Disk Access, then starts the
+    /// opening scan (see `scanIfOpening`).
     ///
-    /// Then, unless the Full Disk Access screen is waiting for the user, starts the opening scan (see
-    /// `scanIfOpening`).
+    /// Roomy shows what it can find before it asks for anything: if access is off, the Full Disk Access
+    /// screen opens only after the first scan has finished, and only if that scan met folders it could
+    /// not read (see `offerAccessAfterScan`). If access is already on, or the core can't tell, the
+    /// screen is never shown by itself.
     func windowDidAppear() async {
         await refreshRestorableCleanup()
         await refreshFullDiskAccess()
-        if !defaults.bool(forKey: Self.accessOnboardingKey) {
-            if fullDiskAccess == .notGranted {
-                // The screen offers its own scan; nothing starts until the user chooses there.
-                showsAccessOnboarding = true
-                return
-            }
+        if !defaults.bool(forKey: Self.accessOnboardingKey), fullDiskAccess != .notGranted {
             defaults.set(true, forKey: Self.accessOnboardingKey)
         }
         scanIfOpening()
+    }
+
+    /// After a scan finishes: opens the Full Disk Access screen if the user hasn't been asked yet,
+    /// access is off, and the scan met folders it could not read. The results are already on screen
+    /// behind it, so the user sees what Roomy found before being asked for more.
+    private func offerAccessAfterScan(_ overview: Overview) {
+        guard !defaults.bool(forKey: Self.accessOnboardingKey), fullDiskAccess == .notGranted,
+              overview.unreadableCount > 0, cleanupState == .closed
+        else { return }
+        showsAccessOnboarding = true
     }
 
     /// Starts a scan if none has run since Roomy opened and the user hasn't turned "Scan when Roomy
@@ -1073,6 +1079,7 @@ final class AppModel: ObservableObject {
             scanChanges = changes
             scanState = .loaded(overview, scannedAt: now())
             resetItems()
+            offerAccessAfterScan(overview)
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
             finish(handle, with: .failed(Self.message(for: error)))

@@ -13,8 +13,9 @@ enum FullDiskAccessSettings {
     }
 }
 
-/// The first-run screen that asks for Full Disk Access. It explains why, opens System Settings at the
-/// right place, notices by itself when access is switched on, and lets the user go on without it.
+/// The screen that asks for Full Disk Access. It opens by itself once, after the first scan has shown
+/// what Roomy can find without it. It explains why, opens System Settings at the right place, notices
+/// by itself when access is switched on, and lets the user go on without it.
 struct FullDiskAccessOnboarding: View {
     @EnvironmentObject private var model: AppModel
     /// Set once the user has opened System Settings from here, to show what to do if nothing changes.
@@ -52,12 +53,10 @@ struct FullDiskAccessOnboarding: View {
                 .foregroundStyle(granted ? Color.green : Color.accentColor)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 6) {
-                Text(granted ? "Roomy can see your whole Mac" : "Let Roomy see your whole Mac")
+                Text(AccessText.title(granted: granted, overview: model.overview))
                     .font(.title2.weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
-                Text(granted
-                     ? "Full Disk Access is on."
-                     : "macOS keeps some folders private until you say Roomy may look inside them.")
+                Text(AccessText.subtitle(granted: granted, overview: model.overview))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -113,7 +112,9 @@ struct FullDiskAccessOnboarding: View {
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.isScanning)
             } else {
-                Button("Continue without it") { model.finishAccessOnboarding(scan: false) }
+                Button(model.overview == nil ? "Continue without it" : "Not now") {
+                    model.finishAccessOnboarding(scan: false)
+                }
                     .keyboardShortcut(.cancelAction)
                     .accessibilityHint("Roomy scans what it can. Some folders won't be measured.")
             }
@@ -127,6 +128,26 @@ struct FullDiskAccessOnboarding: View {
             if model.fullDiskAccess == .granted { return }
             try? await Task.sleep(nanoseconds: Self.checkInterval)
         }
+    }
+}
+
+/// The words at the top of the Full Disk Access screen. After a scan they start from what Roomy has
+/// already found, so the request comes with something to show for it.
+enum AccessText {
+    static func title(granted: Bool, overview: Overview?) -> String {
+        if granted { return "Roomy can see your whole Mac" }
+        guard let overview, overview.unreadableCount > 0 else { return "Let Roomy see your whole Mac" }
+        return "There's more Roomy couldn't measure"
+    }
+
+    static func subtitle(granted: Bool, overview: Overview?) -> String {
+        if granted { return "Full Disk Access is on." }
+        let privacy = "macOS keeps some folders private until you say Roomy may look inside them."
+        guard let overview, overview.unreadableCount > 0 else { return privacy }
+        let found = overview.likelySafeBytes > 0
+            ? "Roomy has found \(Format.bytes(overview.likelySafeBytes)) you can likely free so far. "
+            : "Your first scan is done. "
+        return found + privacy
     }
 }
 
