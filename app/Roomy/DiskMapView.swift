@@ -84,6 +84,8 @@ struct DiskMapTile: Identifiable, Equatable {
     let explain: String
     /// The item to open in the list, or `nil` for the block of smaller items.
     let itemID: String?
+    /// How many items the block stands for: 1, or more for the block of smaller items.
+    var count: Int = 1
 
     /// The title with its distinguishing name, for VoiceOver and tooltips.
     var spokenTitle: String {
@@ -165,16 +167,41 @@ enum DiskMapContent {
         }
         if !rest.isEmpty {
             let tiers = Set(rest.map(\.tier))
-            let tier = tiers.count == 1 ? tiers.first : nil
-            let noun = rest.count == 1 ? "smaller item" : "smaller items"
-            tiles.append(DiskMapTile(
-                id: smallerID(for: tier), title: "\(rest.count) \(noun)", place: nil,
-                bytes: sum(rest.map(\.sizeBytes)), tier: tier, category: nil,
-                explain: smallerExplanation(for: tier), itemID: nil
-            ))
-            tiles.sort { $0.bytes > $1.bytes }
+            // Last, whatever its size: a catch-all shouldn't be the first block the eye lands on.
+            tiles.append(smaller(count: rest.count, bytes: sum(rest.map(\.sizeBytes)),
+                                 tier: tiers.count == 1 ? tiers.first : nil))
         }
         return tiles
+    }
+
+    /// The shared block that stands for `count` smaller items.
+    static func smaller(count: Int, bytes: UInt64, tier: Tier?) -> DiskMapTile {
+        let noun = count == 1 ? "smaller item" : "smaller items"
+        return DiskMapTile(id: smallerID(for: tier), title: "\(count) \(noun)", place: nil, bytes: bytes,
+                           tier: tier, category: nil, explain: smallerExplanation(for: tier), itemID: nil,
+                           count: count)
+    }
+
+    /// `tiles` as they can really be drawn in `size`: an item whose block would come out too small to
+    /// carry its name joins the shared block, so no item is drawn as a blank block. The shared block
+    /// stays last.
+    static func fitted(_ tiles: [DiskMapTile], in size: CGSize) -> [DiskMapTile] {
+        var current = tiles
+        // Each pass moves at least one item into the shared block, so this ends.
+        for _ in 0..<tiles.count {
+            let rects = Treemap.layout(current.map { Double($0.bytes) }, in: CGRect(origin: .zero, size: size))
+            let blank = current.indices.filter { current[$0].itemID != nil && !DiskMapBlock.showsName(in: rects[$0].size) }
+            guard !blank.isEmpty else { break }
+            let moved = blank.map { current[$0] }
+            let shared = current.first { $0.itemID == nil }
+            var kept = current.enumerated().filter { !blank.contains($0.offset) && $0.element.itemID != nil }.map(\.element)
+            let tiers = Set(moved.map(\.tier) + (shared.map { [$0.tier] } ?? []))
+            kept.append(smaller(count: moved.count + (shared?.count ?? 0),
+                                bytes: sum(moved.map(\.bytes) + [shared?.bytes ?? 0]),
+                                tier: tiers.count == 1 ? (tiers.first ?? nil) : nil))
+            current = kept
+        }
+        return current
     }
 
     /// What the shared block says when chosen.
@@ -238,7 +265,9 @@ struct DiskMap: View {
     let overview: Overview
     @State private var groups: [DiskMapGroup] = []
     @State private var isLoaded = false
-    @State private var selectedID: String?
+    /// The chosen block, as it was drawn: a side can fold more items into its shared block than
+    /// `groups` holds (see `DiskMapContent.fitted`).
+    @State private var selected: DiskMapTile?
     /// The height of the blocks. Wide enough windows give blocks room for their names.
     static let height: CGFloat = 300
     /// The gap between the two sides.
@@ -258,7 +287,7 @@ struct DiskMap: View {
                     let widths = DiskMapContent.widths(for: groups.map(\.bytes), in: proxy.size.width, gap: Self.gap)
                     HStack(alignment: .top, spacing: Self.gap) {
                         ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                            DiskMapSide(group: group, selectedID: $selectedID)
+                            DiskMapSide(group: group, selected: $selected)
                                 .frame(width: widths[index])
                         }
                     }
@@ -266,7 +295,7 @@ struct DiskMap: View {
                 .frame(height: Self.height + DiskMapSide.headingHeight)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Map of what the scan found")
-                if let tile = allTiles.first(where: { $0.id == selectedID }) {
+                if let tile = selected {
                     DiskMapExplanation(tile: tile)
                 } else {
                     Text("Choose a block to see what it is.")
@@ -282,9 +311,8 @@ struct DiskMap: View {
         .task(id: scanKey) {
             let items = await model.scannedItems()
             groups = DiskMapContent.groups(for: items)
-            if let selectedID, !allTiles.contains(where: { $0.id == selectedID }) {
-                self.selectedID = nil
-            }
+            // A new scan: what the chosen block said may no longer be true.
+            selected = nil
             isLoaded = true
         }
     }
@@ -293,16 +321,12 @@ struct DiskMap: View {
     private var scanKey: String {
         "\(overview.scannedBytes)-\(overview.likelySafeBytes)-\(overview.reviewFirstBytes)"
     }
-
-    private var allTiles: [DiskMapTile] {
-        groups.flatMap(\.tiles)
-    }
 }
 
 /// One side of the map: the tier in words with its total, then its blocks.
 struct DiskMapSide: View {
     let group: DiskMapGroup
-    @Binding var selectedID: String?
+    @Binding var selected: DiskMapTile?
     /// The room the heading takes above the blocks.
     static let headingHeight: CGFloat = 24
 
@@ -324,13 +348,14 @@ struct DiskMapSide: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             GeometryReader { proxy in
-                let rects = Treemap.layout(group.tiles.map { Double($0.bytes) },
+                let tiles = DiskMapContent.fitted(group.tiles, in: proxy.size)
+                let rects = Treemap.layout(tiles.map { Double($0.bytes) },
                                            in: CGRect(origin: .zero, size: proxy.size))
                 ZStack {
-                    ForEach(Array(group.tiles.enumerated()), id: \.element.id) { index, tile in
+                    ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
                         let rect = rects[index]
-                        DiskMapBlock(tile: tile, size: rect.size, isSelected: selectedID == tile.id) {
-                            selectedID = selectedID == tile.id ? nil : tile.id
+                        DiskMapBlock(tile: tile, size: rect.size, isSelected: selected?.id == tile.id) {
+                            selected = selected?.id == tile.id ? nil : tile
                         }
                         .frame(width: max(rect.width - 3, 0), height: max(rect.height - 3, 0))
                         .position(x: rect.midX, y: rect.midY)
@@ -352,24 +377,28 @@ struct DiskMapBlock: View {
     var body: some View {
         Button(action: action) {
             ZStack(alignment: .topLeading) {
-                // A light wash of the tier's colour: enough to tell the sides apart, calm enough that a
-                // map full of Review first items doesn't read as an alarm.
+                // A neutral card with only a hint of the tier's colour, and the colour itself in the
+                // outline. A stronger wash turns muddy on a dark window, and a map full of Review first
+                // items should not read as an alarm.
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.42 : 0.2))
+                    .fill(Color.primary.opacity(0.05))
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(isSelected ? Color.primary.opacity(0.9) : DiskMapContent.color(for: tile).opacity(0.45),
+                    .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.3 : 0.09))
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(isSelected ? Color.primary.opacity(0.9) : DiskMapContent.color(for: tile).opacity(0.55),
                                   lineWidth: isSelected ? 2 : 1)
                 if Self.showsName(in: size) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(tile.title)
                             .font(.caption.weight(.semibold))
-                            .lineLimit(1)
+                            .lineLimit(Self.titleLines(in: size))
+                            .multilineTextAlignment(.leading)
                         // The name that tells it apart from blocks with the same title, when there is room.
                         if let place = tile.place, Self.showsPlace(in: size) {
                             Text(place)
                                 .font(.caption2)
                                 .lineLimit(1)
-                                .truncationMode(.middle)
+                                .truncationMode(.tail)
                         }
                         Text(Format.bytes(tile.bytes))
                             .font(.caption2.monospacedDigit())
@@ -392,6 +421,12 @@ struct DiskMapBlock: View {
     /// Whether a block is big enough to carry its name and size.
     static func showsName(in size: CGSize) -> Bool {
         size.width >= 64 && size.height >= 36
+    }
+
+    /// How many lines the title may take: two when the block is tall enough, so a narrow block can
+    /// still say "Android emulator" in full.
+    static func titleLines(in size: CGSize) -> Int {
+        size.height >= 84 ? 2 : 1
     }
 
     /// Whether a block also has room for the name that tells it apart.

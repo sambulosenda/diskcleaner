@@ -63,9 +63,10 @@ final class DiskMapTests: XCTestCase {
         let items = [item("a", 10), item("b", 500), item("c", 0), item("d", 30), item("e", 25)]
         let tiles = DiskMapContent.tiles(for: items, limit: 2)
         let shared = DiskMapContent.smallerID(for: .likelySafe)
-        XCTAssertEqual(tiles.map(\.id), ["b", shared, "d"])
-        XCTAssertEqual(tiles.map(\.bytes), [500, 35, 30])
-        let smaller = tiles[1]
+        XCTAssertEqual(tiles.map(\.id), ["b", "d", shared], "the catch-all comes last, whatever its size")
+        XCTAssertEqual(tiles.map(\.bytes), [500, 30, 35])
+        let smaller = tiles[2]
+        XCTAssertEqual(smaller.count, 2)
         XCTAssertEqual(smaller.title, "2 smaller items")
         XCTAssertNil(smaller.itemID, "the shared block opens the whole list")
         XCTAssertEqual(smaller.tier, .likelySafe, "items of one tier keep its colour")
@@ -89,6 +90,31 @@ final class DiskMapTests: XCTestCase {
         XCTAssertEqual(tiles.map(\.id), ["big", DiskMapContent.smallerID(for: .reviewFirst)])
         XCTAssertEqual(tiles[1].title, "1 smaller item")
         XCTAssertEqual(tiles[1].bytes, 1_000_000)
+    }
+
+    func testABlockTooSmallForItsNameJoinsTheSharedBlock() {
+        // One big item and several that would each get a sliver of a small map.
+        let items = [item("big", 900)] + (1...6).map { item("s\($0)", 15) }
+        let tiles = DiskMapContent.tiles(for: items)
+        XCTAssertEqual(tiles.count, 7, "all big enough by share alone")
+        let size = CGSize(width: 240, height: 200)
+        let fitted = DiskMapContent.fitted(tiles, in: size)
+        let rects = Treemap.layout(fitted.map { Double($0.bytes) }, in: CGRect(origin: .zero, size: size))
+        for (tile, rect) in zip(fitted, rects) where tile.itemID != nil {
+            XCTAssertTrue(DiskMapBlock.showsName(in: rect.size), "\(tile.id) would be a blank block")
+        }
+        XCTAssertEqual(fitted.first?.id, "big")
+        XCTAssertNil(fitted.last?.itemID, "the shared block stays last")
+        XCTAssertEqual(fitted.reduce(0) { $0 + $1.count }, 7, "no item is lost")
+        XCTAssertEqual(DiskMapContent.sum(fitted.map(\.bytes)), 990, "and no space")
+        XCTAssertEqual(fitted.last?.title, "\(fitted.last?.count ?? 0) smaller items")
+    }
+
+    func testBlocksWithRoomAreLeftAlone() {
+        let tiles = DiskMapContent.tiles(for: [item("a", 60), item("b", 40)])
+        XCTAssertEqual(DiskMapContent.fitted(tiles, in: CGSize(width: 600, height: 300)), tiles)
+        XCTAssertEqual(DiskMapBlock.titleLines(in: CGSize(width: 90, height: 100)), 2)
+        XCTAssertEqual(DiskMapBlock.titleLines(in: CGSize(width: 90, height: 50)), 1)
     }
 
     func testTheMapHasOneSidePerTierLikelySafeFirst() {
