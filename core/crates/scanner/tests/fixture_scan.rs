@@ -381,6 +381,7 @@ fn records_files_only_in_folders_asked_for() {
         paths::DOWNLOAD_NORMAL,
         paths::DOWNLOAD_ZIP,
         paths::DOWNLOAD_PKG,
+        paths::DOWNLOAD_ZIP_INSTALLER,
     ]
     .iter()
     .map(|p| p.rsplit('/').next().unwrap().to_string())

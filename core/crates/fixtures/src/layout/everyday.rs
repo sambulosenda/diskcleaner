@@ -61,11 +61,13 @@ fn backups(b: &mut Builder) -> Result<(), FixtureError> {
     Ok(())
 }
 
-/// Downloads with a disk image, an installer package, a zip and a normal file.
+/// Downloads with a disk image, an installer package, two zips (one named
+/// as an installer) and a normal file.
 fn downloads(b: &mut Builder) -> Result<(), FixtureError> {
     b.bytes(paths::DOWNLOAD_DMG, 96 * KB)?;
     b.bytes(paths::DOWNLOAD_PKG, 64 * KB)?;
     b.bytes(paths::DOWNLOAD_ZIP, 48 * KB)?;
+    b.bytes(paths::DOWNLOAD_ZIP_INSTALLER, 40 * KB)?;
     b.text(
         paths::DOWNLOAD_NORMAL,
         "Agenda\n- Budget review\n- Holiday rota\n",
@@ -104,6 +106,7 @@ fn caches(b: &mut Builder) -> Result<(), FixtureError> {
         &format!("{}/leveldb/000003.log", paths::SLACK_LOCAL_STORAGE),
         4 * KB,
     )?;
+    more_app_caches(b)?;
     for folder in paths::USER_LOG_FOLDERS {
         b.bytes(
             &format!("{}/{folder}/app-2026-10-01.log", paths::USER_LOGS),
@@ -111,6 +114,43 @@ fn caches(b: &mut Builder) -> Result<(), FixtureError> {
         )?;
     }
     b.bytes(paths::IPHONE_SOFTWARE_UPDATE, 64 * KB)
+}
+
+/// Caches of more browsers, chat and meeting apps and React Native tools,
+/// each beside data of the same app that no rule may match.
+fn more_app_caches(b: &mut Builder) -> Result<(), FixtureError> {
+    let caches = [
+        (paths::EDGE_CACHE, "Default/Cache/Cache_Data/data_1"),
+        (paths::BRAVE_CACHE, "Default/Cache/Cache_Data/data_1"),
+        (
+            paths::ARC_CACHE,
+            "User Data/Default/Cache/Cache_Data/data_1",
+        ),
+        (paths::ZOOM_CACHE, "Cache.db"),
+        (paths::DISCORD_CACHE, "Cache_Data/data_0"),
+        (paths::TEAMS_CLASSIC_CACHE, "Cache_Data/data_0"),
+        (paths::TEAMS_CACHE, "com.microsoft.teams2/Cache.db"),
+        (paths::WHATSAPP_CACHE, "net.whatsapp.WhatsApp/Cache.db"),
+        (paths::REACT_NATIVE_CACHE, "hermes/hermes-ios-debug.tar.gz"),
+        (paths::EAS_CLI_CACHE, "versions.json"),
+    ];
+    for (dir, file) in caches {
+        b.bytes(&format!("{dir}/{file}"), 16 * KB)?;
+    }
+    b.bytes(&format!("{}/zoomus.enc.db", paths::ZOOM_DATA), 4 * KB)?;
+    b.bytes(
+        &format!("{}/leveldb/000003.log", paths::DISCORD_LOCAL_STORAGE),
+        4 * KB,
+    )?;
+    b.bytes(&format!("{}/settings.json", paths::TEAMS_APP_DATA), 2 * KB)?;
+    b.bytes(
+        &format!("{}/ChatStorage.sqlite", paths::WHATSAPP_MESSAGES),
+        8 * KB,
+    )?;
+    b.bytes(
+        &format!("{}/Media/photo-0001.jpg", paths::WHATSAPP_MESSAGES),
+        8 * KB,
+    )
 }
 
 /// A Photos library bundle (hard-blocked as a whole).
