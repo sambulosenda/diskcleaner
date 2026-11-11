@@ -7,6 +7,8 @@ struct RoomyApp: App {
     @StateObject private var model = AppModel(
         client: (MockCoreClient.fromLaunchArguments() as CoreClient?) ?? RustCoreClient()
     )
+    /// Registers Finder's "Ask Roomy What This Is".
+    @NSApplicationDelegateAdaptor(RoomyAppDelegate.self) private var appDelegate
     /// Sparkle updates. Off in development builds; see UpdaterController.
     @StateObject private var updater = UpdaterController()
     /// Free space for the menu bar item and the low-space alert. Read only.
@@ -30,6 +32,13 @@ struct RoomyApp: App {
             ContentView()
                 .environmentObject(model)
                 .background(MainWindowOpener(monitor: lowSpace))
+                .onAppear {
+                    // A question from Finder brings Roomy forward and shows the answer. It only explains.
+                    appDelegate.finder.onAsk = { url in
+                        lowSpace.showRoomy()
+                        model.askAbout(url)
+                    }
+                }
         }
         .defaultSize(width: 1120, height: 740)
         .commands {

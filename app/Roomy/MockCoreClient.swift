@@ -297,6 +297,18 @@ final class MockCoreClient: CoreClient {
         return PutBackResult(items: last.moved, bytesPutBack: last.moved.reduce(0) { $0 + $1.sizeBytes })
     }
 
+    /// What `explainPlace` answers. Tests set it; the default is a place Roomy has no note about.
+    var placeAnswer = PlaceAnswer(matched: .notListed, item: nil, itemCount: 0, likelySafeBytes: 0,
+                                  reviewFirstBytes: 0)
+    /// The paths `explainPlace` was asked about, in order.
+    private(set) var placesAsked: [String] = []
+
+    func explainPlace(handle: ScanHandle, path: String) async throws -> PlaceAnswer {
+        guard finishedScans.contains(handle) else { throw CoreError.UnknownScan }
+        placesAsked.append(path)
+        return placeAnswer
+    }
+
     func restorableCleanup() async -> CleanupResult? {
         guard let last = lastCleanup else { return nil }
         return CleanupResult(cleanup: last.handle, items: last.moved,

@@ -75,6 +75,10 @@ protocol CoreClient: AnyObject {
     /// last quit. `bytesMoved` counts only what is still in the Trash. Moves nothing.
     func restorableCleanup() async -> CleanupResult?
 
+    /// What the scan knows about a place the user chose in Finder. The one call that sends a path; the
+    /// core only compares its text with the scan's items and reads nothing. The answer holds no path.
+    func explainPlace(handle: ScanHandle, path: String) async throws -> PlaceAnswer
+
     /// Past cleanups, newest first. Holds no paths.
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry]
 
