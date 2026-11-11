@@ -49,7 +49,9 @@ final class ScreenshotTests: XCTestCase {
             let lowSpace = LowSpaceMonitor(readDisk: { DiskSummary(totalBytes: 500_000_000_000, freeBytes: 42_000_000_000) },
                                            notifier: FakeLowSpaceNotifier(),
                                            defaults: UserDefaults(suiteName: suiteName) ?? .standard)
-            try capture(SettingsView(lowSpace: lowSpace).environmentObject(model), size: CGSize(width: 440, height: 480),
+            let weeklyNote = WeeklyNoteModel(defaults: UserDefaults(suiteName: suiteName) ?? .standard)
+            try capture(SettingsView(lowSpace: lowSpace, weeklyNote: weeklyNote).environmentObject(model),
+                        size: CGSize(width: 440, height: 560),
                         appearance: appearance, to: folder.appendingPathComponent("7-settings-\(suffix).png"))
         }
     }

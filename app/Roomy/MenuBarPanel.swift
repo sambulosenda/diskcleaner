@@ -221,12 +221,21 @@ final class MenuBarPanelModel: ObservableObject {
 struct MenuBarPanel: View {
     @ObservedObject var monitor: LowSpaceMonitor
     @ObservedObject var model: AppModel
+    @ObservedObject var weeklyNote: WeeklyNoteModel
     @StateObject private var panel = MenuBarPanelModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PanelHeader(monitor: monitor)
             Divider()
+            if let note = weeklyNote.note {
+                // Opens Roomy's Overview only. Nothing is ticked or removed from here.
+                WeeklyNoteRow(text: note, review: {
+                    weeklyNote.answer()
+                    monitor.showRoomy()
+                }, notNow: { weeklyNote.answer() })
+                Divider()
+            }
             FreeSpaceSection(monitor: monitor, overview: model.overview)
                 .padding(16)
             Divider()
@@ -237,7 +246,10 @@ struct MenuBarPanel: View {
         .frame(width: 360)
         // Loads again when a scan finishes, and checks the open groups again each time the panel opens.
         .task(id: scanKey) { await panel.panelDidOpen(model: model) }
-        .onAppear { Task { await panel.panelDidOpen(model: model) } }
+        .onAppear {
+            weeklyNote.refresh()
+            Task { await panel.panelDidOpen(model: model) }
+        }
     }
 
     /// Changes when a scan starts or finishes, so the panel loads again.

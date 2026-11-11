@@ -4,16 +4,31 @@ import SwiftUI
 /// The menu bar item's label: a disk icon and the free space, or a warning icon when space is low.
 struct MenuBarLabel: View {
     @ObservedObject var monitor: LowSpaceMonitor
+    @ObservedObject var weeklyNote: WeeklyNoteModel
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: monitor.isLow ? "exclamationmark.triangle.fill" : "internaldrive")
+            Image(systemName: Self.symbol(isLow: monitor.isLow, hasNote: weeklyNote.note != nil))
             if !monitor.menuBarTitle.isEmpty {
                 Text(monitor.menuBarTitle)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(monitor.isLow ? "Space is low. \(monitor.summaryText)" : monitor.summaryText)
+        .accessibilityLabel(Self.spokenLabel(summary: monitor.summaryText, isLow: monitor.isLow,
+                                             note: weeklyNote.note))
+    }
+
+    /// The icon: a warning when space is low, a filled disk while the weekly note waits, else a disk.
+    static func symbol(isLow: Bool, hasNote: Bool) -> String {
+        if isLow { return "exclamationmark.triangle.fill" }
+        return hasNote ? "internaldrive.fill" : "internaldrive"
+    }
+
+    /// What VoiceOver says for the menu bar item.
+    static func spokenLabel(summary: String, isLow: Bool, note: String?) -> String {
+        let lead = isLow ? "Space is low. \(summary)" : summary
+        guard let note else { return lead }
+        return "\(lead). \(note)"
     }
 }
 
