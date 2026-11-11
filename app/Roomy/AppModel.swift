@@ -344,6 +344,12 @@ final class AppModel: ObservableObject {
         return nil
     }
 
+    /// When the results on screen were scanned, if a finished scan is showing.
+    var scannedAt: Date? {
+        if case .loaded(_, let scannedAt) = scanState { return scannedAt }
+        return nil
+    }
+
     /// The finished scan whose results are showing, for screens that ask the core about it themselves
     /// (Photos, Mail and Music). `nil` before a scan has finished.
     var finishedScan: ScanHandle? { overview != nil ? loadedHandle : nil }
@@ -510,6 +516,21 @@ final class AppModel: ObservableObject {
         guard let url = selectedQuickLookURL else { return false }
         quickLookURL = url
         return true
+    }
+
+    /// The selected row, when an item list is showing it and it can be ticked. `nil` for Keep rows,
+    /// while a review is open, and on screens that don't show the item list.
+    var tickableSelection: ItemSummary? {
+        guard let screen = selection, screen.itemFilter != nil, screen != .docker,
+              cleanupState == .closed, let id = selectedItemID else { return nil }
+        return visibleItems.first { $0.id == id && $0.tier != .keep }
+    }
+
+    /// ⌘Return: ticks or unticks the selected row, exactly as clicking its checkbox does. Changes
+    /// nothing on disk.
+    func toggleSelectedChecked() {
+        guard let item = tickableSelection else { return }
+        setChecked(!isChecked(item), for: item)
     }
 
     /// ⌘A in an item list. Ticks only the Likely safe rows showing, exactly like "Select all Likely

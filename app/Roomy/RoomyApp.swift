@@ -44,6 +44,13 @@ struct RoomyApp: App {
                 Button("Search Roomy\u{2026}") { model.palette.toggle() }
                     .keyboardShortcut("k", modifiers: .command)
                     .disabled(!model.palette.isPresented && !model.palette.canOpen)
+                Divider()
+                // The keyboard's way to tick the selected row. The same as clicking its checkbox.
+                Button(ItemRowMenuText.choose(checked: model.tickableSelection.map { model.isChecked($0) } ?? false)) {
+                    model.toggleSelectedChecked()
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(model.tickableSelection == nil)
             }
         }
 

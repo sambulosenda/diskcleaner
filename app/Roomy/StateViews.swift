@@ -27,9 +27,10 @@ struct ScanningView: View {
     let progress: ScanProgress
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Space.l) {
             Text("Scanning your Mac")
                 .font(.title2.weight(.semibold))
+                .heading()
             progressBar
                 .progressViewStyle(.linear)
                 .frame(maxWidth: 360)
@@ -46,14 +47,14 @@ struct ScanningView: View {
                 .accessibilityHint("Stops the scan. Nothing has been changed.")
             if !ScanFindingsText.shown(model.scanFindings).isEmpty {
                 ScanFindingsList(findings: model.scanFindings)
-                    .padding(.top, 8)
+                    .padding(.top, Space.s)
             }
             if let last = model.earlierScanSummary {
                 LastScanNote(summary: last, isChecking: true)
-                    .padding(.top, 4)
+                    .padding(.top, Space.xs)
             }
         }
-        .padding(32)
+        .padding(Space.screen)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -63,6 +64,7 @@ struct ScanningView: View {
     private var progressBar: some View {
         if let fraction {
             ProgressView(value: fraction)
+                .motion(value: fraction)
         } else {
             ProgressView()
         }
@@ -113,6 +115,16 @@ enum ScanText {
         }
     }
 
+    /// What VoiceOver says when a scan starts or ends, since the screen changes without a key press.
+    static func spoken(_ state: AppModel.ScanState) -> String {
+        switch state {
+        case .neverScanned: return ""
+        case .scanning: return "Scanning your Mac"
+        case .failed: return "The scan didn't finish. Nothing on your Mac was changed."
+        case .loaded(let overview, _): return "Scan finished. \(OverviewHeadline.headline(for: overview))"
+        }
+    }
+
     /// "About 40% done".
     static func percent(_ fraction: Double) -> String {
         "About \(Int((fraction * 100).rounded()))% done"
@@ -160,7 +172,7 @@ struct CenteredMessage<Actions: View>: View {
     @ViewBuilder let actions: () -> Actions
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: Space.m) {
             Image(systemName: symbol)
                 .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(.secondary)
@@ -168,16 +180,16 @@ struct CenteredMessage<Actions: View>: View {
             Text(title)
                 .font(.title2.weight(.semibold))
                 .multilineTextAlignment(.center)
-                .accessibilityAddTraits(.isHeader)
+                .heading()
             Text(message)
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
             actions()
-                .padding(.top, 6)
+                .padding(.top, Space.s)
         }
-        .padding(32)
+        .padding(Space.screen)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

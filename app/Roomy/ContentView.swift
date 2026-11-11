@@ -5,6 +5,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @State private var columnVisibility = NavigationSplitViewVisibility.all
+    /// When the results on screen were scanned, as a scan starts, to tell a stopped scan from a finished one.
+    @State private var scannedAtBeforeScan: Date?
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -22,6 +24,18 @@ struct ContentView: View {
                 .environmentObject(model)
         }
         .task { await model.windowDidAppear() }
+        .onChange(of: model.isScanning) { scanning in
+            let scannedAt = model.scannedAt
+            if scanning {
+                scannedAtBeforeScan = scannedAt
+                Announce.say(ScanText.spoken(model.scanState))
+            } else if scannedAt != nil, scannedAt == scannedAtBeforeScan {
+                // The earlier results are back on screen: the scan was stopped, not finished.
+                Announce.say("Scan stopped. Showing your last scan.")
+            } else {
+                Announce.say(ScanText.spoken(model.scanState))
+            }
+        }
     }
 }
 

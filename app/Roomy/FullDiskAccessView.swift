@@ -27,7 +27,7 @@ struct FullDiskAccessOnboarding: View {
     private var granted: Bool { model.fullDiskAccess == .granted }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: Space.l) {
             header
             if granted {
                 GrantedNote(hasScanned: model.overview != nil)
@@ -38,7 +38,7 @@ struct FullDiskAccessOnboarding: View {
             Divider()
             footer
         }
-        .padding(28)
+        .padding(Space.xxl)
         .frame(width: 520)
         .task { await watchForAccess() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -47,15 +47,15 @@ struct FullDiskAccessOnboarding: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Space.m) {
             Image(systemName: granted ? "checkmark.shield" : "lock.shield")
                 .font(.system(size: 36))
                 .foregroundStyle(granted ? Color.green : Color.accentColor)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text(AccessText.title(granted: granted, overview: model.overview))
                     .font(.title2.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
+                    .heading()
                 Text(AccessText.subtitle(granted: granted, overview: model.overview))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -64,7 +64,7 @@ struct FullDiskAccessOnboarding: View {
     }
 
     private var reasons: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.m) {
             ReasonRow(symbol: "chart.pie",
                       text: "Without it, Roomy can't measure Mail, Messages, Safari, iPhone backups and other apps' data, so the totals come out too low.")
             ReasonRow(symbol: "trash",
@@ -75,7 +75,7 @@ struct FullDiskAccessOnboarding: View {
     }
 
     private var steps: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Space.m) {
             Text("How to turn it on")
                 .font(.headline)
             StepRow(number: 1, text: "Open Full Disk Access in System Settings.") {
@@ -157,7 +157,7 @@ private struct ReasonRow: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
             Image(systemName: symbol)
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
@@ -175,13 +175,13 @@ private struct StepRow<Control: View>: View {
     @ViewBuilder let control: () -> Control
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Space.s) {
             Text("\(number)")
                 .font(.callout.weight(.semibold).monospacedDigit())
                 .frame(width: 22, height: 22)
                 .background(Circle().fill(Color.accentColor.opacity(0.15)))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Space.s) {
                 Text(text)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel("Step \(number): \(text)")
@@ -194,7 +194,7 @@ private struct StepRow<Control: View>: View {
 /// Roomy's own icon, which can be dragged into the Full Disk Access list in System Settings.
 private struct AppIconToDrag: View {
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Space.s) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 40, height: 40)
@@ -202,8 +202,8 @@ private struct AppIconToDrag: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
-        .padding(6)
-        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
+        .padding(Space.s)
+        .background(Radius.shape(Radius.medium).strokeBorder(Color(nsColor: .separatorColor)))
         .onDrag { NSItemProvider(object: Bundle.main.bundleURL as NSURL) }
         .help("Drag into the Full Disk Access list")
         .accessibilityLabel("Roomy app icon")
@@ -216,8 +216,8 @@ private struct WaitingNote: View {
     let openedSettings: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            HStack(spacing: Space.s) {
                 ProgressView().controlSize(.small)
                 Text("Waiting for Full Disk Access…")
                     .foregroundStyle(.secondary)
@@ -256,20 +256,20 @@ struct UnscannedAreasBox: View {
     static let shownAreas = 5
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.m) {
+            HStack(spacing: Space.s) {
                 Image(systemName: "lock.shield")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 Text("What Roomy couldn't scan")
                     .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
+                    .heading()
             }
             Text(Self.summary(for: overview.unreadableCount))
                 .fixedSize(horizontal: false, vertical: true)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 ForEach(Self.rows(for: overview.unreadableAreas), id: \.area) { row in
-                    HStack(spacing: 8) {
+                    HStack(spacing: Space.s) {
                         Image(systemName: row.area.symbol)
                             .frame(width: 18)
                             .foregroundStyle(.secondary)
@@ -284,7 +284,7 @@ struct UnscannedAreasBox: View {
                 }
             }
             .font(.callout)
-            HStack(spacing: 12) {
+            HStack(spacing: Space.m) {
                 Button("Turn on Full Disk Access") { model.showAccessOnboarding() }
                     .accessibilityHint("Shows how to let Roomy measure these folders.")
                 Text("Then scan again.")
@@ -292,10 +292,10 @@ struct UnscannedAreasBox: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 10)
+        .padding(Space.l)
+        .background(Radius.shape(Radius.large)
             .fill(inPopover ? Color.clear : Color(nsColor: .controlBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 10)
+        .overlay(Radius.shape(Radius.large)
             .strokeBorder(inPopover ? Color.clear : Color(nsColor: .separatorColor)))
     }
 

@@ -20,7 +20,7 @@ struct CategoryStrip: View {
             }
         }
         .frame(height: Self.height)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(Radius.shape(Radius.small))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Disk use by category")
         .accessibilityValue(CategoryLegend.spokenSummary(for: overview))
@@ -172,8 +172,8 @@ struct CategoryLegend: View {
     let overview: Overview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), alignment: .leading)], alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.s) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 230), alignment: .leading)], alignment: .leading, spacing: Space.s) {
                 ForEach(DiskPart.parts(for: overview)) { part in
                     LegendEntry(
                         color: Self.swatch(for: part),
@@ -190,7 +190,6 @@ struct CategoryLegend: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .accessibilityHidden(true) // The strip above reads the same information as one summary.
     }
 
     /// The swatch matches the strip: grey parts are drawn pale there, so they are pale here too.
@@ -230,21 +229,22 @@ private struct LegendEntry: View {
     var outlined = false
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            RoundedRectangle(cornerRadius: 3)
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+            Radius.shape(Radius.small)
                 .fill(color)
                 .frame(width: 12, height: 12)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 3)
+                    Radius.shape(Radius.small)
                         .strokeBorder(outlined ? Color.secondary : Color.clear, lineWidth: 1)
                 )
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(title).font(.callout)
                 Text(detail)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 }

@@ -39,6 +39,7 @@ struct AppList: View {
             HStack {
                 Text("Apps")
                     .font(.headline)
+                    .heading()
                 Spacer()
                 Button {
                     model.loadApps()
@@ -47,10 +48,11 @@ struct AppList: View {
                 }
                 .labelStyle(.iconOnly)
                 .help("Look for apps again")
+                .accessibilityLabel("Look for apps again")
                 .disabled(model.appsState == .loading)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Space.l)
+            .padding(.vertical, Space.s)
             Divider()
             content
         }
@@ -89,10 +91,10 @@ struct AppRow: View {
     let app: AppSummary
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Space.s) {
             AppIcon(path: app.bundlePath)
                 .frame(width: 28, height: 28)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 Text(app.name)
                     .font(.body.weight(.medium))
                 if let version = app.version {
@@ -101,18 +103,14 @@ struct AppRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: Space.s)
             if app.isOpen {
-                Text("Open")
-                    .font(.caption)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                Badge(text: "Open")
             }
             Text(Format.bytes(app.sizeBytes))
                 .font(.body.monospacedDigit())
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(app.name), \(Format.bytes(app.sizeBytes))\(app.isOpen ? ", open" : "")")
     }
@@ -162,7 +160,7 @@ struct AppReviewContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-                .padding(16)
+                .padding(Space.l)
             Divider()
             if review.parts.isEmpty {
                 CenteredMessage(symbol: "checkmark.circle", title: "Nothing to remove",
@@ -173,7 +171,7 @@ struct AppReviewContent: View {
                 List {
                     if let note = review.note {
                         Label(note, systemImage: "info.circle")
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Space.xs)
                     }
                     ForEach(review.parts) { part in
                         AppPartRow(part: part)
@@ -183,19 +181,20 @@ struct AppReviewContent: View {
                 .accessibilityLabel("What \(review.app.name) keeps")
                 Divider()
                 footer
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, Space.l)
+                    .padding(.vertical, Space.s)
             }
         }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Space.m) {
             AppIcon(path: review.app.bundlePath)
                 .frame(width: 48, height: 48)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text(review.app.name)
                     .font(.title2.weight(.semibold))
+                    .heading()
                 Text(locationText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -224,7 +223,7 @@ struct AppReviewContent: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.m) {
             let count = review.parts.filter { model.isPartChecked($0) }.count
             Text("\(count) \(count == 1 ? "item" : "items") chosen, \(Format.bytes(model.checkedPartBytes))")
                 .font(.callout.monospacedDigit())
@@ -243,7 +242,7 @@ struct AppPartRow: View {
     let part: AppPart
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Space.s) {
             Toggle("Choose \(part.title)", isOn: Binding(
                 get: { model.isPartChecked(part) },
                 set: { model.setPartChecked($0, for: part) }
@@ -251,16 +250,12 @@ struct AppPartRow: View {
             .toggleStyle(.checkbox)
             .labelsHidden()
             .help("Choose this to review it for removal.")
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                HStack(spacing: Space.s) {
                     Text(part.title)
                         .font(.body.weight(.medium))
                     if !part.sure {
-                        Text("Check this")
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Capsule().fill(Color.orange.opacity(0.2)))
+                        Badge(text: "Check this", tint: .orange)
                     }
                 }
                 Text(part.explain)
@@ -274,12 +269,12 @@ struct AppPartRow: View {
                         .textSelection(.enabled)
                 }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Format.bytes(part.sizeBytes))
                 .font(.body.monospacedDigit())
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(part.title), \(Format.bytes(part.sizeBytes))")
+        .accessibilityLabel("\(part.title), \(Format.bytes(part.sizeBytes))\(part.sure ? "" : ", check this")")
     }
 }

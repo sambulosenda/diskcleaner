@@ -21,34 +21,26 @@ struct ItemListScreen: View {
     }
 }
 
-/// The list on the left two thirds and the detail panel on the right third.
+/// The list, with the detail panel beside it once a row is selected.
 struct ItemBrowser: View {
     @EnvironmentObject private var model: AppModel
     let item: SidebarItem
     let unreadableCount: UInt64
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    ItemListControls()
-                    Divider()
-                    ItemListBody(item: item)
-                    if !model.checkedItemIDs.isEmpty {
-                        Divider()
-                        CleanupBar()
-                    }
-                    Divider()
-                    UnmeasuredNote(unreadableCount: unreadableCount)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+        ListWithDetail {
+            VStack(spacing: 0) {
+                ItemListControls()
                 Divider()
-                ItemDetailPanel()
-                    .frame(width: max(geometry.size.width / 3, 280))
+                ItemListBody(item: item)
+                CleanupBarSlot()
+                Divider()
+                UnmeasuredNote(unreadableCount: unreadableCount)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Space.l)
+                    .padding(.vertical, Space.s)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .quickLookPreview($model.quickLookURL)
@@ -67,7 +59,7 @@ struct ItemListControls: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Space.l) {
             Picker("Show:", selection: $model.tierFilter) {
                 Text("Everything").tag(Tier?.none)
                 ForEach(Tier.allCases, id: \.self) { tier in
@@ -86,8 +78,8 @@ struct ItemListControls: View {
                 QuickSelectButton()
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.s)
     }
 }
 
@@ -168,24 +160,24 @@ struct ItemRow: View {
     let item: ItemSummary
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: Space.s) {
             checkbox
                 .frame(width: 20)
             CategoryIcon(category: item.category)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Space.xxs) {
                 ItemTitle(item: item)
                 Text(item.explain)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Space.m)
             Text(Format.bytes(item.sizeBytes))
                 .font(.body.monospacedDigit())
             TierLabel(tier: item.tier)
                 .frame(width: 110, alignment: .trailing)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(item.accessibleTitle), \(Format.bytes(item.sizeBytes)), \(item.tier.label)")
     }

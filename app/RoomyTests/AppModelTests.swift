@@ -583,6 +583,52 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.checkedItemIDs, ["iphone-backup"])
     }
 
+    func testCommandReturnTicksOnlyTheSelectedRow() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let row = try XCTUnwrap(all.first { $0.tier == .reviewFirst })
+        XCTAssertNil(model.tickableSelection, "nothing is selected yet")
+
+        model.selectedItemID = row.id
+        XCTAssertEqual(model.tickableSelection?.id, row.id)
+        model.toggleSelectedChecked()
+        XCTAssertEqual(model.checkedItemIDs, [row.id])
+        model.toggleSelectedChecked()
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
+    func testCommandReturnNeverTicksKeepRowsOrDuringAReview() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        if let kept = all.first(where: { $0.tier == .keep }) {
+            model.selectedItemID = kept.id
+            XCTAssertNil(model.tickableSelection)
+            model.toggleSelectedChecked()
+            XCTAssertTrue(model.checkedItemIDs.isEmpty)
+        }
+
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        let other = try XCTUnwrap(all.first { $0.tier != .keep && $0.id != backup.id })
+        model.setChecked(true, for: backup)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        model.selectedItemID = other.id
+        XCTAssertNil(model.tickableSelection)
+        model.toggleSelectedChecked()
+        XCTAssertEqual(model.checkedItemIDs, ["iphone-backup"])
+    }
+
+    func testCommandReturnDoesNothingAwayFromAnItemList() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let row = try XCTUnwrap(all.first { $0.tier != .keep })
+        model.selectedItemID = row.id
+        model.selection = .overview
+        XCTAssertNil(model.tickableSelection)
+        model.toggleSelectedChecked()
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
     func testSimpleModeOffersNoFinderQuickLookOrPath() async throws {
         let model = await scannedModel(.simple)
         let all = await items(on: .cleanup, in: model)

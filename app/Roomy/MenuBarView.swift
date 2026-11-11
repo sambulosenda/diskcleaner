@@ -7,7 +7,7 @@ struct MenuBarLabel: View {
     @ObservedObject var weeklyNote: WeeklyNoteModel
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Space.xs) {
             Image(systemName: Self.symbol(isLow: monitor.isLow, hasNote: weeklyNote.note != nil))
             if !monitor.menuBarTitle.isEmpty {
                 Text(monitor.menuBarTitle)
@@ -97,9 +97,10 @@ struct LowSpaceSettingsSection: View {
     @ObservedObject var monitor: LowSpaceMonitor
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.s) {
             Text("Low space")
                 .font(.headline)
+                .heading()
             Toggle("Show free space in the menu bar", isOn: $monitor.showInMenuBar)
             Toggle("Tell me when space is low", isOn: $monitor.alertsEnabled)
             Picker("Warn when less than:", selection: $monitor.thresholdBytes) {

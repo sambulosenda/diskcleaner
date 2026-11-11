@@ -104,6 +104,20 @@ enum DockerText {
         }
     }
 
+    /// "Docker would remove 12 items, about 3.4 GB".
+    static func reviewHeadline(_ preview: DockerCleanupPreview) -> String {
+        "Docker would remove \(Format.items(UInt64(preview.items.count))), about \(Format.bytes(preview.totalBytes))"
+    }
+
+    static let cannotUndo = "This can't be undone, but Docker downloads or rebuilds these when they are needed again."
+
+    /// "Docker freed 3.4 GB", or "Docker finished" when Docker didn't say how much.
+    static func doneHeadline(_ result: DockerCleanupResult) -> String {
+        result.reclaimedBytes.map { "Docker freed \(Format.bytes($0))" } ?? "Docker finished"
+    }
+
+    static let doneDetail = "Docker downloads or rebuilds these when they are needed again."
+
     /// Text for a thrown error, without a path.
     static func message(for error: Error) -> String {
         if let error = error as? CoreError {
@@ -221,8 +235,8 @@ private struct DockerOverviewView: View {
     }
 
     private func cleanupRow(_ kind: DockerCleanupKind, row: DockerUsageRow, detail: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.m) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text(DockerText.title(kind)).font(.headline)
                 Text(DockerText.explain(kind)).font(.callout).foregroundStyle(.secondary)
                 Text(detail).font(.caption).foregroundStyle(.secondary)
@@ -234,11 +248,11 @@ private struct DockerOverviewView: View {
                 .disabled(row.reclaimableBytes == 0)
                 .accessibilityHint("Lists what Docker would remove. Nothing is removed yet.")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
     }
 
     private func infoRow(title: String, size: UInt64, explain: String, command: String?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             HStack {
                 Text(title).font(.headline)
                 Spacer()
@@ -251,24 +265,31 @@ private struct DockerOverviewView: View {
                     .textSelection(.enabled)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Space.xs)
     }
 }
 
-/// The review: what Docker would remove, and the button that removes it.
+/// The review: what Docker would remove, and the button that removes it. It sits in the same frame
+/// as the main cleanup review, so reviewing looks the same everywhere.
 private struct DockerReviewSheet: View {
     @ObservedObject var docker: DockerModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ReviewSheet(title: title) {
             content
-            Spacer(minLength: 0)
-            Divider()
+        } footer: {
             footer
         }
-        .padding(20)
-        .frame(width: 520, height: 440)
         .interactiveDismissDisabled(docker.review.isBusy)
+    }
+
+    private var title: String {
+        switch docker.review {
+        case .previewing(let kind): return DockerText.title(kind)
+        case .ready(let preview), .running(let preview): return DockerText.title(preview.kind)
+        case .done(let result): return DockerText.title(result.kind)
+        case .closed, .failed: return "Docker"
+        }
     }
 
     @ViewBuilder
@@ -276,70 +297,72 @@ private struct DockerReviewSheet: View {
         switch docker.review {
         case .closed:
             EmptyView()
-        case .previewing(let kind):
-            Text(DockerText.title(kind)).font(.title2.weight(.semibold))
-            ProgressView("Asking Docker what it would remove\u{2026}")
+        case .previewing:
+            ReviewWorking(text: "Asking Docker what it would remove\u{2026}")
         case .ready(let preview), .running(let preview):
-            Text(DockerText.title(preview.kind)).font(.title2.weight(.semibold))
             if preview.items.isEmpty {
-                Text("There is nothing to remove right now.")
+                CenteredMessage(symbol: "checkmark.circle", title: "Nothing to remove",
+                                message: "There is nothing to remove right now.") { EmptyView() }
             } else {
-                Text("Docker would remove \(Format.items(UInt64(preview.items.count))), about \(Format.bytes(preview.totalBytes)). This can't be undone, but Docker downloads or rebuilds these when they are needed again.")
-                    .fixedSize(horizontal: false, vertical: true)
-                List(preview.items, id: \.id) { item in
-                    HStack {
-                        Text(item.id).font(.system(.body, design: .monospaced))
-                        Spacer()
-                        Text(item.age).foregroundStyle(.secondary)
-                        Text(Format.bytes(item.sizeBytes)).font(.body.monospacedDigit())
+                VStack(alignment: .leading, spacing: Space.s) {
+                    ReviewSummary(headline: DockerText.reviewHeadline(preview), warning: DockerText.cannotUndo)
+                    List(preview.items, id: \.id) { item in
+                        ReviewRow(title: item.id, monospacedTitle: true, sizeBytes: item.sizeBytes) {
+                            ReviewDetailLine(item.age)
+                        }
                     }
+                    .listStyle(.inset)
+                    .accessibilityLabel(DockerText.reviewHeadline(preview))
+                    ReviewCommandLine(text: "Roomy will run: \(preview.commandLine)")
                 }
-                .listStyle(.bordered)
-                Text("Roomy will run: \(preview.commandLine)")
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(.secondary)
             }
         case .done(let result):
-            Text(DockerText.title(result.kind)).font(.title2.weight(.semibold))
-            if result.success {
-                if let freed = result.reclaimedBytes {
-                    Text("Docker freed \(Format.bytes(freed)).")
+            VStack(alignment: .leading, spacing: Space.m) {
+                if result.success {
+                    FinishPanel(headline: DockerText.doneHeadline(result), detail: DockerText.doneDetail)
                 } else {
-                    Text("Docker finished.")
+                    Label("Docker reported a problem, so it may not have removed everything.",
+                          systemImage: "exclamationmark.triangle")
                 }
-            } else {
-                Text("Docker reported a problem, so it may not have removed everything.")
+                if !result.savedToHistory {
+                    Text("This couldn't be saved to History.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
-            if !result.savedToHistory {
-                Text("This couldn't be saved to History.").foregroundStyle(.secondary)
-            }
+            .padding(.horizontal, Space.xl)
         case .failed(let message):
-            Text("Nothing was removed").font(.title2.weight(.semibold))
-            Text(message)
+            CenteredMessage(symbol: "exclamationmark.triangle", title: "Nothing was removed",
+                            message: message) { EmptyView() }
         }
     }
 
     @ViewBuilder
     private var footer: some View {
-        HStack {
-            if case .running = docker.review {
-                ProgressView().controlSize(.small)
-                Text("Docker is removing these\u{2026}")
-            }
-            Spacer()
-            switch docker.review {
-            case .ready(let preview) where preview.plan != nil:
-                Button("Cancel", role: .cancel) { docker.closeReview() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Remove \(Format.bytes(preview.totalBytes))") { docker.confirm() }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityHint("Runs \(preview.commandLine). This can't be undone.")
-            case .previewing, .running:
-                EmptyView()
-            default:
-                Button("Done") { docker.closeReview() }
-                    .keyboardShortcut(.defaultAction)
-            }
+        if case .running = docker.review {
+            ProgressView().controlSize(.small)
+            Text("Docker is removing these\u{2026}")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        } else if case .ready(let preview) = docker.review, preview.plan != nil {
+            Text("Nothing has been removed yet.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        Spacer()
+        switch docker.review {
+        case .ready(let preview) where preview.plan != nil:
+            Button("Cancel", role: .cancel) { docker.closeReview() }
+                .keyboardShortcut(.cancelAction)
+            // No Return key for this button: what Docker removes doesn't go to the Trash.
+            Button("Remove \(Format.bytes(preview.totalBytes))") { docker.confirm() }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("Runs \(preview.commandLine). This can't be undone.")
+        case .previewing, .running:
+            EmptyView()
+        default:
+            Button("Done") { docker.closeReview() }
+                .keyboardShortcut(.defaultAction)
         }
     }
 }
