@@ -510,6 +510,100 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.checkedItemIDs, ["xcode-derived-data", "iphone-backup"])
     }
 
+    // MARK: - Quick select (F13)
+
+    func testSelectAllTicksOnlyLikelySafeRows() async {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let safe = Set(all.filter { $0.tier == .likelySafe }.map(\.id))
+        XCTAssertFalse(safe.isEmpty)
+        XCTAssertTrue(all.contains { $0.tier == .reviewFirst })
+        XCTAssertFalse(model.allVisibleLikelySafeChecked)
+
+        model.selectAllLikelySafe()
+        XCTAssertEqual(model.checkedItemIDs, safe)
+        XCTAssertTrue(model.allVisibleLikelySafeChecked)
+        XCTAssertEqual(model.checkedBytes, all.filter { $0.tier == .likelySafe }.reduce(0) { $0 + $1.sizeBytes })
+
+        model.deselectAllLikelySafe()
+        XCTAssertTrue(model.checkedItemIDs.isEmpty)
+    }
+
+    func testDeselectingLikelySafeLeavesReviewFirstTicks() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.setChecked(true, for: backup)
+        model.selectAllLikelySafe()
+        model.deselectAllLikelySafe()
+        XCTAssertEqual(model.checkedItemIDs, ["iphone-backup"])
+    }
+
+    func testRowsTickedTogetherAreNotSentAsChosenAlone() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.selectAllLikelySafe()
+        model.setChecked(true, for: backup)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        let sent = try XCTUnwrap((model.client as? MockCoreClient)?.lastPreviewChoices)
+        for choice in sent {
+            // Only the row the user ticked by hand counts as chosen alone.
+            XCTAssertEqual(choice.chosenAlone, choice.itemId == "iphone-backup", choice.itemId)
+        }
+    }
+
+    func testATickByHandAfterSelectAllCountsAsChosenAlone() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let first = try XCTUnwrap(all.first { $0.tier == .likelySafe })
+        model.selectAllLikelySafe()
+        model.setChecked(false, for: first)
+        model.setChecked(true, for: first)
+        XCTAssertFalse(model.groupCheckedIDs.contains(first.id))
+        XCTAssertTrue(model.likelySafeCheckedIDs.contains(first.id))
+    }
+
+    func testOnlyLikelySafeReviewsSkipTheSecondQuestion() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.selectAllLikelySafe()
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let safeOnly) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertTrue(model.canSkipSecondConfirm(safeOnly))
+        model.closeCleanupReview()
+
+        // One Review first item in the plan brings the second question back.
+        model.setChecked(true, for: backup)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        guard case .ready(let mixed) = model.cleanupState else { return XCTFail("\(model.cleanupState)") }
+        XCTAssertFalse(model.canSkipSecondConfirm(mixed))
+    }
+
+    func testAReviewWithNothingToMoveNeverSkipsTheSecondQuestion() {
+        let model = makeModel()
+        let empty = CleanupPreview(plan: nil, items: [], bytesToMove: 0, expiresInSeconds: 0)
+        XCTAssertFalse(model.canSkipSecondConfirm(empty))
+    }
+
+    func testQuickSelectAndFinishWords() {
+        XCTAssertEqual(QuickSelectText.title(allChecked: false), "Select all Likely safe")
+        XCTAssertEqual(QuickSelectText.title(allChecked: true), "Deselect Likely safe")
+        let line = CleanupText.freeSpaceLine(freeNow: 20_000_000_000, moved: 18_000_000_000,
+                                             diskTotal: 500_000_000_000)
+        XCTAssertTrue(line.contains("free now"))
+        XCTAssertTrue(line.contains("once you empty the Trash"))
+        // Never claims more free space than the disk holds.
+        let capped = CleanupText.freeSpaceLine(freeNow: 90, moved: 50, diskTotal: 100)
+        XCTAssertTrue(capped.contains(Format.bytes(100)))
+        XCTAssertEqual(TrashFolder.url(home: URL(fileURLWithPath: "/Users/someone")).path, "/Users/someone/.Trash")
+    }
+
     func testClosingTheReviewDiscardsItsPlan() async throws {
         let model = await scannedModel()
         let all = await items(on: .cleanup, in: model)
