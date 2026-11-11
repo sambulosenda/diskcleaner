@@ -1,3 +1,5 @@
+import AppKit
+import QuickLook
 import SwiftUI
 
 /// A category screen: picks the right state, then shows the scan's items for this screen.
@@ -49,6 +51,7 @@ struct ItemBrowser: View {
                     .frame(width: max(geometry.size.width / 3, 280))
             }
         }
+        .quickLookPreview($model.quickLookURL)
         .sheet(isPresented: Binding(
             get: { model.cleanupState != .closed },
             set: { if !$0 { model.closeCleanupReview() } }
@@ -137,10 +140,12 @@ struct ItemListBody: View {
                     ForEach(items) { row in
                         ItemRow(item: row)
                             .tag(row.id)
+                            .contextMenu { ItemRowMenu(item: row).environmentObject(model) }
                     }
                 }
                 .listStyle(.inset)
                 .accessibilityLabel(item.title)
+                .modifier(ListKeys())
             }
         }
     }
@@ -200,5 +205,112 @@ struct ItemRow: View {
             .labelsHidden()
             .help("Choose this to review it for cleanup.")
         }
+    }
+}
+
+/// The right-click menu on an item row. Choosing changes only the tick; Show in Finder, Quick Look
+/// and Copy Path only look. Nothing here changes anything on disk.
+struct ItemRowMenu: View {
+    @EnvironmentObject private var model: AppModel
+    let item: ItemSummary
+
+    var body: some View {
+        if item.tier != .keep {
+            let checked = model.isChecked(item)
+            Button(ItemRowMenuText.choose(checked: checked)) { model.setChecked(!checked, for: item) }
+        }
+        if model.canShowFiles {
+            Divider()
+            Button(ItemRowMenuText.showInFinder) { model.showInFinder(item.id) }
+            if model.selectedItemID == item.id, model.selectedQuickLookURL != nil {
+                Button(ItemRowMenuText.quickLook) { model.toggleQuickLook() }
+            }
+            Button(ItemRowMenuText.copyPath) { model.copyPath(item.id) }
+        }
+    }
+}
+
+/// The words of the row menu, kept together so tests can check them.
+enum ItemRowMenuText {
+    static func choose(checked: Bool) -> String {
+        checked ? "Leave Out of Cleanup" : "Choose for Cleanup"
+    }
+
+    static let showInFinder = "Show in Finder"
+    static let quickLook = "Quick Look"
+    static let copyPath = "Copy Path"
+}
+
+/// A key the item list handles itself.
+enum ListKey: Equatable {
+    /// ⌘A: tick the Likely safe rows showing (never Review first or Keep rows).
+    case selectAll
+    /// Space: Quick Look the selected row when it is a single file.
+    case quickLook
+
+    /// Space's key code on every Mac keyboard layout.
+    static let spaceKeyCode: UInt16 = 49
+
+    /// Which list key a key press is, or `nil` for any other key. Shift, Option and Control turn
+    /// either key into something else, so they are left alone.
+    static func from(keyCode: UInt16, characters: String?, modifiers: NSEvent.ModifierFlags) -> ListKey? {
+        let flags = modifiers.intersection([.command, .shift, .option, .control])
+        if flags == .command, characters?.lowercased() == "a" { return .selectAll }
+        if flags.isEmpty, keyCode == spaceKeyCode { return .quickLook }
+        return nil
+    }
+}
+
+/// ⌘A and Space for the item list, on macOS 13 and later.
+struct ListKeys: ViewModifier {
+    @EnvironmentObject private var model: AppModel
+    @StateObject private var keys = ListKeyMonitor()
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { keys.start(model: model) }
+            .onDisappear { keys.stop() }
+    }
+}
+
+/// Watches key presses while an item list shows.
+///
+/// A key goes to the list only when the app's main window is the key window, no sheet is open, and no
+/// text field is being typed in (so ⌘A and Space still work in the search field and the ⌘K palette).
+/// Every other key is passed on untouched.
+@MainActor
+final class ListKeyMonitor: ObservableObject {
+    private var monitor: Any?
+
+    func start(model: AppModel) {
+        guard monitor == nil else { return }
+        // AppKit calls local monitors on the main thread, while it handles the event.
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak model] event in
+            MainActor.assumeIsolated { () -> NSEvent? in
+                guard let model, Self.listMayTake(event),
+                      let key = ListKey.from(keyCode: event.keyCode,
+                                             characters: event.charactersIgnoringModifiers,
+                                             modifiers: event.modifierFlags) else { return event }
+                switch key {
+                case .selectAll:
+                    model.selectAllShortcut()
+                    return nil
+                case .quickLook:
+                    return model.toggleQuickLook() ? nil : event
+                }
+            }
+        }
+    }
+
+    func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+
+    /// Whether the key press is meant for the list rather than a text field, a sheet or another window.
+    private static func listMayTake(_ event: NSEvent) -> Bool {
+        guard let window = event.window, window.isKeyWindow, window.isMainWindow,
+              window.attachedSheet == nil else { return false }
+        return !(window.firstResponder is NSText)
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import Roomy
 
@@ -485,6 +486,95 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(Reveal.url(forDisplayPath: "~/../other", home: home))
         XCTAssertNil(Reveal.url(forDisplayPath: "~/a//b", home: home))
         XCTAssertNil(Reveal.url(forDisplayPath: "~other/x", home: home))
+    }
+
+    // MARK: - Mac list behaviours
+
+    func testListKeysAreOnlyCommandAAndPlainSpace() {
+        XCTAssertEqual(ListKey.from(keyCode: 0, characters: "a", modifiers: .command), .selectAll)
+        XCTAssertEqual(ListKey.from(keyCode: 0, characters: "A", modifiers: [.command, .capsLock]), .selectAll)
+        XCTAssertEqual(ListKey.from(keyCode: ListKey.spaceKeyCode, characters: " ", modifiers: []), .quickLook)
+        XCTAssertNil(ListKey.from(keyCode: 0, characters: "a", modifiers: []))
+        XCTAssertNil(ListKey.from(keyCode: 0, characters: "a", modifiers: [.command, .shift]))
+        XCTAssertNil(ListKey.from(keyCode: 0, characters: "a", modifiers: [.command, .option]))
+        XCTAssertNil(ListKey.from(keyCode: ListKey.spaceKeyCode, characters: " ", modifiers: .command))
+        XCTAssertNil(ListKey.from(keyCode: ListKey.spaceKeyCode, characters: " ", modifiers: .shift))
+        XCTAssertNil(ListKey.from(keyCode: 1, characters: "s", modifiers: .command))
+    }
+
+    func testCommandATicksOnlyLikelySafeRowsAndNotAlone() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        XCTAssertTrue(all.contains { $0.tier == .reviewFirst })
+        model.selectAllShortcut()
+        XCTAssertEqual(model.checkedItemIDs, Set(all.filter { $0.tier == .likelySafe }.map(\.id)))
+
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        let sent = try XCTUnwrap((model.client as? MockCoreClient)?.lastPreviewChoices)
+        XCTAssertFalse(sent.isEmpty)
+        XCTAssertTrue(sent.allSatisfy { !$0.chosenAlone })
+    }
+
+    func testCommandADoesNothingWhileAReviewIsOpen() async throws {
+        let model = await scannedModel()
+        let all = await items(on: .cleanup, in: model)
+        let backup = try XCTUnwrap(all.first { $0.id == "iphone-backup" })
+        model.setChecked(true, for: backup)
+        model.reviewCleanup()
+        await model.waitForCleanupCheck()
+        model.selectAllShortcut()
+        XCTAssertEqual(model.checkedItemIDs, ["iphone-backup"])
+    }
+
+    func testSimpleModeOffersNoFinderQuickLookOrPath() async throws {
+        let model = await scannedModel(.simple)
+        let all = await items(on: .cleanup, in: model)
+        let first = try XCTUnwrap(all.first)
+        XCTAssertFalse(model.canShowFiles)
+        let url = await model.fileURL(for: first.id)
+        XCTAssertNil(url)
+        model.selectedItemID = first.id
+        XCTAssertNil(model.selectedQuickLookURL)
+        XCTAssertFalse(model.toggleQuickLook())
+        XCTAssertNil(model.quickLookURL)
+    }
+
+    func testDeveloperModeFindsTheItemInsideHome() async throws {
+        let model = await scannedModel(.developer)
+        let all = await items(on: .cleanup, in: model)
+        let first = try XCTUnwrap(all.first)
+        XCTAssertTrue(model.canShowFiles)
+        let found = await model.fileURL(for: first.id)
+        let url = try XCTUnwrap(found)
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        XCTAssertTrue(url.path.hasPrefix(home + "/"), url.path)
+        XCTAssertTrue(url.path.hasSuffix("/Library/Mock/\(first.id)"), url.path)
+        // The mock's places don't exist, so none of them is a single file for Quick Look.
+        model.selectedItemID = first.id
+        XCTAssertNil(model.selectedQuickLookURL)
+        XCTAssertFalse(model.toggleQuickLook())
+    }
+
+    func testQuickLookIsOnlyForASingleFile() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("roomy-quicklook-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("note.txt")
+        try Data("hello".utf8).write(to: file)
+        let link = dir.appendingPathComponent("link.txt")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+
+        XCTAssertTrue(Reveal.isSingleFile(file))
+        XCTAssertFalse(Reveal.isSingleFile(dir))
+        XCTAssertFalse(Reveal.isSingleFile(link))
+        XCTAssertFalse(Reveal.isSingleFile(dir.appendingPathComponent("missing.txt")))
+    }
+
+    func testRowMenuWords() {
+        XCTAssertEqual(ItemRowMenuText.choose(checked: false), "Choose for Cleanup")
+        XCTAssertEqual(ItemRowMenuText.choose(checked: true), "Leave Out of Cleanup")
+        XCTAssertEqual(ItemRowMenuText.showInFinder, "Show in Finder")
     }
 
     // MARK: - Cleanup review (dry run)

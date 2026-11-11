@@ -204,9 +204,16 @@ final class AppModel: ObservableObject {
     }
     /// The selected row in the category screen's list.
     @Published var selectedItemID: String? = nil {
-        didSet { if selectedItemID != oldValue { reloadDetail() } }
+        didSet {
+            guard selectedItemID != oldValue else { return }
+            quickLookURL = nil
+            reloadDetail()
+        }
     }
     @Published private(set) var detailState: DetailState = .none
+    /// The file Quick Look is showing, or `nil` when it is closed. Only ever a single file inside the
+    /// home folder, from the core's Developer mode display path. Looking changes nothing on disk.
+    @Published var quickLookURL: URL? = nil
     /// Ticked rows, which the cleanup review checks. Nothing is ticked for the user, and `keep` items
     /// can never be ticked.
     @Published private(set) var checkedItemIDs: Set<String> = []
@@ -434,6 +441,69 @@ final class AppModel: ObservableObject {
             likelySafeCheckedIDs.remove(item.id)
             groupCheckedIDs.remove(item.id)
         }
+    }
+
+    // MARK: - Mac list behaviours: right-click menu, Quick Look and ⌘A
+
+    /// Whether rows can be shown in Finder, looked at with Quick Look and have their path copied.
+    /// Developer mode only: the core gives the app a path only there (Sam's T11 rule, contract rule 1).
+    var canShowFiles: Bool { mode == .developer }
+
+    /// The place an item is inside the home folder, built from the core's `~/` display path. `nil` in
+    /// Simple mode, where the core sends no path, or if the path doesn't name a place in the home folder.
+    func fileURL(for itemID: String) async -> URL? {
+        guard canShowFiles, let handle = loadedHandle else { return nil }
+        if case .loaded(let detail) = detailState, detail.id == itemID {
+            return detail.path.flatMap { Reveal.url(forDisplayPath: $0) }
+        }
+        guard let detail = try? await client.itemDetail(handle: handle, itemId: itemID) else { return nil }
+        return detail.path.flatMap { Reveal.url(forDisplayPath: $0) }
+    }
+
+    /// Opens a Finder window with the item selected. Developer mode only. Nothing is changed.
+    func showInFinder(_ itemID: String) {
+        Task { [weak self] in
+            guard let url = await self?.fileURL(for: itemID) else { return }
+            Reveal.inFinder(url)
+        }
+    }
+
+    /// Puts the item's full path on the clipboard. Developer mode only. Nothing is changed.
+    func copyPath(_ itemID: String) {
+        Task { [weak self] in
+            guard let url = await self?.fileURL(for: itemID) else { return }
+            Reveal.copyPath(url)
+        }
+    }
+
+    /// The selected row's file for Quick Look: only in Developer mode, and only when the item is a
+    /// single file (not a folder, not a symbolic link). `nil` otherwise.
+    var selectedQuickLookURL: URL? {
+        guard canShowFiles, case .loaded(let detail) = detailState, detail.id == selectedItemID,
+              let path = detail.path, let url = Reveal.url(forDisplayPath: path),
+              Reveal.isSingleFile(url) else { return nil }
+        return url
+    }
+
+    /// Space: opens Quick Look for the selected row if it is a single file, or closes it if it is
+    /// open. Returns whether it did anything, so the key can go elsewhere when it didn't.
+    @discardableResult
+    func toggleQuickLook() -> Bool {
+        if quickLookURL != nil {
+            quickLookURL = nil
+            return true
+        }
+        guard let url = selectedQuickLookURL else { return false }
+        quickLookURL = url
+        return true
+    }
+
+    /// ⌘A in an item list. Ticks only the Likely safe rows showing, exactly like "Select all Likely
+    /// safe": Review first and Keep rows are never ticked, and the core is told they weren't chosen
+    /// one by one.
+    func selectAllShortcut() {
+        guard case .loaded = listState, cleanupState == .closed else { return }
+        selectAllLikelySafe()
     }
 
     /// Whether the review can go straight from its Move to Trash button to moving, with no second
@@ -1149,6 +1219,7 @@ final class AppModel: ObservableObject {
         groupCheckedIDs = []
         likelySafeCheckedIDs = []
         selectedItemID = nil
+        quickLookURL = nil
         reloadItems()
         reloadJavaScript()
         reloadFiles()
@@ -1263,6 +1334,8 @@ final class AppModel: ObservableObject {
 
     private func modeDidChange() {
         defaults.set(mode.storageKey, forKey: Self.modeKey)
+        // Quick Look shows a file from a Developer mode path; Simple mode has none.
+        quickLookURL = nil
         if mode == .simple, selection?.isDeveloperOnly == true {
             selection = .overview
         }
