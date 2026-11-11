@@ -71,10 +71,16 @@ final class DiskMapTests: XCTestCase {
     }
 
     func testAFewItemsNeedNoSharedBlock() {
-        let tiles = DiskMapContent.tiles(for: [item("a", 10), item("b", 20, .keep)])
+        let tiles = DiskMapContent.tiles(for: [item("a", 10), item("b", 20, .reviewFirst)])
         XCTAssertEqual(tiles.map(\.id), ["b", "a"])
-        XCTAssertEqual(tiles[0].tier, .keep)
+        XCTAssertEqual(tiles[0].tier, .reviewFirst)
         XCTAssertEqual(tiles[0].explain, "What b is.")
+    }
+
+    func testKeptItemsAreNotDrawn() {
+        let tiles = DiskMapContent.tiles(for: [item("kept", 9_000, .keep), item("a", 10), item("b", 5, .reviewFirst)])
+        XCTAssertEqual(tiles.map(\.id), ["a", "b"], "only what the user can clean or check")
+        XCTAssertTrue(DiskMapContent.tiles(for: [item("kept", 9_000, .keep)]).isEmpty)
     }
 
     func testABlockSaysItsTierInWords() {

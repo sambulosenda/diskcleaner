@@ -100,9 +100,12 @@ enum DiskMapContent {
     static let smallerID = "roomy.map.smaller"
 
     /// The blocks, largest first: the biggest items one block each, then one block for all the rest.
+    /// Only items the user can do something about are drawn (Likely safe and Review first). Kept
+    /// items, such as everything else in Documents, would fill the map with blocks nobody can act on.
     /// Items of zero size are left out.
     static func tiles(for items: [ItemSummary], limit: Int = tileLimit) -> [DiskMapTile] {
-        let sized = items.filter { $0.sizeBytes > 0 }.sorted { $0.sizeBytes > $1.sizeBytes }
+        let sized = items.filter { $0.sizeBytes > 0 && $0.tier != .keep }
+            .sorted { $0.sizeBytes > $1.sizeBytes }
         let shown = sized.prefix(max(limit, 0))
         let rest = sized.dropFirst(shown.count)
         var tiles = shown.map { item in
@@ -118,7 +121,7 @@ enum DiskMapContent {
             tiles.append(DiskMapTile(
                 id: smallerID, title: "\(rest.count) \(noun)", place: nil, bytes: bytes, tier: nil,
                 category: nil,
-                explain: "Everything else the scan found, each too small to draw by itself. They're all in the list.",
+                explain: "Everything else you can clean or check, each too small to draw by itself. They're all in the list.",
                 itemID: nil
             ))
             tiles.sort { $0.bytes > $1.bytes }
@@ -129,10 +132,11 @@ enum DiskMapContent {
     /// The line under the map: what it covers, and what it leaves out.
     static func caption(mapped: UInt64, overview: Overview) -> String {
         let rest = overview.scannedBytes > mapped ? overview.scannedBytes - mapped : 0
-        let lead = "The map shows the \(Format.bytes(mapped)) Roomy recognised. Green is likely safe to remove, "
-            + "orange is worth checking first, and grey is kept."
+        let lead = "The map shows the \(Format.bytes(mapped)) you can clean or check. Green is likely safe to "
+            + "remove and orange is worth checking first."
         guard rest > 0 else { return lead }
-        return lead + " The other \(Format.bytes(rest)) in your home folder is your own files and apps."
+        return lead + " The other \(Format.bytes(rest)) in your home folder is your own files and apps, "
+            + "which Roomy keeps."
     }
 
     /// The colour of a block. The tier is always named in words when a block is chosen.
@@ -161,7 +165,7 @@ struct DiskMapSection: View {
     }
 }
 
-/// The Overview's map: everything the scan recognised as blocks sized by the space they take and
+/// The Overview's map: everything the user can clean or check, as blocks sized by the space they take and
 /// coloured by how safe they are to remove. Choosing a block explains it. Nothing is ticked or
 /// removed here.
 struct DiskMap: View {
@@ -180,7 +184,7 @@ struct DiskMap: View {
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else if tiles.isEmpty {
-                Text("There's nothing to map yet.")
+                Text("Nothing to clean or check right now, so there's nothing to map.")
                     .foregroundStyle(.secondary)
             } else {
                 GeometryReader { proxy in
@@ -248,9 +252,9 @@ struct DiskMapBlock: View {
         Button(action: action) {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.5 : 0.28))
+                    .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.75 : 0.5))
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : DiskMapContent.color(for: tile).opacity(0.5),
+                    .strokeBorder(isSelected ? Color.primary : DiskMapContent.color(for: tile).opacity(0.8),
                                   lineWidth: isSelected ? 2 : 1)
                 if Self.showsName(in: size) {
                     VStack(alignment: .leading, spacing: 1) {
@@ -259,9 +263,9 @@ struct DiskMapBlock: View {
                             .lineLimit(1)
                         Text(Format.bytes(tile.bytes))
                             .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
+                    .foregroundStyle(.primary)
                     .padding(6)
                 }
             }
@@ -276,7 +280,7 @@ struct DiskMapBlock: View {
 
     /// Whether a block is big enough to carry its name and size.
     static func showsName(in size: CGSize) -> Bool {
-        size.width >= 84 && size.height >= 40
+        size.width >= 64 && size.height >= 36
     }
 
     /// Name, size and tier in words, so colour is never the only signal.
