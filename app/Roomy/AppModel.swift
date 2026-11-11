@@ -1137,16 +1137,17 @@ final class AppModel: ObservableObject {
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
             finish(handle, with: .failed(Self.message(for: error)))
-            if pendingPlacePath != nil {
-                pendingPlacePath = nil
-                placeQuestion?.state = .unavailable
-            }
         }
     }
 
     /// Ends a scan that produced no results, and frees it in the core.
     private func finish(_ handle: ScanHandle, with state: ScanState) {
         activeHandle = nil
+        // A question from Finder was waiting on this scan: say Roomy can't answer yet.
+        if pendingPlacePath != nil {
+            pendingPlacePath = nil
+            placeQuestion?.state = .unavailable
+        }
         scanState = state
         Task { await client.closeScan(handle: handle) }
     }
