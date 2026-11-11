@@ -39,6 +39,7 @@ struct OverviewContent: View {
                 }
                 WorthALookList(overview: overview, items: model.worthReviewing(in: overview),
                                searchText: model.searchText)
+                DiskMapSection(overview: overview)
                 VStack(alignment: .leading, spacing: 16) {
                     Divider()
                     OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,
@@ -100,7 +101,6 @@ struct OverviewHeadline: View {
 struct DiskBar: View {
     let overview: Overview
     @State private var showingBreakdown = false
-    @State private var showingMap = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -117,11 +117,6 @@ struct DiskBar: View {
                     .help(part.help ?? "")
                 }
                 Spacer(minLength: 12)
-                Button(showingMap ? "Hide map" : "Show map") {
-                    withAnimation(.easeInOut(duration: 0.2)) { showingMap.toggle() }
-                }
-                .buttonStyle(.link)
-                .help("Everything the scan found, drawn by size and coloured by how safe it is to remove.")
                 Button(showingBreakdown ? "Hide breakdown" : "Show breakdown") {
                     withAnimation(.easeInOut(duration: 0.2)) { showingBreakdown.toggle() }
                 }
@@ -129,10 +124,6 @@ struct DiskBar: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            if showingMap {
-                DiskMap(overview: overview)
-                    .padding(.top, 6)
-            }
             if showingBreakdown {
                 CategoryLegend(overview: overview)
                     .padding(.top, 6)

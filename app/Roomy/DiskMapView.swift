@@ -141,6 +141,26 @@ enum DiskMapContent {
     }
 }
 
+/// The map as a section of the Overview, with its heading. Open by default: it is the quickest way to
+/// see what is big and how safe it is to remove.
+struct DiskMapSection: View {
+    let overview: Overview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("The map")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Text("Bigger blocks take more space")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            DiskMap(overview: overview)
+        }
+    }
+}
+
 /// The Overview's map: everything the scan recognised as blocks sized by the space they take and
 /// coloured by how safe they are to remove. Choosing a block explains it. Nothing is ticked or
 /// removed here.
