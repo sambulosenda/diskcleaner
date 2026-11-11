@@ -324,6 +324,12 @@ final class AppModel: ObservableObject {
     /// (Photos, Mail and Music). `nil` before a scan has finished.
     var finishedScan: ScanHandle? { overview != nil ? loadedHandle : nil }
 
+    /// What the last scan of an earlier run found, to show while this run's first scan is under way.
+    /// `nil` once a scan has finished in this run (its results are newer), or if there never was one.
+    var earlierScanSummary: LastScanSummary? {
+        loadedHandle == nil ? LastScanSummary.load(from: defaults) : nil
+    }
+
     /// The sidebar groups for the current mode.
     var sidebarSections: [[SidebarItem]] { SidebarItem.sections(for: mode) }
 
@@ -1079,6 +1085,7 @@ final class AppModel: ObservableObject {
             scanChanges = changes
             scanState = .loaded(overview, scannedAt: now())
             resetItems()
+            LastScanSummary(overview: overview, scannedAt: now()).save(to: defaults)
             offerAccessAfterScan(overview)
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }

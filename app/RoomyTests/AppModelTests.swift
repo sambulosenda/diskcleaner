@@ -400,6 +400,37 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(again.showsAccessOnboarding)
     }
 
+    func testTheLastScanIsRememberedForTheNextLaunch() async throws {
+        let (model, client) = makeModel(access: .granted)
+        XCTAssertNil(model.earlierScanSummary, "nothing before the first scan")
+        await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertNil(model.earlierScanSummary, "this run's results are newer")
+        // The next launch has an answer to show while it checks again.
+        let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        let last = try XCTUnwrap(next.earlierScanSummary)
+        let overview = MockData.overview(for: .normal)
+        XCTAssertEqual(last.likelySafeBytes, overview.likelySafeBytes)
+        XCTAssertEqual(last.reviewFirstBytes, overview.reviewFirstBytes)
+        XCTAssertEqual(last.scannedAt, fixedDate)
+        XCTAssertTrue(last.sentence.hasPrefix("Last scan, "))
+        XCTAssertTrue(last.sentence.contains("ready to clean"))
+        await next.windowDidAppear()
+        await next.waitForScan()
+        XCTAssertNil(next.earlierScanSummary)
+    }
+
+    func testTheLastScanSentenceCoversEveryCase() {
+        let when = Date(timeIntervalSince1970: 1_800_000_000)
+        func sentence(_ likely: UInt64, _ review: UInt64) -> String {
+            LastScanSummary(likelySafeBytes: likely, reviewFirstBytes: review, scannedAt: when).sentence
+        }
+        XCTAssertTrue(sentence(5, 7).contains("ready to clean and"))
+        XCTAssertTrue(sentence(5, 0).hasSuffix("ready to clean."))
+        XCTAssertTrue(sentence(0, 7).hasSuffix("worth a look."))
+        XCTAssertTrue(sentence(0, 0).hasSuffix("nothing to clean."))
+    }
+
     func testOpeningRoomyStartsAScanOnce() async {
         let (model, _) = makeModel(access: .granted)
         XCTAssertTrue(model.scanOnOpen, "on by default")
