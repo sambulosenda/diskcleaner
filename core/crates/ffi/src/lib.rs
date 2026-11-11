@@ -40,6 +40,7 @@ mod system_data;
 mod testing;
 mod tools;
 mod types;
+mod undo;
 mod uninstall;
 mod views;
 

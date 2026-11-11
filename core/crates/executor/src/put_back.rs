@@ -111,8 +111,20 @@ pub fn put_back(
     Ok(results)
 }
 
-/// Checks and moves one entry back.
-fn put_back_one(ctx: &Context, item: &PutBack) -> Result<(), PutBackRefusal> {
+/// Says, for each entry, whether the Trash still holds exactly what Roomy
+/// moved there. Reads metadata only and changes nothing. An entry that is
+/// not one this executor could have made counts as not there.
+///
+/// - `home`: the home path passed to the core.
+/// - `dev`: the device id of the scan root.
+pub fn still_in_trash(home: &Path, dev: u64, items: &[PutBack]) -> Result<Vec<bool>, ExecuteError> {
+    let ctx = Context::open(home, dev)?;
+    Ok(items.iter().map(|item| holds(&ctx, item).is_ok()).collect())
+}
+
+/// Checks the entry is one of ours and the Trash still holds it unchanged.
+/// Returns its name in the Trash.
+fn holds(ctx: &Context, item: &PutBack) -> Result<OsString, PutBackRefusal> {
     if !is_plain(&ctx.home, &item.original) {
         return Err(PutBackRefusal::NotOurs);
     }
@@ -122,6 +134,12 @@ fn put_back_one(ctx: &Context, item: &PutBack) -> Result<(), PutBackRefusal> {
     if in_trash.dev != ctx.dev || TrashIdentity::of(&in_trash) != Some(item.identity) {
         return Err(PutBackRefusal::NotInTrash);
     }
+    Ok(trash_name)
+}
+
+/// Checks and moves one entry back.
+fn put_back_one(ctx: &Context, item: &PutBack) -> Result<(), PutBackRefusal> {
+    let trash_name = holds(ctx, item)?;
     let (parent_fd, name) = ctx
         .open_parent(&item.original)
         .map_err(|_| PutBackRefusal::FolderChanged)?;

@@ -841,6 +841,46 @@ fn put_back_restores_what_moved() {
 }
 
 #[test]
+fn still_in_trash_is_true_only_for_what_roomy_left_there() {
+    let home = Home::plain();
+    home.file("Library/Caches/a.log", 3_000);
+    home.file("Library/Caches/b.log", 5_000);
+    let report = run(
+        home.plan_of(&["Library/Caches/a.log", "Library/Caches/b.log"]),
+        Mode::Trash,
+    );
+    let entries = put_backs(&report);
+    assert_eq!(
+        executor::still_in_trash(&home.root, home.dev, &entries).unwrap(),
+        vec![true, true]
+    );
+
+    // One is taken out of the Trash, as when the user deletes it there.
+    std::fs::remove_file(&entries[0].in_trash).unwrap();
+
+    assert_eq!(
+        executor::still_in_trash(&home.root, home.dev, &entries).unwrap(),
+        vec![false, true]
+    );
+    // Looking changed nothing.
+    assert!(entries[1].in_trash.is_file());
+    assert!(!home.path("Library/Caches/b.log").exists());
+}
+
+#[test]
+fn still_in_trash_is_false_for_entries_it_did_not_make() {
+    let home = Home::plain();
+    home.file("Library/Caches/a.log", 3_000);
+    let report = run(home.plan_of(&["Library/Caches/a.log"]), Mode::Trash);
+    let mut entry = put_backs(&report).remove(0);
+    entry.original = PathBuf::from("/etc/hosts");
+    assert_eq!(
+        executor::still_in_trash(&home.root, home.dev, &[entry]).unwrap(),
+        vec![false]
+    );
+}
+
+#[test]
 fn put_back_never_replaces_something_new() {
     let home = Home::plain();
     home.file("Library/Caches/big.log", 5_000);

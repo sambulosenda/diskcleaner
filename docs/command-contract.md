@@ -419,11 +419,18 @@ Rules:
    The executor checks every item again just before moving it, so an item that changed since the
    review stays where it is and is listed with a reason.
 3. Trash only. Nothing is removed for good.
-4. `put_back_cleanup` works once, for the most recent cleanup since the core was made. It uses the
-   executor's own record of what moved, kept in memory, never anything read from History. An item
-   stays in the Trash if what is in the Trash under its name is no longer what Roomy moved there,
-   if a folder on the way back changed (for example became a link), or if something new is in its
-   old place. A put back never replaces anything.
+4. `put_back_cleanup` works once, for the most recent cleanup, including one from before Roomy was
+   last quit. It uses the executor's own record of what moved, never anything read from History.
+   That record is kept in memory and, so it survives a restart, in a small separate file,
+   `~/Library/Application Support/Roomy/undo.sqlite`. The file holds the last cleanup only: each
+   moved item's place relative to the home folder, its one name in the Trash, and what the Trash
+   entry looked like right after the move. It is replaced by the next cleanup and emptied once the
+   cleanup is put back or the Trash holds none of it. A stored record that names anything other
+   than plain paths inside home and one plain name in the Trash is dropped whole. Whatever the
+   record says, the executor checks every entry again before acting: an item stays in the Trash if
+   what is in the Trash under its name is no longer exactly what Roomy moved there (inode, size
+   and change time), if a folder on the way back changed (for example became a link), or if
+   something new is in its old place. A put back never replaces anything.
 5. History is a SQLite file at `~/Library/Application Support/Roomy/history.sqlite`. It holds
    titles, sizes, times and outcomes, **no paths**. The core makes the `Roomy` folder the first time
    a cleanup is recorded, and never any other folder. If History can't be written, the cleanup still
@@ -441,6 +448,13 @@ Moves the last cleanup's items back. Throws `nothing_to_put_back` if `cleanup` i
 recent cleanup that moved anything, or was already put back; trying again won't help. Throws
 `cleanup_unavailable` if the Trash or home folder can't be opened; nothing moved, and the same
 cleanup can be put back later.
+
+### `restorable_cleanup() -> CleanupResult?`
+The most recent cleanup, if it can still be put back: its handle and one row per item that moved,
+`done` for those the Trash still holds exactly as Roomy left them. `bytes_moved` counts only those.
+`None` if there is no such cleanup, it was already put back, or the Trash holds none of it any more.
+The first call of a run reads the undo file an earlier run stored, so Put back is offered after a
+restart. Reads metadata only, moves nothing, and never makes a file.
 
 ### `cleanup_history(limit: u32) -> [HistoryEntry]`
 Past cleanups, newest first, at most `limit`. Empty before the first cleanup; reading it never makes

@@ -100,6 +100,10 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.putBackCleanup(cleanup: cleanup) }
     }
 
+    func restorableCleanup() async -> CleanupResult? {
+        (try? await offMain { $0.restorableCleanup() }) ?? nil
+    }
+
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
         (try? await offMain { $0.cleanupHistory(limit: limit) }) ?? []
     }

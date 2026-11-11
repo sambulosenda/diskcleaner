@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The History screen: past cleanups, newest first, and Put back for the most recent one while it can
-/// still be put back. History holds no paths.
+/// The History screen: past cleanups, newest first, and Put back for the most recent one while the
+/// Trash still holds it, even after Roomy was quit. History holds no paths.
 struct HistoryScreen: View {
     @EnvironmentObject private var model: AppModel
 
@@ -27,7 +27,7 @@ struct HistoryScreen: View {
                 if let last = model.lastCleanupResult, model.lastCleanup != nil {
                     Section {
                         HStack {
-                            Text("Your last cleanup moved \(Format.bytes(last.bytesMoved)) to the Trash.")
+                            Text(HistoryText.lastCleanup(last))
                             Spacer()
                             if model.isPuttingBack {
                                 ProgressView().controlSize(.small)
@@ -80,6 +80,12 @@ struct HistoryRow: View {
 
 /// The words of the History screen.
 enum HistoryText {
+    /// The line beside Put back. `bytesMoved` counts what the Trash still holds.
+    static func lastCleanup(_ last: CleanupResult) -> String {
+        "\(Format.bytes(last.bytesMoved)) from your last cleanup is still in the Trash. "
+            + "You can put it back until you empty the Trash."
+    }
+
     static func heading(_ entry: HistoryEntry) -> String {
         let when = Date(timeIntervalSince1970: TimeInterval(entry.finishedAt))
             .formatted(date: .abbreviated, time: .shortened)

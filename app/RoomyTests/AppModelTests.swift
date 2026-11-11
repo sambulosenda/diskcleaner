@@ -705,6 +705,24 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.lastCleanupResult?.bytesMoved, first.sizeBytes)
     }
 
+    func testACleanupFromBeforeRoomyQuitCanStillBePutBack() async throws {
+        let model = makeModel()
+        let mock = try XCTUnwrap(model.client as? MockCoreClient)
+        mock.holdEarlierCleanup([
+            CleanupResultItem(itemId: "a", title: "Build files", sizeBytes: 4_000, done: true, reason: nil)
+        ])
+        XCTAssertNil(model.lastCleanup)
+        await model.refreshRestorableCleanup()
+        XCTAssertNotNil(model.lastCleanup, "offered again after a restart")
+        XCTAssertEqual(model.lastCleanupResult?.bytesMoved, 4_000)
+        XCTAssertTrue(HistoryText.lastCleanup(try XCTUnwrap(model.lastCleanupResult)).contains("put it back"))
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertEqual(mock.putBackCalls, 1)
+        XCTAssertNil(model.lastCleanup, "only once")
+        await model.waitForScan()
+    }
+
     func testCancelLeavesEverythingWhereItIs() async throws {
         let (model, _) = try await reviewedModel()
         model.closeCleanupReview()

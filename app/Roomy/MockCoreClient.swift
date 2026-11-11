@@ -266,6 +266,21 @@ final class MockCoreClient: CoreClient {
         return PutBackResult(items: last.moved, bytesPutBack: last.moved.reduce(0) { $0 + $1.sizeBytes })
     }
 
+    func restorableCleanup() async -> CleanupResult? {
+        guard let last = lastCleanup else { return nil }
+        return CleanupResult(cleanup: last.handle, items: last.moved,
+                             bytesMoved: last.moved.reduce(0) { $0 + $1.sizeBytes },
+                             savedToHistory: last.historyIndex >= 0)
+    }
+
+    /// Test hook: makes the mock hold a cleanup from "before the app was last quit", so a new model finds
+    /// it can still be put back.
+    func holdEarlierCleanup(_ moved: [CleanupResultItem]) {
+        let handle = CleanupHandle(id: nextCleanup)
+        nextCleanup += 1
+        lastCleanup = (handle, -1, moved)
+    }
+
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
         Array(historyEntries.reversed().prefix(Int(limit)))
     }

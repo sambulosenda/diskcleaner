@@ -85,6 +85,9 @@ pub struct RoomyCore {
     next_cleanup_id: AtomicU64,
     /// The most recent cleanup that moved anything, until it is put back.
     last_cleanup: Mutex<Option<LastCleanup>>,
+    /// Whether the undo record of an earlier run has been looked for. It is
+    /// read at most once per run, and never after a newer cleanup.
+    undo_checked: AtomicBool,
     /// The History database, opened the first time it is needed.
     history: HistorySlot,
     /// The last scan's folder tree, for quick rescans.
@@ -176,6 +179,7 @@ impl RoomyCore {
             pending_plan: Mutex::new(None),
             next_cleanup_id: AtomicU64::new(1),
             last_cleanup: Mutex::new(None),
+            undo_checked: AtomicBool::new(false),
             history: Arc::new(Mutex::new(None)),
             kept_tree: Arc::new(Mutex::new(None)),
             protected_folders: Mutex::new(Vec::new()),
@@ -512,6 +516,10 @@ impl RoomyCore {
             last.history_id = history_id;
         }
         // A newer cleanup replaces the older undo, even if nothing moved.
+        // The record is also written to the undo file, so the cleanup can
+        // still be put back after Roomy restarts.
+        self.undo_checked.store(true, Ordering::Relaxed);
+        crate::undo::remember(&self.home, ran.last.as_ref(), crate::run::unix_seconds(now));
         *lock(&self.last_cleanup) = ran.last;
         Ok(ran.result)
     }
@@ -681,10 +689,41 @@ impl RoomyCore {
         crate::folders::shown(&lock(&self.protected_folders))
     }
 
+    /// The most recent cleanup, if it can still be put back: its handle and
+    /// one row per item that moved, `done` for those the Trash still holds
+    /// exactly as Roomy left them. `bytes_moved` counts only those. `None`
+    /// if there is no such cleanup, it was already put back, or the Trash
+    /// holds none of it any more (emptied, or the items were taken out).
+    ///
+    /// Works across restarts: the first call of a run reads the undo record
+    /// the earlier run stored. Reads metadata only and moves nothing.
+    pub fn restorable_cleanup(&self) -> Option<CleanupResult> {
+        let mut slot = lock(&self.last_cleanup);
+        if slot.is_none() && !self.undo_checked.swap(true, Ordering::Relaxed) {
+            let id = self.next_cleanup_id.fetch_add(1, Ordering::Relaxed);
+            *slot = crate::undo::restore(&self.home, CleanupHandle { id });
+        }
+        match crate::undo::summary(slot.as_ref()?) {
+            Ok(Some(summary)) => Some(summary),
+            // The Trash holds none of it any more: nothing left to undo.
+            Ok(None) => {
+                *slot = None;
+                crate::undo::forget(&self.home);
+                None
+            }
+            // The Trash can't be read just now. Keep the record for later.
+            Err(err) => {
+                tracing::warn!(%err, "could not check the Trash for the last cleanup");
+                None
+            }
+        }
+    }
+
     /// Puts the last cleanup back: moves what it moved from the Trash to
-    /// where it was. Works once, for the most recent cleanup since the core
-    /// was made. An item stays in the Trash if it changed there, or if
-    /// something new is in its old place.
+    /// where it was. Works once, for the most recent cleanup, including one
+    /// from before Roomy was last quit (see `restorable_cleanup`). An item
+    /// stays in the Trash if it changed there, or if something new is in
+    /// its old place.
     pub fn put_back_cleanup(&self, cleanup: CleanupHandle) -> Result<PutBackResult, CoreError> {
         let last = {
             let mut slot = lock(&self.last_cleanup);
@@ -709,6 +748,7 @@ impl RoomyCore {
                 return Err(err);
             }
         };
+        crate::undo::forget(&self.home);
         if let Some(id) = last.history_id {
             let at = crate::run::unix_seconds(std::time::SystemTime::now());
             self.with_history(true, |h| h.record_put_back(id, at, &rows));

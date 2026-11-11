@@ -210,7 +210,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var checkedItemIDs: Set<String> = []
     /// The cleanup review sheet.
     @Published private(set) var cleanupState: CleanupState = .closed
-    /// The most recent cleanup, while it can still be put back (until the app quits).
+    /// The most recent cleanup, while it can still be put back: until it is put back, a newer cleanup
+    /// replaces it, or the Trash no longer holds it. Survives quitting Roomy.
     @Published private(set) var lastCleanup: CleanupHandle?
     /// What the most recent cleanup did, for the Put back banner. Kept with `lastCleanup`, so the banner
     /// matches the cleanup it undoes even if that cleanup could not be saved to History.
@@ -468,6 +469,7 @@ final class AppModel: ObservableObject {
     /// Then, unless the Full Disk Access screen is waiting for the user, starts the opening scan (see
     /// `scanIfOpening`).
     func windowDidAppear() async {
+        await refreshRestorableCleanup()
         await refreshFullDiskAccess()
         if !defaults.bool(forKey: Self.accessOnboardingKey) {
             if fullDiskAccess == .notGranted {
@@ -903,7 +905,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Puts the most recent cleanup back where it was. Works once, until the app quits. Ignored while a
+    /// Puts the most recent cleanup back where it was. Works once. Ignored while a
     /// put back is already running.
     func putBack() {
         guard let handle = lastCleanup, !isPuttingBack else { return }
@@ -952,9 +954,22 @@ final class AppModel: ObservableObject {
         lastCleanupResult = nil
     }
 
-    /// Asks the core for past cleanups.
+    /// Asks the core for past cleanups, and whether the last one can still be put back.
     func reloadHistory() async {
         history = await client.cleanupHistory(limit: 50)
+        await refreshRestorableCleanup()
+    }
+
+    /// Asks the core whether the most recent cleanup can still be put back, so Put back is offered
+    /// after Roomy restarts and goes away once the Trash has been emptied. Left alone while a put back
+    /// runs.
+    func refreshRestorableCleanup() async {
+        // The test host's own window uses the real core: never let it look at the real Trash.
+        if Self.isTestHost && client is RustCoreClient { return }
+        let offered = await client.restorableCleanup()
+        guard !isPuttingBack else { return }
+        lastCleanup = offered?.cleanup
+        lastCleanupResult = offered?.cleanup == nil ? nil : offered
     }
 
     /// Waits for the cleanup sheet's current step (check, move or put back) to finish. Used by tests.
