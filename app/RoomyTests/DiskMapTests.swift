@@ -62,12 +62,13 @@ final class DiskMapTests: XCTestCase {
     func testTheBiggestItemsGetABlockEachAndTheRestShareOne() {
         let items = [item("a", 10), item("b", 500), item("c", 0), item("d", 30), item("e", 25)]
         let tiles = DiskMapContent.tiles(for: items, limit: 2)
-        XCTAssertEqual(tiles.map(\.id), ["b", DiskMapContent.smallerID, "d"])
+        let shared = DiskMapContent.smallerID(for: .likelySafe)
+        XCTAssertEqual(tiles.map(\.id), ["b", shared, "d"])
         XCTAssertEqual(tiles.map(\.bytes), [500, 35, 30])
         let smaller = tiles[1]
         XCTAssertEqual(smaller.title, "2 smaller items")
         XCTAssertNil(smaller.itemID, "the shared block opens the whole list")
-        XCTAssertNil(smaller.tier)
+        XCTAssertEqual(smaller.tier, .likelySafe, "items of one tier keep its colour")
     }
 
     func testAFewItemsNeedNoSharedBlock() {
@@ -85,9 +86,30 @@ final class DiskMapTests: XCTestCase {
 
     func testAnItemTooSmallToClickJoinsTheSharedBlock() {
         let tiles = DiskMapContent.tiles(for: [item("big", 1_000_000_000), item("tiny", 1_000_000, .reviewFirst)])
-        XCTAssertEqual(tiles.map(\.id), ["big", DiskMapContent.smallerID])
+        XCTAssertEqual(tiles.map(\.id), ["big", DiskMapContent.smallerID(for: .reviewFirst)])
         XCTAssertEqual(tiles[1].title, "1 smaller item")
         XCTAssertEqual(tiles[1].bytes, 1_000_000)
+    }
+
+    func testTheMapHasOneSidePerTierLikelySafeFirst() {
+        let items = [item("r1", 300, .reviewFirst), item("s1", 40), item("kept", 9_000, .keep),
+                     item("r2", 100, .reviewFirst)]
+        let groups = DiskMapContent.groups(for: items)
+        XCTAssertEqual(groups.map(\.tier), [.likelySafe, .reviewFirst])
+        XCTAssertEqual(groups.map(\.bytes), [40, 400])
+        XCTAssertEqual(groups[1].tiles.map(\.id), ["r1", "r2"])
+        XCTAssertEqual(DiskMapContent.groups(for: [item("r1", 300, .reviewFirst)]).map(\.tier), [.reviewFirst])
+        XCTAssertTrue(DiskMapContent.groups(for: [item("kept", 9_000, .keep)]).isEmpty)
+    }
+
+    func testASmallSideStillGetsRoomToBeRead() {
+        let widths = DiskMapContent.widths(for: [5, 95], in: 1_014, gap: 14)
+        XCTAssertEqual(Double(widths[0]), 240, accuracy: 0.5, "the least share of the map")
+        XCTAssertEqual(Double(widths[0] + widths[1]), 1_000, accuracy: 0.5)
+        let even = DiskMapContent.widths(for: [50, 50], in: 1_014, gap: 14)
+        XCTAssertEqual(Double(even[0]), 500, accuracy: 0.5)
+        XCTAssertEqual(DiskMapContent.widths(for: [7], in: 800, gap: 14), [800])
+        XCTAssertTrue(DiskMapContent.widths(for: [], in: 800, gap: 14).isEmpty)
     }
 
     func testABlockSaysItsTierInWords() {

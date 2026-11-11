@@ -78,7 +78,7 @@ struct DiskMapTile: Identifiable, Equatable {
     /// The name that tells it apart from items with the same title (Developer mode only).
     let place: String?
     let bytes: UInt64
-    /// `nil` for the block of smaller items, which mixes tiers.
+    /// `nil` only for a block of smaller items that mixes tiers.
     let tier: Tier?
     let category: Category?
     let explain: String
@@ -92,24 +92,71 @@ struct DiskMapTile: Identifiable, Equatable {
     }
 }
 
+/// One side of the map: every block of one tier.
+struct DiskMapGroup: Equatable, Identifiable {
+    let tier: Tier
+    /// Sum of the blocks' sizes.
+    let bytes: UInt64
+    let tiles: [DiskMapTile]
+
+    var id: Tier { tier }
+}
+
 /// What the map shows, worked out from the scan's items.
 enum DiskMapContent {
-    /// The most blocks the map draws. More than this and the small ones can't be read or clicked.
-    static let tileLimit = 40
-    /// The id of the block that stands for every smaller item.
+    /// The most blocks one side of the map draws. More than this and the small ones can't be read.
+    static let tileLimit = 18
+    /// The id of a block that stands for every smaller item, when those mix tiers.
     static let smallerID = "roomy.map.smaller"
-    /// The smallest share of the map an item can have and still get its own block.
-    static let smallestShare = 1.0 / 400
+    /// The smallest share of its side an item can have and still get its own block. Smaller than this
+    /// and the block has no room for a name.
+    static let smallestShare = 1.0 / 120
+    /// The least width a side gets, as a share of the map, so the smaller side can still be read.
+    static let narrowestSide = 0.24
 
-    /// The blocks, largest first: the biggest items one block each, then one block for all the rest.
-    /// Only items the user can do something about are drawn (Likely safe and Review first). Kept
-    /// items, such as everything else in Documents, would fill the map with blocks nobody can act on.
-    /// Items of zero size are left out.
+    /// The id of the shared block for one tier's smaller items.
+    static func smallerID(for tier: Tier?) -> String {
+        guard let tier else { return smallerID }
+        return "\(smallerID).\(tier.label)"
+    }
+
+    /// The map's sides: Likely safe first, then Review first, each only if it has anything. Kept
+    /// items, such as everything else in Documents, are not drawn: nobody can act on them.
+    static func groups(for items: [ItemSummary], limit: Int = tileLimit) -> [DiskMapGroup] {
+        [Tier.likelySafe, .reviewFirst].compactMap { tier in
+            let tiles = tiles(for: items.filter { $0.tier == tier }, limit: limit)
+            guard !tiles.isEmpty else { return nil }
+            return DiskMapGroup(tier: tier, bytes: sum(tiles.map(\.bytes)), tiles: tiles)
+        }
+    }
+
+    /// How wide each side is, for sides of `bytes` sharing `width` with `gap` between them. Widths
+    /// follow the sizes, but no side gets less than `narrowestSide` of the map.
+    static func widths(for bytes: [UInt64], in width: CGFloat, gap: CGFloat) -> [CGFloat] {
+        guard bytes.count > 1 else { return bytes.map { _ in max(width, 0) } }
+        let room = max(width - gap * CGFloat(bytes.count - 1), 0)
+        let total = bytes.reduce(0.0) { $0 + Double($1) }
+        guard total > 0 else { return bytes.map { _ in room / CGFloat(bytes.count) } }
+        // Lift the narrow sides to the least share, then take that from the others in proportion.
+        var shares = bytes.map { Double($0) / total }
+        let lifted = shares.map { max($0, narrowestSide) }
+        let extra = lifted.reduce(0, +) - 1
+        let givers = zip(shares, lifted).filter { $0.0 > narrowestSide }.reduce(0.0) { $0 + $1.1 - narrowestSide }
+        shares = lifted.map { share in
+            guard share > narrowestSide, givers > 0 else { return share }
+            return share - extra * (share - narrowestSide) / givers
+        }
+        return shares.map { room * CGFloat($0) }
+    }
+
+    /// The blocks for `items`, largest first: the biggest items one block each, then one block for
+    /// all the rest. Kept items and items of zero size are left out.
     static func tiles(for items: [ItemSummary], limit: Int = tileLimit) -> [DiskMapTile] {
         let sized = items.filter { $0.sizeBytes > 0 && $0.tier != .keep }
             .sorted { $0.sizeBytes > $1.sizeBytes }
         let total = sized.reduce(0.0) { $0 + Double($1.sizeBytes) }
-        // An item too small a share of the map would get a block too thin to click, so it joins the rest.
+        // An item too small a share of the map would get a block with no room for its name, so it
+        // joins the rest.
         let shown = sized.prefix(max(limit, 0)).prefix { Double($0.sizeBytes) >= total * smallestShare }
         let rest = sized.dropFirst(shown.count)
         var tiles = shown.map { item in
@@ -117,35 +164,50 @@ enum DiskMapContent {
                         tier: item.tier, category: item.category, explain: item.explain, itemID: item.id)
         }
         if !rest.isEmpty {
-            let bytes = rest.reduce(UInt64(0)) { sum, item in
-                let (next, overflow) = sum.addingReportingOverflow(item.sizeBytes)
-                return overflow ? UInt64.max : next
-            }
+            let tiers = Set(rest.map(\.tier))
+            let tier = tiers.count == 1 ? tiers.first : nil
             let noun = rest.count == 1 ? "smaller item" : "smaller items"
             tiles.append(DiskMapTile(
-                id: smallerID, title: "\(rest.count) \(noun)", place: nil, bytes: bytes, tier: nil,
-                category: nil,
-                explain: "Everything else you can clean or check, each too small to draw by itself. Some are likely safe and some are worth checking first. They're all in the list.",
-                itemID: nil
+                id: smallerID(for: tier), title: "\(rest.count) \(noun)", place: nil,
+                bytes: sum(rest.map(\.sizeBytes)), tier: tier, category: nil,
+                explain: smallerExplanation(for: tier), itemID: nil
             ))
             tiles.sort { $0.bytes > $1.bytes }
         }
         return tiles
     }
 
+    /// What the shared block says when chosen.
+    static func smallerExplanation(for tier: Tier?) -> String {
+        let lead: String
+        switch tier {
+        case .likelySafe?: lead = "Everything else that is likely safe to remove"
+        case .reviewFirst?: lead = "Everything else worth checking first"
+        default: lead = "Everything else you can clean or check"
+        }
+        return "\(lead), each too small to draw by itself. They're all in the list."
+    }
+
     /// The line under the map: what it covers, and what it leaves out.
     static func caption(mapped: UInt64, overview: Overview) -> String {
         let rest = overview.scannedBytes > mapped ? overview.scannedBytes - mapped : 0
-        let lead = "The map shows the \(Format.bytes(mapped)) you can clean or check. Green is likely safe to "
-            + "remove and orange is worth checking first."
+        let lead = "The map shows the \(Format.bytes(mapped)) you can clean or check."
         guard rest > 0 else { return lead }
         return lead + " The other \(Format.bytes(rest)) in your home folder is your own files and apps, "
             + "which Roomy keeps."
     }
 
-    /// The colour of a block. The tier is always named in words when a block is chosen.
+    /// The colour of a block. The tier is always named in words too.
     static func color(for tile: DiskMapTile) -> Color {
         tile.tier?.tint ?? .gray
+    }
+
+    /// Adds sizes without ever wrapping round.
+    static func sum(_ sizes: [UInt64]) -> UInt64 {
+        sizes.reduce(UInt64(0)) { sum, size in
+            let (next, overflow) = sum.addingReportingOverflow(size)
+            return overflow ? UInt64.max : next
+        }
     }
 }
 
@@ -169,17 +231,18 @@ struct DiskMapSection: View {
     }
 }
 
-/// The Overview's map: everything the user can clean or check, as blocks sized by the space they take and
-/// coloured by how safe they are to remove. Choosing a block explains it. Nothing is ticked or
-/// removed here.
+/// The Overview's map: everything the user can clean or check, as blocks sized by the space they take,
+/// in one side per tier. Choosing a block explains it. Nothing is ticked or removed here.
 struct DiskMap: View {
     @EnvironmentObject private var model: AppModel
     let overview: Overview
-    @State private var tiles: [DiskMapTile] = []
+    @State private var groups: [DiskMapGroup] = []
     @State private var isLoaded = false
     @State private var selectedID: String?
-    /// The map's height. Wide enough windows give blocks room for their names.
-    static let height: CGFloat = 320
+    /// The height of the blocks. Wide enough windows give blocks room for their names.
+    static let height: CGFloat = 300
+    /// The gap between the two sides.
+    static let gap: CGFloat = 14
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -187,35 +250,30 @@ struct DiskMap: View {
                 ProgressView()
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, minHeight: 80)
-            } else if tiles.isEmpty {
+            } else if groups.isEmpty {
                 Text("Nothing to clean or check right now, so there's nothing to map.")
                     .foregroundStyle(.secondary)
             } else {
                 GeometryReader { proxy in
-                    let rects = Treemap.layout(tiles.map { Double($0.bytes) },
-                                               in: CGRect(origin: .zero, size: proxy.size))
-                    ZStack {
-                        ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
-                            let rect = rects[index]
-                            DiskMapBlock(tile: tile, size: rect.size, isSelected: selectedID == tile.id) {
-                                selectedID = selectedID == tile.id ? nil : tile.id
-                            }
-                            .frame(width: max(rect.width - 2, 0), height: max(rect.height - 2, 0))
-                            .position(x: rect.midX, y: rect.midY)
+                    let widths = DiskMapContent.widths(for: groups.map(\.bytes), in: proxy.size.width, gap: Self.gap)
+                    HStack(alignment: .top, spacing: Self.gap) {
+                        ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                            DiskMapSide(group: group, selectedID: $selectedID)
+                                .frame(width: widths[index])
                         }
                     }
                 }
-                .frame(height: Self.height)
+                .frame(height: Self.height + DiskMapSide.headingHeight)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Map of what the scan found")
-                if let tile = tiles.first(where: { $0.id == selectedID }) {
+                if let tile = allTiles.first(where: { $0.id == selectedID }) {
                     DiskMapExplanation(tile: tile)
                 } else {
                     Text("Choose a block to see what it is.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                Text(DiskMapContent.caption(mapped: mappedBytes, overview: overview))
+                Text(DiskMapContent.caption(mapped: DiskMapContent.sum(groups.map(\.bytes)), overview: overview))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -223,8 +281,8 @@ struct DiskMap: View {
         }
         .task(id: scanKey) {
             let items = await model.scannedItems()
-            tiles = DiskMapContent.tiles(for: items)
-            if let selectedID, !tiles.contains(where: { $0.id == selectedID }) {
+            groups = DiskMapContent.groups(for: items)
+            if let selectedID, !allTiles.contains(where: { $0.id == selectedID }) {
                 self.selectedID = nil
             }
             isLoaded = true
@@ -236,10 +294,49 @@ struct DiskMap: View {
         "\(overview.scannedBytes)-\(overview.likelySafeBytes)-\(overview.reviewFirstBytes)"
     }
 
-    private var mappedBytes: UInt64 {
-        tiles.reduce(UInt64(0)) { sum, tile in
-            let (next, overflow) = sum.addingReportingOverflow(tile.bytes)
-            return overflow ? UInt64.max : next
+    private var allTiles: [DiskMapTile] {
+        groups.flatMap(\.tiles)
+    }
+}
+
+/// One side of the map: the tier in words with its total, then its blocks.
+struct DiskMapSide: View {
+    let group: DiskMapGroup
+    @Binding var selectedID: String?
+    /// The room the heading takes above the blocks.
+    static let headingHeight: CGFloat = 24
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 5) {
+                Image(systemName: group.tier.symbol)
+                    .foregroundStyle(group.tier.tint)
+                    .accessibilityHidden(true)
+                Text(group.tier.label)
+                    .fontWeight(.semibold)
+                Text(Format.bytes(group.bytes))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .font(.caption)
+            .lineLimit(1)
+            .frame(height: Self.headingHeight, alignment: .top)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            GeometryReader { proxy in
+                let rects = Treemap.layout(group.tiles.map { Double($0.bytes) },
+                                           in: CGRect(origin: .zero, size: proxy.size))
+                ZStack {
+                    ForEach(Array(group.tiles.enumerated()), id: \.element.id) { index, tile in
+                        let rect = rects[index]
+                        DiskMapBlock(tile: tile, size: rect.size, isSelected: selectedID == tile.id) {
+                            selectedID = selectedID == tile.id ? nil : tile.id
+                        }
+                        .frame(width: max(rect.width - 3, 0), height: max(rect.height - 3, 0))
+                        .position(x: rect.midX, y: rect.midY)
+                    }
+                }
+            }
         }
     }
 }
@@ -255,22 +352,32 @@ struct DiskMapBlock: View {
     var body: some View {
         Button(action: action) {
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.75 : 0.5))
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(isSelected ? Color.primary : DiskMapContent.color(for: tile).opacity(0.8),
+                // A light wash of the tier's colour: enough to tell the sides apart, calm enough that a
+                // map full of Review first items doesn't read as an alarm.
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(DiskMapContent.color(for: tile).opacity(isSelected ? 0.42 : 0.2))
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(isSelected ? Color.primary.opacity(0.9) : DiskMapContent.color(for: tile).opacity(0.45),
                                   lineWidth: isSelected ? 2 : 1)
                 if Self.showsName(in: size) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(tile.title)
                             .font(.caption.weight(.semibold))
                             .lineLimit(1)
+                        // The name that tells it apart from blocks with the same title, when there is room.
+                        if let place = tile.place, Self.showsPlace(in: size) {
+                            Text(place)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
                         Text(Format.bytes(tile.bytes))
                             .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                     .foregroundStyle(.primary)
-                    .padding(6)
+                    .padding(7)
                 }
             }
             .contentShape(Rectangle())
@@ -285,6 +392,11 @@ struct DiskMapBlock: View {
     /// Whether a block is big enough to carry its name and size.
     static func showsName(in size: CGSize) -> Bool {
         size.width >= 64 && size.height >= 36
+    }
+
+    /// Whether a block also has room for the name that tells it apart.
+    static func showsPlace(in size: CGSize) -> Bool {
+        size.width >= 64 && size.height >= 54
     }
 
     /// Name, size and tier in words, so colour is never the only signal.
