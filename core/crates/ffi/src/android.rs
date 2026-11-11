@@ -158,7 +158,7 @@ pub(crate) fn prepare(
             size_bytes: item.expected.size_bytes,
             path: item.shown_path.clone(),
             device_backup: None,
-            restore: None,
+            restore: restore(item.kind).map(str::to_string),
             request: Some(ItemRequest {
                 recommendation_id: item.item_id.clone(),
                 path: item.path.clone(),
@@ -326,6 +326,21 @@ fn names(part: &Part) -> (String, Option<String>) {
             (format!("Gradle {version}"), detail)
         }
         PartKind::GradleCache => ("Gradle cache".to_string(), None),
+    }
+}
+
+/// How a kind of part comes back after it is removed, in the words of the
+/// matching rule in `rules/android.toml`. `None` for an emulator, whose
+/// apps and data do not come back.
+fn restore(kind: PartKind) -> Option<&'static str> {
+    match kind {
+        PartKind::Emulator => None,
+        PartKind::SystemImage | PartKind::Platform | PartKind::Ndk => {
+            Some("Download it again from the SDK Manager in Android Studio.")
+        }
+        PartKind::BuildTools => Some("Android Studio downloads it again when a project needs it."),
+        PartKind::GradleVersion => Some("Downloads again on the next build that needs it."),
+        PartKind::GradleCache => Some("Gradle fills it again on the next build."),
     }
 }
 

@@ -30,6 +30,9 @@ pub(crate) fn remember(home: &Path, last: Option<&LastCleanup>, finished_at: i64
     let saved = Undo::open_for_home(home).and_then(|mut undo| undo.save(&record));
     if let Err(err) = saved {
         tracing::warn!(%err, "the undo record could not be saved");
+        // The stored record is now for an older cleanup. Never offer that
+        // one as the most recent after a restart.
+        forget(home);
     }
 }
 
@@ -44,18 +47,28 @@ pub(crate) fn forget(home: &Path) {
     }
 }
 
+/// The undo file could not be read just now. Says nothing about what it
+/// holds, so the caller should try again later.
+#[derive(Debug)]
+pub(crate) struct Unreadable;
+
 /// Reads the stored record back as the last cleanup, with `handle` as its
-/// new handle. `None` if there is none or any part of it is not something
-/// Roomy could have written; a record like that is forgotten.
-pub(crate) fn restore(home: &Path, handle: CleanupHandle) -> Option<LastCleanup> {
+/// new handle. `Ok(None)` if there is none or any part of it is not
+/// something Roomy could have written; a record like that is forgotten.
+/// `Err` if the file could not be read, which leaves it as it is.
+pub(crate) fn restore(
+    home: &Path,
+    handle: CleanupHandle,
+) -> Result<Option<LastCleanup>, Unreadable> {
     let record = match Undo::open_existing(home).and_then(|undo| match undo {
         Some(undo) => undo.load(),
         None => Ok(None),
     }) {
-        Ok(record) => record?,
+        Ok(Some(record)) => record,
+        Ok(None) => return Ok(None),
         Err(err) => {
             tracing::warn!(%err, "the undo record could not be read");
-            return None;
+            return Err(Unreadable);
         }
     };
     let last = last_cleanup(home, handle, &record);
@@ -63,7 +76,7 @@ pub(crate) fn restore(home: &Path, handle: CleanupHandle) -> Option<LastCleanup>
         tracing::warn!("the undo record is not usable, so it was dropped");
         forget(home);
     }
-    last
+    Ok(last)
 }
 
 /// What the app is told about a cleanup that can still be put back: one row

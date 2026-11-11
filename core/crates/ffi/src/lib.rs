@@ -119,7 +119,7 @@ pub enum CoreError {
     /// Put back was asked for a cleanup the core no longer holds: not the
     /// most recent one, already put back, or from before Roomy started.
     /// Trying again will not help, unlike `CleanupUnavailable`.
-    #[error("Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash.")]
+    #[error("Roomy can only put back its most recent cleanup, while its items are still in the Trash. You can still drag items back from the Trash.")]
     NothingToPutBack,
     /// A Docker clean-up could not be previewed or was refused before it
     /// ran: Docker is missing or stopped, the review expired, or Docker's

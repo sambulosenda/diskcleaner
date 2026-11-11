@@ -83,6 +83,13 @@ final class DiskMapTests: XCTestCase {
         XCTAssertTrue(DiskMapContent.tiles(for: [item("kept", 9_000, .keep)]).isEmpty)
     }
 
+    func testAnItemTooSmallToClickJoinsTheSharedBlock() {
+        let tiles = DiskMapContent.tiles(for: [item("big", 1_000_000_000), item("tiny", 1_000_000, .reviewFirst)])
+        XCTAssertEqual(tiles.map(\.id), ["big", DiskMapContent.smallerID])
+        XCTAssertEqual(tiles[1].title, "1 smaller item")
+        XCTAssertEqual(tiles[1].bytes, 1_000_000)
+    }
+
     func testABlockSaysItsTierInWords() {
         let tile = DiskMapContent.tiles(for: [item("a", 1_000_000, .reviewFirst)])[0]
         XCTAssertTrue(DiskMapBlock.spokenLabel(for: tile).hasSuffix("Review first"))

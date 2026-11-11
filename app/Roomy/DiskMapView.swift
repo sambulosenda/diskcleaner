@@ -98,6 +98,8 @@ enum DiskMapContent {
     static let tileLimit = 40
     /// The id of the block that stands for every smaller item.
     static let smallerID = "roomy.map.smaller"
+    /// The smallest share of the map an item can have and still get its own block.
+    static let smallestShare = 1.0 / 400
 
     /// The blocks, largest first: the biggest items one block each, then one block for all the rest.
     /// Only items the user can do something about are drawn (Likely safe and Review first). Kept
@@ -106,7 +108,9 @@ enum DiskMapContent {
     static func tiles(for items: [ItemSummary], limit: Int = tileLimit) -> [DiskMapTile] {
         let sized = items.filter { $0.sizeBytes > 0 && $0.tier != .keep }
             .sorted { $0.sizeBytes > $1.sizeBytes }
-        let shown = sized.prefix(max(limit, 0))
+        let total = sized.reduce(0.0) { $0 + Double($1.sizeBytes) }
+        // An item too small a share of the map would get a block too thin to click, so it joins the rest.
+        let shown = sized.prefix(max(limit, 0)).prefix { Double($0.sizeBytes) >= total * smallestShare }
         let rest = sized.dropFirst(shown.count)
         var tiles = shown.map { item in
             DiskMapTile(id: item.id, title: item.title, place: item.place, bytes: item.sizeBytes,
@@ -121,7 +125,7 @@ enum DiskMapContent {
             tiles.append(DiskMapTile(
                 id: smallerID, title: "\(rest.count) \(noun)", place: nil, bytes: bytes, tier: nil,
                 category: nil,
-                explain: "Everything else you can clean or check, each too small to draw by itself. They're all in the list.",
+                explain: "Everything else you can clean or check, each too small to draw by itself. Some are likely safe and some are worth checking first. They're all in the list.",
                 itemID: nil
             ))
             tiles.sort { $0.bytes > $1.bytes }
@@ -319,6 +323,8 @@ struct DiskMapExplanation: View {
                 Button(tile.itemID == nil ? "Show everything in the list" : "Show in the list") {
                     // Keep items aren't in a tier list the Overview opens, so show everything for them.
                     let tier = tile.tier == .keep ? nil : tile.tier
+                    // A search left in the toolbar could hide the very item being shown.
+                    model.searchText = ""
                     model.showItems(tier: tier, select: tile.itemID)
                 }
                 .buttonStyle(.link)

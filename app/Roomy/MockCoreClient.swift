@@ -81,6 +81,9 @@ final class MockCoreClient: CoreClient {
         return handle
     }
 
+    /// Tests set this to pretend the scan could read every folder.
+    var everythingReadable = false
+
     func scanProgress(handle: ScanHandle) async throws -> ScanProgress {
         guard let step = steps[handle] else { throw CoreError.UnknownScan }
         let data = MockData.overview(for: scenario)
@@ -119,7 +122,12 @@ final class MockCoreClient: CoreClient {
         if scenario == .failure { throw CoreError.ScanFailed(reason: "Roomy could not read your home folder.") }
         guard step >= totalSteps else { throw CoreError.ScanNotFinished }
         if !finishedScans.contains(handle) { finishedScans.append(handle) }
-        return MockData.overview(for: scenario)
+        var overview = MockData.overview(for: scenario)
+        if everythingReadable {
+            overview.unreadableCount = 0
+            overview.unreadableAreas = []
+        }
+        return overview
     }
 
     func scanChanges(handle: ScanHandle) async -> ScanChanges? {

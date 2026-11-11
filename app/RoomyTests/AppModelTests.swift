@@ -381,12 +381,12 @@ final class AppModelTests: XCTestCase {
     func testAScanWithNothingUnreadableNeverAsksForAccess() async {
         let client = MockCoreClient(scenario: .nothingFound, totalSteps: 5)
         client.access = .notGranted
+        client.everythingReadable = true
         let model = AppModel(client: client, defaults: defaults, pollInterval: 0)
         await model.windowDidAppear()
         await model.waitForScan()
-        if model.overview?.unreadableCount == 0 {
-            XCTAssertFalse(model.showsAccessOnboarding)
-        }
+        XCTAssertEqual(model.overview?.unreadableCount, 0)
+        XCTAssertFalse(model.showsAccessOnboarding)
     }
 
     func testFirstLaunchWithAccessNeverShowsTheAccessScreen() async {

@@ -518,9 +518,13 @@ impl RoomyCore {
         // A newer cleanup replaces the older undo, even if nothing moved.
         // The record is also written to the undo file, so the cleanup can
         // still be put back after Roomy restarts.
+        // The slot stays locked across both, so a put back that finishes at
+        // the same moment cannot clear this newer record.
+        let mut slot = lock(&self.last_cleanup);
         self.undo_checked.store(true, Ordering::Relaxed);
         crate::undo::remember(&self.home, ran.last.as_ref(), crate::run::unix_seconds(now));
-        *lock(&self.last_cleanup) = ran.last;
+        *slot = ran.last;
+        drop(slot);
         Ok(ran.result)
     }
 
@@ -699,9 +703,17 @@ impl RoomyCore {
     /// the earlier run stored. Reads metadata only and moves nothing.
     pub fn restorable_cleanup(&self) -> Option<CleanupResult> {
         let mut slot = lock(&self.last_cleanup);
-        if slot.is_none() && !self.undo_checked.swap(true, Ordering::Relaxed) {
+        if slot.is_none() && !self.undo_checked.load(Ordering::Relaxed) {
             let id = self.next_cleanup_id.fetch_add(1, Ordering::Relaxed);
-            *slot = crate::undo::restore(&self.home, CleanupHandle { id });
+            // Only a read that gave an answer counts as checked. If the
+            // file could not be read, the next call tries again.
+            match crate::undo::restore(&self.home, CleanupHandle { id }) {
+                Ok(found) => {
+                    *slot = found;
+                    self.undo_checked.store(true, Ordering::Relaxed);
+                }
+                Err(crate::undo::Unreadable) => return None,
+            }
         }
         match crate::undo::summary(slot.as_ref()?) {
             Ok(Some(summary)) => Some(summary),
@@ -748,7 +760,14 @@ impl RoomyCore {
                 return Err(err);
             }
         };
-        crate::undo::forget(&self.home);
+        {
+            // Only this put back's own record is cleared: if a newer
+            // cleanup took the slot meanwhile, the stored record is its.
+            let slot = lock(&self.last_cleanup);
+            if slot.is_none() {
+                crate::undo::forget(&self.home);
+            }
+        }
         if let Some(id) = last.history_id {
             let at = crate::run::unix_seconds(std::time::SystemTime::now());
             self.with_history(true, |h| h.record_put_back(id, at, &rows));

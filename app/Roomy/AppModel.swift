@@ -904,6 +904,7 @@ final class AppModel: ObservableObject {
                 self.needsRescan = true
                 self.checkedItemIDs = []
                 self.checkedSizes = [:]
+                self.cleanupRevision += 1
                 self.lastCleanup = result.cleanup
                 self.lastCleanupResult = result.cleanup == nil ? nil : result
                 self.historyMessage = nil
@@ -960,8 +961,13 @@ final class AppModel: ObservableObject {
         if shown != nil { cleanupTask = work } else { putBackTask = work }
     }
 
+    /// Goes up each time a cleanup or put back changes what can be put back, so an older question to
+    /// the core can't overwrite a newer answer.
+    private var cleanupRevision = 0
+
     /// Drops the record of the last cleanup once it can no longer be put back.
     private func forgetLastCleanup() {
+        cleanupRevision += 1
         lastCleanup = nil
         lastCleanupResult = nil
     }
@@ -978,8 +984,10 @@ final class AppModel: ObservableObject {
     func refreshRestorableCleanup() async {
         // The test host's own window uses the real core: never let it look at the real Trash.
         if Self.isTestHost && client is RustCoreClient { return }
+        let revision = cleanupRevision
         let offered = await client.restorableCleanup()
-        guard !isPuttingBack else { return }
+        // A cleanup or put back finished while the core was asked: its answer is the newer one.
+        guard !isPuttingBack, revision == cleanupRevision else { return }
         lastCleanup = offered?.cleanup
         lastCleanupResult = offered?.cleanup == nil ? nil : offered
     }
@@ -1262,7 +1270,7 @@ final class AppModel: ObservableObject {
         case .CleanupUnavailable(let reason), .DockerUnavailable(let reason), .ToolUnavailable(let reason):
             return reason
         case .NothingToPutBack:
-            return "Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash."
+            return "Roomy can only put back its most recent cleanup, while its items are still in the Trash. You can still drag items back from the Trash."
         case .UnknownApp:
             return "Roomy lost track of this app. Please look again."
         }

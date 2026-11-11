@@ -170,7 +170,7 @@ enum CleanupText {
 
     static let confirmMessage =
         "Roomy checks each item again first. The space comes back when you empty the Trash. "
-        + "Until then you can put them back, from here or from History, until Roomy quits."
+        + "Until then you can put them back, from here or from History. Roomy keeps this for its most recent cleanup."
 
     /// The confirm message, led by a warning for each iPhone or iPad backup that would move.
     static func confirmText(_ preview: CleanupPreview) -> String {
