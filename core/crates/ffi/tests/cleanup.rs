@@ -120,6 +120,22 @@ fn preview_says_what_would_move_and_moves_nothing() {
 }
 
 #[test]
+fn the_preview_says_how_each_item_comes_back() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Simple);
+    let likely = items(&s.core, h, Tier::LikelySafe);
+
+    let preview = s.core.preview_cleanup(h, chosen(&likely)).unwrap();
+
+    // The same words as the item's detail, so the review and the detail agree.
+    for row in &preview.items {
+        let detail = s.core.item_detail(h, row.item_id.clone()).unwrap();
+        assert_eq!(row.restore, detail.restore, "{}", row.title);
+    }
+    assert!(preview.items.iter().any(|i| i.restore.is_some()));
+}
+
+#[test]
 fn keep_items_are_never_offered() {
     let s = setup(true);
     let h = finished_scan(&s.core, Mode::Developer);
@@ -380,6 +396,149 @@ fn put_back_restores_the_last_cleanup_once() {
         .items
         .iter()
         .all(|i| i.state == roomy_ffi::HistoryItemState::PutBack));
+}
+
+/// A second core for the same home, as after quitting and reopening Roomy.
+fn reopened(s: &Setup) -> Arc<RoomyCore> {
+    let core = RoomyCore::with_home(s.root.clone()).unwrap();
+    core.set_recent_change_window_for_testing(std::time::Duration::ZERO);
+    core.set_running_programs_for_testing(Some(Vec::new()));
+    core
+}
+
+#[test]
+fn put_back_still_works_after_a_restart() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, plan) = likely_plan(&s, h);
+    let skip = [s.root.join(history::FOLDER)];
+    let before = contents(&s.root, &skip);
+    let result = s.core.run_cleanup(plan).unwrap();
+    assert!(result.bytes_moved > 0);
+
+    let core = reopened(&s);
+    let offered = core.restorable_cleanup().expect("the cleanup is offered");
+    assert_eq!(offered.bytes_moved, result.bytes_moved);
+    assert!(offered.items.iter().all(|i| i.done), "{offered:?}");
+    let back = core.put_back_cleanup(offered.cleanup.unwrap()).unwrap();
+
+    assert!(back.items.iter().all(|i| i.done), "{back:?}");
+    assert_eq!(contents(&s.root, &skip), before);
+    // Only once, in this run and the next.
+    assert!(core.restorable_cleanup().is_none());
+    assert!(reopened(&s).restorable_cleanup().is_none());
+    // History shows it.
+    let history = core.cleanup_history(10);
+    assert!(history[0].put_back_at.is_some());
+}
+
+#[test]
+fn restorable_cleanup_is_offered_in_the_same_run_too() {
+    let s = setup(true);
+    assert!(s.core.restorable_cleanup().is_none());
+    assert!(
+        !s.root.join(history::FOLDER).exists(),
+        "asking makes no file"
+    );
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, plan) = likely_plan(&s, h);
+    let result = s.core.run_cleanup(plan).unwrap();
+
+    let offered = s.core.restorable_cleanup().unwrap();
+
+    assert_eq!(offered.cleanup, result.cleanup);
+    assert_eq!(offered.bytes_moved, result.bytes_moved);
+}
+
+/// Changes every entry in the Trash, so none is what Roomy left there: a
+/// file gets new content, a folder gets a new file inside.
+fn disturb_trash(root: &Path) {
+    for entry in fs::read_dir(root.join(".Trash")).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            fs::write(path.join("added-later"), b"new").unwrap();
+        } else {
+            fs::write(&path, b"not what Roomy moved").unwrap();
+        }
+    }
+}
+
+#[test]
+fn a_trash_that_no_longer_holds_the_cleanup_leaves_nothing_to_put_back() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, plan) = likely_plan(&s, h);
+    s.core.run_cleanup(plan).unwrap();
+    disturb_trash(&s.root);
+    let before = snapshot(&s.root.join(".Trash"));
+
+    let core = reopened(&s);
+
+    assert!(core.restorable_cleanup().is_none());
+    // Nothing moved, and the record is gone for good, not only hidden.
+    assert_eq!(snapshot(&s.root.join(".Trash")), before);
+    assert_eq!(
+        history::Undo::open_existing(&s.root)
+            .unwrap()
+            .unwrap()
+            .load()
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn an_undo_record_with_a_path_outside_home_is_dropped() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, plan) = likely_plan(&s, h);
+    s.core.run_cleanup(plan).unwrap();
+    let mut undo = history::Undo::open_existing(&s.root).unwrap().unwrap();
+    let mut record = undo.load().unwrap().unwrap();
+    record.items[0].original = PathBuf::from("../outside");
+    undo.save(&record).unwrap();
+    drop(undo);
+    let before = snapshot(&s.root.join(".Trash"));
+
+    let core = reopened(&s);
+
+    assert!(core.restorable_cleanup().is_none());
+    assert_eq!(snapshot(&s.root.join(".Trash")), before);
+    assert_eq!(
+        history::Undo::open_existing(&s.root)
+            .unwrap()
+            .unwrap()
+            .load()
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn putting_back_forgets_the_stored_record() {
+    let s = setup(true);
+    let h = finished_scan(&s.core, Mode::Developer);
+    let (_, plan) = likely_plan(&s, h);
+    s.core.run_cleanup(plan).unwrap();
+    assert!(history::Undo::open_existing(&s.root)
+        .unwrap()
+        .unwrap()
+        .load()
+        .unwrap()
+        .is_some());
+    s.core
+        .put_back_cleanup(s.core.restorable_cleanup().unwrap().cleanup.unwrap())
+        .unwrap();
+
+    assert_eq!(
+        history::Undo::open_existing(&s.root)
+            .unwrap()
+            .unwrap()
+            .load()
+            .unwrap(),
+        None
+    );
+    assert!(reopened(&s).restorable_cleanup().is_none());
 }
 
 #[test]

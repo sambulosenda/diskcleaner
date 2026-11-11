@@ -11,6 +11,8 @@ struct RoomyApp: App {
     @StateObject private var updater = UpdaterController()
     /// Free space for the menu bar item and the low-space alert. Read only.
     @StateObject private var lowSpace = LowSpaceMonitor.live()
+    /// The quiet weekly line in the menu bar panel. Reads the app's settings only.
+    @StateObject private var weeklyNote = WeeklyNoteModel.live()
 
     /// Whether the menu bar item shows. SwiftUI writes this binding back on every scene update, so
     /// it only passes on real changes; setting the published value each time made an endless update loop.
@@ -46,14 +48,14 @@ struct RoomyApp: App {
         }
 
         Settings {
-            SettingsView(lowSpace: lowSpace)
+            SettingsView(lowSpace: lowSpace, weeklyNote: weeklyNote)
                 .environmentObject(model)
         }
 
         MenuBarExtra(isInserted: menuBarInserted) {
-            MenuBarPanel(monitor: lowSpace, model: model)
+            MenuBarPanel(monitor: lowSpace, model: model, weeklyNote: weeklyNote)
         } label: {
-            MenuBarLabel(monitor: lowSpace)
+            MenuBarLabel(monitor: lowSpace, weeklyNote: weeklyNote)
         }
         // A panel rather than a plain menu, so it can show the gauge and the "Ready to free" list.
         .menuBarExtraStyle(.window)

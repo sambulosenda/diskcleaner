@@ -39,6 +39,7 @@ struct OverviewContent: View {
                 }
                 WorthALookList(overview: overview, items: model.worthReviewing(in: overview),
                                searchText: model.searchText)
+                DiskMapSection(overview: overview)
                 VStack(alignment: .leading, spacing: 16) {
                     Divider()
                     OverviewFooter(scannedAt: scannedAt, unreadableCount: overview.unreadableCount,

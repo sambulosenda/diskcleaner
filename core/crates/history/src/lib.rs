@@ -3,7 +3,8 @@
 //! What is kept, for the History screen: when each cleanup ran, and for each
 //! item its title, size and what happened. **No paths are stored**: History
 //! is for people to read, and nothing ever acts on what is in it. The undo
-//! ("put back") works from the executor's own report, held in memory.
+//! ("put back") works from the executor's own report, held in memory and,
+//! so it survives a restart, in the separate undo file (see [`undo`]).
 //!
 //! Allow-listed tool commands (such as `docker image prune`) are kept too,
 //! in their own table, with the full stdout and stderr the command printed,
@@ -19,8 +20,10 @@ use std::path::{Path, PathBuf};
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub mod scans;
+pub mod undo;
 
 pub use scans::{ScanSnapshot, SnapshotItem, KEEP_SCANS_PER_MODE};
+pub use undo::{undo_path_for, Undo, UndoItem, UndoRecord, UNDO_FILE_NAME};
 
 /// Where the database lives, relative to the home folder. The last folder
 /// is made if it is missing; the ones above it must already exist.

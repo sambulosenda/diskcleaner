@@ -366,13 +366,31 @@ final class AppModelTests: XCTestCase {
         return (AppModel(client: client, defaults: defaults, pollInterval: 0, now: { date }), client)
     }
 
-    func testFirstLaunchWithoutAccessOpensTheAccessScreen() async {
+    func testFirstLaunchWithoutAccessShowsResultsBeforeAsking() async {
         let (model, _) = makeModel(access: .notGranted)
         XCTAssertNil(model.fullDiskAccess)
         await model.windowDidAppear()
         XCTAssertEqual(model.fullDiskAccess, .notGranted)
-        XCTAssertTrue(model.showsAccessOnboarding)
-        XCTAssertFalse(model.isScanning, "nothing starts until the user chooses")
+        XCTAssertFalse(model.showsAccessOnboarding, "Roomy shows what it can find first")
+        XCTAssertTrue(model.isScanning)
+        await model.waitForScan()
+        XCTAssertNotNil(model.overview)
+        XCTAssertTrue(model.showsAccessOnboarding, "the scan met folders it couldn't read")
+        XCTAssertEqual(AccessText.title(granted: false, overview: model.overview),
+                       "There's more Roomy couldn't measure")
+        XCTAssertTrue(AccessText.subtitle(granted: false, overview: model.overview).contains("so far"))
+        XCTAssertEqual(AccessText.title(granted: false, overview: nil), "Let Roomy see your whole Mac")
+    }
+
+    func testAScanWithNothingUnreadableNeverAsksForAccess() async {
+        let client = MockCoreClient(scenario: .nothingFound, totalSteps: 5)
+        client.access = .notGranted
+        client.everythingReadable = true
+        let model = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertEqual(model.overview?.unreadableCount, 0)
+        XCTAssertFalse(model.showsAccessOnboarding)
     }
 
     func testFirstLaunchWithAccessNeverShowsTheAccessScreen() async {
@@ -384,6 +402,37 @@ final class AppModelTests: XCTestCase {
         let again = AppModel(client: client, defaults: defaults, pollInterval: 0)
         await again.windowDidAppear()
         XCTAssertFalse(again.showsAccessOnboarding)
+    }
+
+    func testTheLastScanIsRememberedForTheNextLaunch() async throws {
+        let (model, client) = makeModel(access: .granted)
+        XCTAssertNil(model.earlierScanSummary, "nothing before the first scan")
+        await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertNil(model.earlierScanSummary, "this run's results are newer")
+        // The next launch has an answer to show while it checks again.
+        let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
+        let last = try XCTUnwrap(next.earlierScanSummary)
+        let overview = MockData.overview(for: .normal)
+        XCTAssertEqual(last.likelySafeBytes, overview.likelySafeBytes)
+        XCTAssertEqual(last.reviewFirstBytes, overview.reviewFirstBytes)
+        XCTAssertEqual(last.scannedAt, fixedDate)
+        XCTAssertTrue(last.sentence.hasPrefix("Last scan, "))
+        XCTAssertTrue(last.sentence.contains("ready to clean"))
+        await next.windowDidAppear()
+        await next.waitForScan()
+        XCTAssertNil(next.earlierScanSummary)
+    }
+
+    func testTheLastScanSentenceCoversEveryCase() {
+        let when = Date(timeIntervalSince1970: 1_800_000_000)
+        func sentence(_ likely: UInt64, _ review: UInt64) -> String {
+            LastScanSummary(likelySafeBytes: likely, reviewFirstBytes: review, scannedAt: when).sentence
+        }
+        XCTAssertTrue(sentence(5, 7).contains("ready to clean and"))
+        XCTAssertTrue(sentence(5, 0).hasSuffix("ready to clean."))
+        XCTAssertTrue(sentence(0, 7).hasSuffix("worth a look."))
+        XCTAssertTrue(sentence(0, 0).hasSuffix("nothing to clean."))
     }
 
     func testOpeningRoomyStartsAScanOnce() async {
@@ -418,11 +467,14 @@ final class AppModelTests: XCTestCase {
     func testContinuingWithoutAccessDoesNotAskAgainOnNextLaunch() async {
         let (model, client) = makeModel(access: .notGranted)
         await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertTrue(model.showsAccessOnboarding)
         model.finishAccessOnboarding(scan: false)
         XCTAssertFalse(model.showsAccessOnboarding)
         XCTAssertFalse(model.isScanning)
         let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
         await next.windowDidAppear()
+        await next.waitForScan()
         XCTAssertFalse(next.showsAccessOnboarding)
         XCTAssertEqual(next.fullDiskAccess, .notGranted)
     }
@@ -430,15 +482,19 @@ final class AppModelTests: XCTestCase {
     func testQuittingBeforeChoosingAsksAgainOnNextLaunch() async {
         let (model, client) = makeModel(access: .notGranted)
         await model.windowDidAppear()
+        await model.waitForScan()
         XCTAssertTrue(model.showsAccessOnboarding)
         let next = AppModel(client: client, defaults: defaults, pollInterval: 0)
         await next.windowDidAppear()
+        await next.waitForScan()
         XCTAssertTrue(next.showsAccessOnboarding)
     }
 
     func testAccessSwitchedOnIsNoticedAndScanStarts() async {
         let (model, client) = makeModel(access: .notGranted)
         await model.windowDidAppear()
+        await model.waitForScan()
+        XCTAssertTrue(model.showsAccessOnboarding)
         client.access = .granted
         await model.refreshFullDiskAccess()
         XCTAssertEqual(model.fullDiskAccess, .granted)
@@ -922,6 +978,24 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.lastCleanupResult?.bytesMoved, first.sizeBytes)
     }
 
+    func testACleanupFromBeforeRoomyQuitCanStillBePutBack() async throws {
+        let model = makeModel()
+        let mock = try XCTUnwrap(model.client as? MockCoreClient)
+        mock.holdEarlierCleanup([
+            CleanupResultItem(itemId: "a", title: "Build files", sizeBytes: 4_000, done: true, reason: nil)
+        ])
+        XCTAssertNil(model.lastCleanup)
+        await model.refreshRestorableCleanup()
+        XCTAssertNotNil(model.lastCleanup, "offered again after a restart")
+        XCTAssertEqual(model.lastCleanupResult?.bytesMoved, 4_000)
+        XCTAssertTrue(HistoryText.lastCleanup(try XCTUnwrap(model.lastCleanupResult)).contains("put it back"))
+        model.putBack()
+        await model.waitForCleanupCheck()
+        XCTAssertEqual(mock.putBackCalls, 1)
+        XCTAssertNil(model.lastCleanup, "only once")
+        await model.waitForScan()
+    }
+
     func testCancelLeavesEverythingWhereItIs() async throws {
         let (model, _) = try await reviewedModel()
         model.closeCleanupReview()
@@ -964,7 +1038,7 @@ final class AppModelTests: XCTestCase {
             CleanupPreview(
                 plan: PlanHandle(id: 1),
                 items: [CleanupPreviewItem(itemId: "a", title: "iPhone or iPad backup", sizeBytes: 10,
-                                           check: check, path: nil, deviceBackup: device)],
+                                           check: check, path: nil, deviceBackup: device, restore: nil)],
                 bytesToMove: 10,
                 expiresInSeconds: 600
             )

@@ -111,17 +111,62 @@ pub fn put_back(
     Ok(results)
 }
 
+/// Says, for each entry, whether the Trash still holds exactly what Roomy
+/// moved there. Reads metadata only and changes nothing. An entry that is
+/// not one this executor could have made counts as not there.
+///
+/// Fails with `TrashUnavailable` if an entry could not be looked at for a
+/// reason other than it being gone, since that says nothing about whether
+/// the Trash still holds it.
+///
+/// - `home`: the home path passed to the core.
+/// - `dev`: the device id of the scan root.
+pub fn still_in_trash(home: &Path, dev: u64, items: &[PutBack]) -> Result<Vec<bool>, ExecuteError> {
+    let ctx = Context::open(home, dev)?;
+    items
+        .iter()
+        .map(|item| match check(&ctx, item) {
+            Ok(held) => Ok(held.is_ok()),
+            Err(err) => {
+                tracing::warn!(%err, "an item in the Trash could not be looked at");
+                Err(ExecuteError::TrashUnavailable)
+            }
+        })
+        .collect()
+}
+
+/// Checks the entry is one of ours and the Trash still holds it unchanged.
+/// Returns its name in the Trash. An entry that can't be looked at is
+/// refused, so nothing moves on a guess.
+fn holds(ctx: &Context, item: &PutBack) -> Result<OsString, PutBackRefusal> {
+    check(ctx, item).unwrap_or(Err(PutBackRefusal::NotInTrash))
+}
+
+/// The check behind `holds`. The outer error is a failure to look at the
+/// entry at all, other than it not being there.
+fn check(ctx: &Context, item: &PutBack) -> std::io::Result<Result<OsString, PutBackRefusal>> {
+    if !is_plain(&ctx.home, &item.original) {
+        return Ok(Err(PutBackRefusal::NotOurs));
+    }
+    let Some(trash_name) = trash_name(&ctx.trash_path, &item.in_trash) else {
+        return Ok(Err(PutBackRefusal::NotOurs));
+    };
+    let in_trash = match sys::stat_at(&ctx.trash_fd, &trash_name) {
+        Ok(stat) => stat,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(Err(PutBackRefusal::NotInTrash));
+        }
+        Err(err) => return Err(err),
+    };
+    if in_trash.dev != ctx.dev || TrashIdentity::of(&in_trash) != Some(item.identity) {
+        return Ok(Err(PutBackRefusal::NotInTrash));
+    }
+    Ok(Ok(trash_name))
+}
+
 /// Checks and moves one entry back.
 fn put_back_one(ctx: &Context, item: &PutBack) -> Result<(), PutBackRefusal> {
-    if !is_plain(&ctx.home, &item.original) {
-        return Err(PutBackRefusal::NotOurs);
-    }
-    let trash_name = trash_name(&ctx.trash_path, &item.in_trash).ok_or(PutBackRefusal::NotOurs)?;
-    let in_trash =
-        sys::stat_at(&ctx.trash_fd, &trash_name).map_err(|_| PutBackRefusal::NotInTrash)?;
-    if in_trash.dev != ctx.dev || TrashIdentity::of(&in_trash) != Some(item.identity) {
-        return Err(PutBackRefusal::NotInTrash);
-    }
+    let trash_name = holds(ctx, item)?;
     let (parent_fd, name) = ctx
         .open_parent(&item.original)
         .map_err(|_| PutBackRefusal::FolderChanged)?;

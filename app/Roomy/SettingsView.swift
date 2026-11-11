@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
     /// The menu bar item and low-space alert settings.
     @ObservedObject var lowSpace: LowSpaceMonitor
+    /// The weekly note's setting.
+    @ObservedObject var weeklyNote: WeeklyNoteModel
 
     var body: some View {
         Form {
@@ -35,6 +37,8 @@ struct SettingsView: View {
             Divider().padding(.vertical, 8)
 
             LowSpaceSettingsSection(monitor: lowSpace)
+            WeeklyNoteSettingsSection(weeklyNote: weeklyNote)
+                .padding(.top, 8)
 
             Divider().padding(.vertical, 8)
 

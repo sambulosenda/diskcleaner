@@ -47,6 +47,10 @@ final class RustCoreClient: CoreClient {
         try await offMain { try $0.scanProgress(handle: handle) }
     }
 
+    func scanFindings(handle: ScanHandle) async -> [ScanFinding] {
+        (try? await offMain { try $0.scanFindings(handle: handle) }) ?? []
+    }
+
     func cancelScan(handle: ScanHandle) async {
         _ = try? await offMain { $0.cancelScan(handle: handle) }
     }
@@ -98,6 +102,10 @@ final class RustCoreClient: CoreClient {
 
     func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult {
         try await offMain { try $0.putBackCleanup(cleanup: cleanup) }
+    }
+
+    func restorableCleanup() async -> CleanupResult? {
+        (try? await offMain { $0.restorableCleanup() }) ?? nil
     }
 
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {

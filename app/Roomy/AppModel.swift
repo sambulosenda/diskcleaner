@@ -224,7 +224,8 @@ final class AppModel: ObservableObject {
     private(set) var likelySafeCheckedIDs: Set<String> = []
     /// The cleanup review sheet.
     @Published private(set) var cleanupState: CleanupState = .closed
-    /// The most recent cleanup, while it can still be put back (until the app quits).
+    /// The most recent cleanup, while it can still be put back: until it is put back, a newer cleanup
+    /// replaces it, or the Trash no longer holds it. Survives quitting Roomy.
     @Published private(set) var lastCleanup: CleanupHandle?
     /// What the most recent cleanup did, for the Put back banner. Kept with `lastCleanup`, so the banner
     /// matches the cleanup it undoes even if that cleanup could not be saved to History.
@@ -270,6 +271,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var checkedAndroidIDs: Set<String> = []
     /// What grew or shrank between the previous scan and the one showing, if there was a previous one.
     @Published private(set) var scanChanges: ScanChanges?
+
+    /// What the running scan has recognised so far, for the scanning screen. An early look only: the
+    /// items come from the finished scan.
+    @Published private(set) var scanFindings: [ScanFinding] = []
     /// Set once something has moved after the current scan started, so its sizes are out of date.
     /// Cleared when a new scan starts. A scan that was already running when files moved is followed by
     /// another one.
@@ -342,6 +347,12 @@ final class AppModel: ObservableObject {
     /// The finished scan whose results are showing, for screens that ask the core about it themselves
     /// (Photos, Mail and Music). `nil` before a scan has finished.
     var finishedScan: ScanHandle? { overview != nil ? loadedHandle : nil }
+
+    /// What the last scan of an earlier run found, to show while this run's first scan is under way.
+    /// `nil` once a scan has finished in this run (its results are newer), or if there never was one.
+    var earlierScanSummary: LastScanSummary? {
+        loadedHandle == nil ? LastScanSummary.load(from: defaults) : nil
+    }
 
     /// The sidebar groups for the current mode.
     var sidebarSections: [[SidebarItem]] { SidebarItem.sections(for: mode) }
@@ -594,23 +605,30 @@ final class AppModel: ObservableObject {
 
     // MARK: - Full Disk Access
 
-    /// Called once when the window first appears. Asks the core about Full Disk Access and, on first
-    /// launch only, opens the Full Disk Access screen if access is off. If it is already on, or the core
-    /// can't tell, the screen is never shown by itself.
+    /// Called once when the window first appears. Asks the core about Full Disk Access, then starts the
+    /// opening scan (see `scanIfOpening`).
     ///
-    /// Then, unless the Full Disk Access screen is waiting for the user, starts the opening scan (see
-    /// `scanIfOpening`).
+    /// Roomy shows what it can find before it asks for anything: if access is off, the Full Disk Access
+    /// screen opens only after the first scan has finished, and only if that scan met folders it could
+    /// not read (see `offerAccessAfterScan`). If access is already on, or the core can't tell, the
+    /// screen is never shown by itself.
     func windowDidAppear() async {
+        await refreshRestorableCleanup()
         await refreshFullDiskAccess()
-        if !defaults.bool(forKey: Self.accessOnboardingKey) {
-            if fullDiskAccess == .notGranted {
-                // The screen offers its own scan; nothing starts until the user chooses there.
-                showsAccessOnboarding = true
-                return
-            }
+        if !defaults.bool(forKey: Self.accessOnboardingKey), fullDiskAccess != .notGranted {
             defaults.set(true, forKey: Self.accessOnboardingKey)
         }
         scanIfOpening()
+    }
+
+    /// After a scan finishes: opens the Full Disk Access screen if the user hasn't been asked yet,
+    /// access is off, and the scan met folders it could not read. The results are already on screen
+    /// behind it, so the user sees what Roomy found before being asked for more.
+    private func offerAccessAfterScan(_ overview: Overview) {
+        guard !defaults.bool(forKey: Self.accessOnboardingKey), fullDiskAccess == .notGranted,
+              overview.unreadableCount > 0, cleanupState == .closed
+        else { return }
+        showsAccessOnboarding = true
     }
 
     /// Starts a scan if none has run since Roomy opened and the user hasn't turned "Scan when Roomy
@@ -1025,6 +1043,7 @@ final class AppModel: ObservableObject {
                 self.needsRescan = true
                 self.checkedItemIDs = []
                 self.checkedSizes = [:]
+                self.cleanupRevision += 1
                 self.groupCheckedIDs = []
                 self.likelySafeCheckedIDs = []
                 self.lastCleanup = result.cleanup
@@ -1040,7 +1059,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Puts the most recent cleanup back where it was. Works once, until the app quits. Ignored while a
+    /// Puts the most recent cleanup back where it was. Works once. Ignored while a
     /// put back is already running.
     func putBack() {
         guard let handle = lastCleanup, !isPuttingBack else { return }
@@ -1083,15 +1102,35 @@ final class AppModel: ObservableObject {
         if shown != nil { cleanupTask = work } else { putBackTask = work }
     }
 
+    /// Goes up each time a cleanup or put back changes what can be put back, so an older question to
+    /// the core can't overwrite a newer answer.
+    private var cleanupRevision = 0
+
     /// Drops the record of the last cleanup once it can no longer be put back.
     private func forgetLastCleanup() {
+        cleanupRevision += 1
         lastCleanup = nil
         lastCleanupResult = nil
     }
 
-    /// Asks the core for past cleanups.
+    /// Asks the core for past cleanups, and whether the last one can still be put back.
     func reloadHistory() async {
         history = await client.cleanupHistory(limit: 50)
+        await refreshRestorableCleanup()
+    }
+
+    /// Asks the core whether the most recent cleanup can still be put back, so Put back is offered
+    /// after Roomy restarts and goes away once the Trash has been emptied. Left alone while a put back
+    /// runs.
+    func refreshRestorableCleanup() async {
+        // The test host's own window uses the real core: never let it look at the real Trash.
+        if Self.isTestHost && client is RustCoreClient { return }
+        let revision = cleanupRevision
+        let offered = await client.restorableCleanup()
+        // A cleanup or put back finished while the core was asked: its answer is the newer one.
+        guard !isPuttingBack, revision == cleanupRevision else { return }
+        lastCleanup = offered?.cleanup
+        lastCleanupResult = offered?.cleanup == nil ? nil : offered
     }
 
     /// Waits for the cleanup sheet's current step (check, move or put back) to finish. Used by tests.
@@ -1108,6 +1147,7 @@ final class AppModel: ObservableObject {
         needsRescan = false
         stateBeforeScan = scanState
         scanState = .scanning(ScanProgress(bytesSeen: 0, itemsSeen: 0, phase: .scanning))
+        scanFindings = []
         scanTask = Task { [weak self] in
             await self?.runScan()
         }
@@ -1158,11 +1198,15 @@ final class AppModel: ObservableObject {
 
     // MARK: - Scanning
 
+    /// "Found so far" is read on every fifth progress poll: often enough to feel live, slow enough to read.
+    private static let pollsPerFindings = 5
+
     private func runScan() async {
         let handle = await client.startScan(mode: mode)
         guard !Task.isCancelled else { return await client.closeScan(handle: handle) }
         activeHandle = handle
         do {
+            var polls = 0
             while true {
                 let progress = try await client.scanProgress(handle: handle)
                 guard !Task.isCancelled else { return }
@@ -1171,6 +1215,12 @@ final class AppModel: ObservableObject {
                     if scanState != .scanning(progress) {
                         scanState = .scanning(progress)
                     }
+                    if polls % Self.pollsPerFindings == 0 {
+                        let found = await client.scanFindings(handle: handle)
+                        guard !Task.isCancelled else { return }
+                        if scanFindings != found { scanFindings = found }
+                    }
+                    polls += 1
                     try await Task.sleep(nanoseconds: pollInterval)
                     continue
                 case .finished:
@@ -1199,6 +1249,8 @@ final class AppModel: ObservableObject {
                 defaults.set(NSNumber(value: overview.scannedBytes), forKey: Self.lastScannedBytesKey)
             }
             resetItems()
+            LastScanSummary(overview: overview, scannedAt: now()).save(to: defaults)
+            offerAccessAfterScan(overview)
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
             finish(handle, with: .failed(Self.message(for: error)))
@@ -1379,7 +1431,7 @@ final class AppModel: ObservableObject {
         case .CleanupUnavailable(let reason), .DockerUnavailable(let reason), .ToolUnavailable(let reason):
             return reason
         case .NothingToPutBack:
-            return "Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash."
+            return "Roomy can only put back its most recent cleanup, while its items are still in the Trash. You can still drag items back from the Trash."
         case .UnknownApp:
             return "Roomy lost track of this app. Please look again."
         }

@@ -83,6 +83,9 @@ final class MockCoreClient: CoreClient {
         return handle
     }
 
+    /// Tests set this to pretend the scan could read every folder.
+    var everythingReadable = false
+
     func scanProgress(handle: ScanHandle) async throws -> ScanProgress {
         guard let step = steps[handle] else { throw CoreError.UnknownScan }
         let data = MockData.overview(for: scenario)
@@ -104,6 +107,24 @@ final class MockCoreClient: CoreClient {
         return ScanProgress(bytesSeen: seen, itemsSeen: items, phase: fraction >= 0.8 ? .classifying : .scanning)
     }
 
+    /// Made-up findings that grow as the pretend scan goes on. Nothing for the first few steps, as in a
+    /// real scan, and nothing once the handle is closed.
+    func scanFindings(handle: ScanHandle) async -> [ScanFinding] {
+        guard let step = steps[handle], step >= 3 else { return [] }
+        let fraction = Double(min(step, totalSteps)) / Double(totalSteps)
+        let developer = modes[handle] == .developer
+        let kinds: [(String, Roomy.Category, UInt32, Double)] = [
+            ("Xcode build data", .build, 3, developer ? 18.4e9 : 0),
+            ("Project packages (node_modules)", .build, 11, developer ? 9.7e9 : 0),
+            ("Chrome cache", .cache, 1, 2.1e9),
+            ("Spotify cache", .cache, 1, 1.6e9),
+            ("App logs", .logs, 2, 0.4e9)
+        ]
+        return kinds.filter { $0.3 > 0 }.map { title, category, count, bytes in
+            ScanFinding(title: title, category: category, count: count, sizeBytes: UInt64(bytes * fraction))
+        }
+    }
+
     func cancelScan(handle: ScanHandle) async {
         guard let step = steps[handle], step < totalSteps else { return }
         cancelled.insert(handle)
@@ -121,7 +142,12 @@ final class MockCoreClient: CoreClient {
         if scenario == .failure { throw CoreError.ScanFailed(reason: "Roomy could not read your home folder.") }
         guard step >= totalSteps else { throw CoreError.ScanNotFinished }
         if !finishedScans.contains(handle) { finishedScans.append(handle) }
-        return MockData.overview(for: scenario)
+        var overview = MockData.overview(for: scenario)
+        if everythingReadable {
+            overview.unreadableCount = 0
+            overview.unreadableAreas = []
+        }
+        return overview
     }
 
     func scanChanges(handle: ScanHandle) async -> ScanChanges? {
@@ -167,7 +193,7 @@ final class MockCoreClient: CoreClient {
                 let check: CleanupCheck = choice.chosenAlone
                     ? .willMove : .wontMove(reason: "This is something you need to choose yourself.")
                 rows.append(CleanupPreviewItem(itemId: file.itemId, title: file.name, sizeBytes: file.sizeBytes,
-                                               check: check, path: file.path, deviceBackup: nil))
+                                               check: check, path: file.path, deviceBackup: nil, restore: nil))
                 continue
             }
             guard let item = MockData.lookup(choice.itemId, in: scenario) else { throw CoreError.UnknownItem }
@@ -186,7 +212,9 @@ final class MockCoreClient: CoreClient {
             let path = modes[handle] == .developer ? "~/Library/Mock/\(item.id)" : nil
             rows.append(CleanupPreviewItem(itemId: item.id, title: item.title, sizeBytes: item.sizeBytes,
                                            check: check, path: path,
-                                           deviceBackup: MockData.deviceBackup(for: item)))
+                                           deviceBackup: MockData.deviceBackup(for: item),
+                                           restore: item.tier == .likelySafe
+                                               ? "It comes back by itself when it is needed." : nil))
         }
         return rows
     }
@@ -267,6 +295,21 @@ final class MockCoreClient: CoreClient {
             )
         }
         return PutBackResult(items: last.moved, bytesPutBack: last.moved.reduce(0) { $0 + $1.sizeBytes })
+    }
+
+    func restorableCleanup() async -> CleanupResult? {
+        guard let last = lastCleanup else { return nil }
+        return CleanupResult(cleanup: last.handle, items: last.moved,
+                             bytesMoved: last.moved.reduce(0) { $0 + $1.sizeBytes },
+                             savedToHistory: last.historyIndex >= 0)
+    }
+
+    /// Test hook: makes the mock hold a cleanup from "before the app was last quit", so a new model finds
+    /// it can still be put back.
+    func holdEarlierCleanup(_ moved: [CleanupResultItem]) {
+        let handle = CleanupHandle(id: nextCleanup)
+        nextCleanup += 1
+        lastCleanup = (handle, -1, moved)
     }
 
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] {
@@ -504,7 +547,7 @@ final class MockCoreClient: CoreClient {
         for id in partIds {
             guard let part = parts.first(where: { $0.itemId == id }) else { throw CoreError.UnknownItem }
             rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
-                                           check: .willMove, path: nil, deviceBackup: nil))
+                                           check: .willMove, path: nil, deviceBackup: nil, restore: nil))
         }
         return makePendingPlan(rows)
     }
@@ -540,7 +583,7 @@ extension MockCoreClient {
                 throw CoreError.UnknownItem
             }
             rows.append(CleanupPreviewItem(itemId: part.itemId, title: part.title, sizeBytes: part.sizeBytes,
-                                           check: .willMove, path: nil, deviceBackup: nil))
+                                           check: .willMove, path: nil, deviceBackup: nil, restore: nil))
         }
         return makePendingPlan(rows)
     }
@@ -586,7 +629,7 @@ extension MockCoreClient {
                     reason: "Keep at least one copy of \u{201c}\(group.name)\u{201d}. Untick one copy, then review again.")
             }
             rows.append(CleanupPreviewItem(itemId: id, title: group.name, sizeBytes: group.sizeBytes,
-                                           check: .willMove, path: nil, deviceBackup: nil))
+                                           check: .willMove, path: nil, deviceBackup: nil, restore: nil))
         }
         return makePendingPlan(rows)
     }

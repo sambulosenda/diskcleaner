@@ -90,6 +90,24 @@ was none or History could not be used. Each finished scan leaves a short record 
 How far the scan has got. Throws `unknown_scan` for a handle the core does not know (never
 issued, or closed).
 
+### `scan_findings(handle: ScanHandle) -> [ScanFinding]` throws
+What the scan has recognised so far, for the scanning screen: one row per kind of thing (rule
+title), with how many folders of that kind were found and the bytes counted in them, largest
+first. The app may poll it alongside `scan_progress`. Throws `unknown_scan` like `scan_progress`.
+
+It is an early look and never a result:
+
+- A row has a title, a category, a count and a size. It has **no tier, no path and no item id**,
+  so nothing in it can be chosen for cleanup. Items only come from `list_items` on the finished
+  scan, which classifies everything from scratch.
+- A folder is only listed when its path alone settles which rule describes it. Rules with
+  `match.requires`, tied rules, rules whose tier is `keep` and protected places are left out, so
+  the list is shorter than the result.
+- Sizes are lower bounds (hard-linked files are counted when the walk ends). A listed folder may
+  still end up as `keep` in the result, for example when it holds a git repository.
+- A quick rescan (`start_rescan` reusing the last scan) reads too little to say anything: its
+  list stays empty. The list of a finished scan stays as it was when the walk ended.
+
 ### `cancel_scan(handle: ScanHandle)`
 Asks the scan to stop. Safe to call more than once, after the scan has finished, or with an
 unknown handle (it then does nothing). A scan that has already finished stays finished.
@@ -186,6 +204,14 @@ Ties are always broken by `ItemId`, so the order is the same every time.
 | `phase` | `ScanPhase` | See above |
 
 After `finished`, `bytes_seen` equals the scan's total.
+
+### `ScanFinding` (record)
+| Field | Type | Meaning |
+|---|---|---|
+| `title` | `String` | The rule's title, such as "Xcode build data" |
+| `category` | `Category` | The rule's category |
+| `count` | `u32` | Folders of this kind found so far |
+| `size_bytes` | `u64` | Allocated bytes counted in them so far (a lower bound) |
 
 ### `Overview` (record)
 | Field | Type | Meaning |
@@ -399,6 +425,7 @@ the main window's review is left alone. Throws the same errors as `preview_clean
 | `check` | `CleanupCheck` | |
 | `path` | `String?` | **Developer mode only**, display string starting `~/`, like `ItemDetail.path`. Always `nil` in simple mode |
 | `device_backup` | `DeviceBackup?` | As `ItemDetail.device_backup` |
+| `restore` | `String?` | How it comes back after removal, as `ItemDetail.restore`; `nil` if it does not come back by itself |
 
 ### `CleanupPreview` (record)
 | Field | Type | Meaning |
@@ -419,11 +446,18 @@ Rules:
    The executor checks every item again just before moving it, so an item that changed since the
    review stays where it is and is listed with a reason.
 3. Trash only. Nothing is removed for good.
-4. `put_back_cleanup` works once, for the most recent cleanup since the core was made. It uses the
-   executor's own record of what moved, kept in memory, never anything read from History. An item
-   stays in the Trash if what is in the Trash under its name is no longer what Roomy moved there,
-   if a folder on the way back changed (for example became a link), or if something new is in its
-   old place. A put back never replaces anything.
+4. `put_back_cleanup` works once, for the most recent cleanup, including one from before Roomy was
+   last quit. It uses the executor's own record of what moved, never anything read from History.
+   That record is kept in memory and, so it survives a restart, in a small separate file,
+   `~/Library/Application Support/Roomy/undo.sqlite`. The file holds the last cleanup only: each
+   moved item's place relative to the home folder, its one name in the Trash, and what the Trash
+   entry looked like right after the move. It is replaced by the next cleanup and emptied once the
+   cleanup is put back or the Trash holds none of it. A stored record that names anything other
+   than plain paths inside home and one plain name in the Trash is dropped whole. Whatever the
+   record says, the executor checks every entry again before acting: an item stays in the Trash if
+   what is in the Trash under its name is no longer exactly what Roomy moved there (inode, size
+   and change time), if a folder on the way back changed (for example became a link), or if
+   something new is in its old place. A put back never replaces anything.
 5. History is a SQLite file at `~/Library/Application Support/Roomy/history.sqlite`. It holds
    titles, sizes, times and outcomes, **no paths**. The core makes the `Roomy` folder the first time
    a cleanup is recorded, and never any other folder. If History can't be written, the cleanup still
@@ -441,6 +475,13 @@ Moves the last cleanup's items back. Throws `nothing_to_put_back` if `cleanup` i
 recent cleanup that moved anything, or was already put back; trying again won't help. Throws
 `cleanup_unavailable` if the Trash or home folder can't be opened; nothing moved, and the same
 cleanup can be put back later.
+
+### `restorable_cleanup() -> CleanupResult?`
+The most recent cleanup, if it can still be put back: its handle and one row per item that moved,
+`done` for those the Trash still holds exactly as Roomy left them. `bytes_moved` counts only those.
+`None` if there is no such cleanup, it was already put back, or the Trash holds none of it any more.
+The first call of a run reads the undo file an earlier run stored, so Put back is offered after a
+restart. Reads metadata only, moves nothing, and never makes a file.
 
 ### `cleanup_history(limit: u32) -> [HistoryEntry]`
 Past cleanups, newest first, at most `limit`. Empty before the first cleanup; reading it never makes

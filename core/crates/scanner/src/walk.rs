@@ -13,7 +13,7 @@ use rayon::prelude::*;
 
 use crate::largest::Largest;
 use crate::result::{Dir, FileEntry, ScanResult, Unreadable, UnreadableReason};
-use crate::{RecordFiles, ScanError, ScanOptions, ScanProgress};
+use crate::{RecordFiles, ScanError, ScanOptions, ScanProgress, Watch, Watched};
 
 /// Stack size for walk threads. The walk recurses once per folder level and
 /// rayon may stack stolen work on top, so leave plenty of room.
@@ -68,6 +68,8 @@ pub(crate) struct Shared<'a> {
     root: &'a Path,
     record_files: Option<&'a RecordFiles>,
     largest_in: Option<&'a RecordFiles>,
+    /// Folders the caller wants to hear about during the walk.
+    watch: Option<&'a Watch>,
     pub(crate) dev: u64,
     cancel: &'a AtomicBool,
     largest: Largest,
@@ -105,7 +107,8 @@ pub fn run(
         root_meta.dev(),
         &opts.cancel,
         opts.largest_files,
-    );
+    )
+    .watching(opts.watch.as_ref());
     let (tx, rx) = mpsc::channel();
     let root_node = pool.in_place_scope(|scope| {
         let shared = &shared;
@@ -155,6 +158,19 @@ pub(crate) fn wait_with_progress<T>(
 
 /// Walks one folder: counts its entries, then walks its sub-folders in parallel.
 pub(crate) fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Shared<'_>) -> Node {
+    walk_asking(path, name, meta, shared, shared.watch.is_some())
+}
+
+/// [`walk_dir`], with `ask` saying whether the watch (if any) should still
+/// be asked about this folder. It is not asked inside a folder it already
+/// answered [`Watched::Report`] or [`Watched::Skip`] for.
+fn walk_asking(
+    path: &Path,
+    name: OsString,
+    meta: &Metadata,
+    shared: &Shared<'_>,
+    ask: bool,
+) -> Node {
     let mut node = Node::empty(name, meta);
     shared.dirs.fetch_add(1, Ordering::Relaxed);
     shared.add_bytes(node.own_bytes);
@@ -164,11 +180,33 @@ pub(crate) fn walk_dir(path: &Path, name: OsString, meta: &Metadata, shared: &Sh
     let Some(subdirs) = list_or_mark_unreadable(path, &mut node, shared) else {
         return node;
     };
+    let watched = if ask {
+        shared.ask_watch(path)
+    } else {
+        Watched::Skip
+    };
+    let ask_below = watched == Watched::Descend;
     node.children = subdirs
         .into_par_iter()
-        .map(|sub| walk_dir(&sub.path, sub.name, &sub.meta, shared))
+        .map(|sub| walk_asking(&sub.path, sub.name, &sub.meta, shared, ask_below))
         .collect();
+    if watched == Watched::Report && !shared.cancelled() {
+        shared.report(path, bytes_inside(&node));
+    }
     node
+}
+
+/// The bytes counted so far in `node` and everything below it. Hard-linked
+/// files are not in it yet: [`settle_links`] adds them after the walk.
+/// Iterative, so a deep tree cannot overflow the stack.
+fn bytes_inside(node: &Node) -> u64 {
+    let mut total = 0u64;
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        total = total.saturating_add(n.own_bytes);
+        stack.extend(n.children.iter());
+    }
+    total
 }
 
 impl Node {
@@ -364,6 +402,7 @@ impl<'a> Shared<'a> {
             root,
             record_files,
             largest_in,
+            watch: None,
             dev,
             cancel,
             largest: Largest::new(largest_files),
@@ -376,6 +415,32 @@ impl<'a> Shared<'a> {
             symlinks: AtomicU64::new(0),
             hard_links_skipped: AtomicU64::new(0),
             entries_skipped: AtomicU64::new(0),
+        }
+    }
+
+    /// Sets the folders the caller wants to hear about during the walk.
+    pub(crate) fn watching(mut self, watch: Option<&'a Watch>) -> Self {
+        self.watch = watch;
+        self
+    }
+
+    /// What the watch says about folder `path`. The root is never asked
+    /// about; the folders in it are.
+    fn ask_watch(&self, path: &Path) -> Watched {
+        let Some(watch) = self.watch else {
+            return Watched::Skip;
+        };
+        match path.strip_prefix(self.root) {
+            Ok(rel) if rel.as_os_str().is_empty() => Watched::Descend,
+            Ok(rel) => (watch.ask)(rel),
+            Err(_) => Watched::Skip,
+        }
+    }
+
+    /// Tells the watch that everything inside folder `path` has been read.
+    fn report(&self, path: &Path, bytes: u64) {
+        if let (Some(watch), Ok(rel)) = (self.watch, path.strip_prefix(self.root)) {
+            (watch.found)(rel, bytes);
         }
     }
 

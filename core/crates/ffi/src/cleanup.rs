@@ -44,6 +44,8 @@ pub(crate) struct Entry {
     pub path: Option<String>,
     /// Which device it belongs to, for an iPhone or iPad backup.
     pub device_backup: Option<DeviceBackup>,
+    /// How it comes back after removal, in the rule's words, if it does.
+    pub restore: Option<String>,
     /// The request, while the item is still in the running.
     pub request: Option<ItemRequest>,
     /// Why it would not move, once that is known.
@@ -154,6 +156,7 @@ fn entries_for(f: &Finished, choices: &[CleanupChoice]) -> Result<Vec<Entry>, Co
                 crate::Mode::Simple => None,
             },
             device_backup: crate::backup::device_backup(f, item),
+            restore: item.restore.clone(),
             request,
             wont_move,
         });
@@ -173,6 +176,7 @@ fn file_entry(f: &Finished, file: &crate::files::LooseFile, chosen_alone: bool) 
             crate::Mode::Simple => None,
         },
         device_backup: None,
+        restore: None,
         request: Some(crate::files::request_for(file, chosen_alone)),
         wont_move: None,
     }
@@ -247,6 +251,7 @@ fn finish(entries: Vec<Entry>, plan: Option<Plan>) -> Prepared {
             },
             path: e.path,
             device_backup: e.device_backup,
+            restore: e.restore,
         })
         .collect();
     let bytes_to_move = items

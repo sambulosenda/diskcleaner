@@ -216,6 +216,7 @@ pub(crate) fn prepare(
             size_bytes: part.expected.size_bytes,
             path: part.shown_path.clone(),
             device_backup: None,
+            restore: None,
             request: Some(ItemRequest {
                 recommendation_id: part.item_id.clone(),
                 path: part.path.clone(),

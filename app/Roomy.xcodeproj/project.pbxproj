@@ -28,6 +28,10 @@
 		A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000070C1C1E5 /* ToolCleanupsView.swift */; };
 		A100000000000000119A7E51 /* LibrariesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000119A7E51 /* LibrariesView.swift */; };
 		A1000000000000001A26E501 /* LargeFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E501 /* LargeFilesView.swift */; };
+		A1000000000000001A26E5D1 /* DiskMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D1 /* DiskMapView.swift */; };
+		A1000000000000001A26E5D3 /* LastScanSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D3 /* LastScanSummary.swift */; };
+		A1000000000000001A26E5D4 /* WeeklyNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D4 /* WeeklyNote.swift */; };
+		A1000000000000001A26E5D8 /* ScanFindings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D8 /* ScanFindings.swift */; };
 		A10000000000000000000072 /* FullDiskAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* FullDiskAccessView.swift */; };
 		A10000000000000000000081 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* AppsView.swift */; };
 		A10000000000000000A4D201 /* AndroidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000A4D201 /* AndroidView.swift */; };
@@ -39,6 +43,9 @@
 		A10000000000000000000028 /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* StateViews.swift */; };
 		A10000000000000000000029 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* SettingsView.swift */; };
 		A10000000000000000000030 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* AppModelTests.swift */; };
+		A1000000000000001A26E5D2 /* DiskMapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D2 /* DiskMapTests.swift */; };
+		A1000000000000001A26E5D5 /* WeeklyNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D5 /* WeeklyNoteTests.swift */; };
+		A1000000000000001A26E5D9 /* ScanFindingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000001A26E5D9 /* ScanFindingsTests.swift */; };
 		A10000000000000000000031 /* MockCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MockCoreClientTests.swift */; };
 		A10000000000000000000053 /* RustCoreClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000053 /* RustCoreClientTests.swift */; };
 		A10000000000000000000032 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* ScreenshotTests.swift */; };
@@ -89,6 +96,10 @@
 		A20000000000000070C1C1E5 /* ToolCleanupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCleanupsView.swift; sourceTree = "<group>"; };
 		A200000000000000119A7E51 /* LibrariesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrariesView.swift; sourceTree = "<group>"; };
 		A2000000000000001A26E501 /* LargeFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeFilesView.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D1 /* DiskMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskMapView.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D3 /* LastScanSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastScanSummary.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D4 /* WeeklyNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyNote.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D8 /* ScanFindings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanFindings.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* FullDiskAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessView.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
 		A20000000000000000A4D201 /* AndroidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndroidView.swift; sourceTree = "<group>"; };
@@ -100,6 +111,9 @@
 		A20000000000000000000028 /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000030 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D2 /* DiskMapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskMapTests.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D5 /* WeeklyNoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyNoteTests.swift; sourceTree = "<group>"; };
+		A2000000000000001A26E5D9 /* ScanFindingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanFindingsTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000031 /* MockCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCoreClientTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000053 /* RustCoreClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustCoreClientTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000032 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
@@ -168,6 +182,10 @@
 				A20000000000000070C1C1E5 /* ToolCleanupsView.swift */,
 				A200000000000000119A7E51 /* LibrariesView.swift */,
 				A2000000000000001A26E501 /* LargeFilesView.swift */,
+				A2000000000000001A26E5D1 /* DiskMapView.swift */,
+				A2000000000000001A26E5D3 /* LastScanSummary.swift */,
+				A2000000000000001A26E5D4 /* WeeklyNote.swift */,
+				A2000000000000001A26E5D8 /* ScanFindings.swift */,
 				A20000000000000000000072 /* FullDiskAccessView.swift */,
 				A20000000000000000000081 /* AppsView.swift */,
 				A20000000000000000A4D201 /* AndroidView.swift */,
@@ -197,6 +215,9 @@
 				A20000000000000000000003 /* RoomyTests.swift */,
 				A20000000000000000000040 /* CommandContractTests.swift */,
 				A20000000000000000000030 /* AppModelTests.swift */,
+				A2000000000000001A26E5D2 /* DiskMapTests.swift */,
+				A2000000000000001A26E5D5 /* WeeklyNoteTests.swift */,
+				A2000000000000001A26E5D9 /* ScanFindingsTests.swift */,
 				A20000000000000000000031 /* MockCoreClientTests.swift */,
 				A20000000000000000000053 /* RustCoreClientTests.swift */,
 				A20000000000000000000032 /* ScreenshotTests.swift */,
@@ -348,6 +369,10 @@
 				A10000000000000070C1C1E5 /* ToolCleanupsView.swift in Sources */,
 				A100000000000000119A7E51 /* LibrariesView.swift in Sources */,
 				A1000000000000001A26E501 /* LargeFilesView.swift in Sources */,
+				A1000000000000001A26E5D1 /* DiskMapView.swift in Sources */,
+				A1000000000000001A26E5D3 /* LastScanSummary.swift in Sources */,
+				A1000000000000001A26E5D4 /* WeeklyNote.swift in Sources */,
+				A1000000000000001A26E5D8 /* ScanFindings.swift in Sources */,
 				A10000000000000000000072 /* FullDiskAccessView.swift in Sources */,
 				A10000000000000000000081 /* AppsView.swift in Sources */,
 				A10000000000000000A4D201 /* AndroidView.swift in Sources */,
@@ -375,6 +400,9 @@
 				A10000000000000000000003 /* RoomyTests.swift in Sources */,
 				A10000000000000000000040 /* CommandContractTests.swift in Sources */,
 				A10000000000000000000030 /* AppModelTests.swift in Sources */,
+				A1000000000000001A26E5D2 /* DiskMapTests.swift in Sources */,
+				A1000000000000001A26E5D5 /* WeeklyNoteTests.swift in Sources */,
+				A1000000000000001A26E5D9 /* ScanFindingsTests.swift in Sources */,
 				A10000000000000000000031 /* MockCoreClientTests.swift in Sources */,
 				A10000000000000000000053 /* RustCoreClientTests.swift in Sources */,
 				A10000000000000000000032 /* ScreenshotTests.swift in Sources */,

@@ -64,7 +64,7 @@ use safety::Refusal;
 
 pub use git::GitConcern;
 pub use guards::{is_app, Guards, Running, RECENT_CHANGE_WINDOW};
-pub use put_back::{put_back, PutBack, PutBackRefusal, TrashIdentity};
+pub use put_back::{put_back, still_in_trash, PutBack, PutBackRefusal, TrashIdentity};
 pub use survey::size_matches;
 
 /// The Trash folder inside home.

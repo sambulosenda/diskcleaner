@@ -128,6 +128,7 @@ final class RustCoreClientTests: XCTestCase {
 private final class FailingCore: CoreClient {
     func startScan(mode: Mode) async -> ScanHandle { ScanHandle(id: 0) }
     func scanProgress(handle: ScanHandle) async throws -> ScanProgress { throw CoreError.HomeNotFound }
+    func scanFindings(handle: ScanHandle) async -> [ScanFinding] { [] }
     func cancelScan(handle: ScanHandle) async {}
     func closeScan(handle: ScanHandle) async {}
     func overview(handle: ScanHandle) async throws -> Overview { throw CoreError.HomeNotFound }
@@ -147,6 +148,7 @@ private final class FailingCore: CoreClient {
     }
     func runCleanup(plan: PlanHandle) async throws -> CleanupResult { throw CoreError.HomeNotFound }
     func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult { throw CoreError.HomeNotFound }
+    func restorableCleanup() async -> CleanupResult? { nil }
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry] { [] }
     func fullDiskAccess() async -> FullDiskAccess { .unknown }
     func setProtectedFolders(_ folders: [String]) async throws -> [String] { throw CoreError.HomeNotFound }

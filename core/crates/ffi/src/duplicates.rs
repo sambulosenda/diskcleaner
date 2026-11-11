@@ -388,6 +388,7 @@ fn entries_for(found: &Found, copy_ids: &[String]) -> Result<Vec<Entry>, CoreErr
             size_bytes: copy.copy.allocated_bytes,
             path: None,
             device_backup: None,
+            restore: None,
             request,
             wont_move,
         });

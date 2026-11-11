@@ -72,12 +72,24 @@ final class MenuBarPanelTests: XCTestCase {
 
     // MARK: Words
 
+    func testTheReviewSaysWhatHappensAfterwards() {
+        func row(_ check: CleanupCheck, _ restore: String?) -> CleanupPreviewItem {
+            CleanupPreviewItem(itemId: "a", title: "A", sizeBytes: 1, check: check, path: nil, deviceBackup: nil,
+                               restore: restore)
+        }
+        XCTAssertEqual(CleanupText.afterwards(row(.willMove, "Rebuilds on the next Xcode build.")),
+                       "Afterwards: Rebuilds on the next Xcode build.")
+        XCTAssertEqual(CleanupText.afterwards(row(.willMove, nil))?.contains("put it back"), true)
+        XCTAssertNil(CleanupText.afterwards(row(.wontMove(reason: "Safari is open."), "Comes back.")),
+                     "an item that stays needs no afterwards")
+    }
+
     func testLockReasonsComeFromTheCoreCheck() {
         let rows = [
-            CleanupPreviewItem(itemId: "a", title: "A", sizeBytes: 1, check: .willMove, path: nil, deviceBackup: nil),
+            CleanupPreviewItem(itemId: "a", title: "A", sizeBytes: 1, check: .willMove, path: nil, deviceBackup: nil, restore: nil),
             CleanupPreviewItem(itemId: "b", title: "B", sizeBytes: 1,
                                check: .wontMove(reason: "Safari is open. Quit Safari, then try again."),
-                               path: nil, deviceBackup: nil),
+                               path: nil, deviceBackup: nil, restore: nil),
         ]
         XCTAssertEqual(MenuBarPanelContent.lockReasons(from: rows),
                        ["b": "Safari is open. Quit Safari, then try again."])

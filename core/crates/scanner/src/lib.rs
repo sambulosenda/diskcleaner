@@ -60,6 +60,51 @@ pub struct ScanOptions {
     /// (the default) lets every folder's files in. Files in other folders
     /// are still counted, just never kept by path.
     pub largest_in: Option<RecordFiles>,
+    /// Folders to report, with their size, as soon as the walk has read
+    /// everything inside them. `None` (the default) reports none.
+    pub watch: Option<Watch>,
+}
+
+/// Hears about a reported folder: its path relative to the scan root and the
+/// bytes counted inside it.
+pub type WatchFound = dyn Fn(&Path, u64) + Send + Sync;
+
+/// What a [`Watch`] says about one folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Watched {
+    /// Not of interest itself. Ask about the folders inside it.
+    Descend,
+    /// Not of interest, and neither is anything inside it.
+    Skip,
+    /// Report this folder once everything inside it has been read. The
+    /// folders inside it are not asked about.
+    Report,
+}
+
+/// Lets the caller hear about chosen folders while the walk is still
+/// running, instead of waiting for the whole result.
+///
+/// `ask` is called once per folder, from a worker thread, with the folder's
+/// path relative to the scan root. The root itself is never asked about. A
+/// folder answered with [`Watched::Report`] is passed to `found` with the
+/// bytes counted inside it, once the walk has read all of it.
+///
+/// The size given to `found` is a lower bound: files with more than one
+/// hard link are only counted when the whole walk ends (see the crate
+/// docs), so they are missing from it. A folder that could not be listed,
+/// or a walk that was cancelled, is never reported. A rescan never reports.
+#[derive(Clone)]
+pub struct Watch {
+    /// Says whether a folder should be reported.
+    pub ask: Arc<dyn Fn(&Path) -> Watched + Send + Sync>,
+    /// Hears about a reported folder and the bytes counted inside it.
+    pub found: Arc<WatchFound>,
+}
+
+impl std::fmt::Debug for Watch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Watch(..)")
+    }
 }
 
 /// Says which folders should have their files listed by name.
@@ -87,6 +132,7 @@ impl Default for ScanOptions {
             progress_interval: Duration::from_millis(100),
             record_files: None,
             largest_in: None,
+            watch: None,
         }
     }
 }

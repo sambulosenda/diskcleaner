@@ -195,7 +195,7 @@ enum CleanupText {
 
     static let confirmMessage =
         "Roomy checks each item again first. The space comes back when you empty the Trash. "
-        + "Until then you can put them back, from here or from History, until Roomy quits."
+        + "Until then you can put them back, from here or from History. Roomy keeps this for its most recent cleanup."
 
     /// The confirm message, led by a warning for each iPhone or iPad backup that would move.
     static func confirmText(_ preview: CleanupPreview) -> String {
@@ -246,6 +246,16 @@ enum CleanupText {
             lines.append("Roomy couldn't save this to History.")
         }
         return lines.isEmpty ? nil : lines.joined(separator: " ")
+    }
+
+    /// What happens after an item that would move is removed, said where the decision is made.
+    /// `nil` for an item that stays where it is.
+    static func afterwards(_ item: CleanupPreviewItem) -> String? {
+        guard item.check == .willMove else { return nil }
+        if let restore = item.restore, !restore.isEmpty {
+            return "Afterwards: \(restore)"
+        }
+        return "Afterwards: it doesn't come back by itself. You can put it back until you empty the Trash."
     }
 
     static func putBackHeadline(_ result: PutBackResult) -> String {
@@ -361,6 +371,12 @@ struct CleanupPreviewRow: View {
                 Text(statusText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if let afterwards = CleanupText.afterwards(item) {
+                    Text(afterwards)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if willMove, let backup = item.deviceBackup {
                     BackupWarningBox(backup: backup, compact: true)
                         .padding(.top, 2)

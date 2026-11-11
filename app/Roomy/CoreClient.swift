@@ -16,6 +16,11 @@ protocol CoreClient: AnyObject {
     /// How far the scan has got. Throws `CoreError.UnknownScan` for a handle the core doesn't know.
     func scanProgress(handle: ScanHandle) async throws -> ScanProgress
 
+    /// What a running scan has recognised so far, one row per kind of thing, largest first. An early look
+    /// only: no safety level, no path, nothing that can be chosen. Empty when the core has nothing to say
+    /// (a quick rescan, or a handle it doesn't know).
+    func scanFindings(handle: ScanHandle) async -> [ScanFinding]
+
     /// Asks the scan to stop. Safe to call more than once, or after it has finished.
     func cancelScan(handle: ScanHandle) async
 
@@ -63,8 +68,12 @@ protocol CoreClient: AnyObject {
     /// Moves the plan's items to the Trash. The core checks every item again first. The plan is used up.
     func runCleanup(plan: PlanHandle) async throws -> CleanupResult
 
-    /// Puts the most recent cleanup back where it was. Works once, until the app quits.
+    /// Puts the most recent cleanup back where it was. Works once.
     func putBackCleanup(cleanup: CleanupHandle) async throws -> PutBackResult
+
+    /// The most recent cleanup, if the Trash still holds any of it, including one from before Roomy was
+    /// last quit. `bytesMoved` counts only what is still in the Trash. Moves nothing.
+    func restorableCleanup() async -> CleanupResult?
 
     /// Past cleanups, newest first. Holds no paths.
     func cleanupHistory(limit: UInt32) async -> [HistoryEntry]

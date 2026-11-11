@@ -32,6 +32,7 @@ mod engine;
 mod files;
 mod folders;
 mod javascript;
+mod live;
 mod low_space;
 mod place;
 mod run;
@@ -40,6 +41,7 @@ mod system_data;
 mod testing;
 mod tools;
 mod types;
+mod undo;
 mod uninstall;
 mod views;
 
@@ -72,8 +74,8 @@ pub use types::{
     CleanupResultItem, Confidence, DeviceBackup, DuplicateCopy, DuplicateGroup, DuplicateReport,
     DuplicateSearch, FileRow, FullDiskAccess, HistoryEntry, HistoryItem, HistoryItemState,
     ItemChange, ItemDetail, ItemSummary, LargeFiles, LibraryKind, LibrarySize, Mode, Overview,
-    PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanHandle, ScanPhase, ScanProgress, Sort,
-    Tier, UnreadableArea,
+    PlanHandle, PrivateArea, PutBackResult, ScanChanges, ScanFinding, ScanHandle, ScanPhase,
+    ScanProgress, Sort, Tier, UnreadableArea,
 };
 
 uniffi::setup_scaffolding!("roomy_core");
@@ -118,7 +120,7 @@ pub enum CoreError {
     /// Put back was asked for a cleanup the core no longer holds: not the
     /// most recent one, already put back, or from before Roomy started.
     /// Trying again will not help, unlike `CleanupUnavailable`.
-    #[error("Roomy can only put back its most recent cleanup, until Roomy quits. You can still drag items back from the Trash.")]
+    #[error("Roomy can only put back its most recent cleanup, while its items are still in the Trash. You can still drag items back from the Trash.")]
     NothingToPutBack,
     /// A Docker clean-up could not be previewed or was refused before it
     /// ran: Docker is missing or stopped, the review expired, or Docker's
