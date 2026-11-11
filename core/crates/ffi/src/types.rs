@@ -136,6 +136,39 @@ pub struct CategoryTotal {
     pub item_count: u64,
 }
 
+/// How a place the user asked about relates to what the scan found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum PlaceMatch {
+    /// The place is one of the scan's items.
+    Item,
+    /// The place is inside one of the scan's items.
+    InsideItem,
+    /// The place is a folder that holds one or more of the scan's items.
+    HoldsItems,
+    /// The place is in the home folder, but the scan has no item for it.
+    /// Roomy leaves it alone.
+    NotListed,
+    /// The place is not in the home folder, or is not a plain absolute
+    /// path. Roomy never looks at or cleans it.
+    OutsideHome,
+}
+
+/// What Roomy knows about a place the user asked about in Finder. Holds no
+/// path. See `explain_place`.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct PlaceAnswer {
+    /// How the place relates to the scan's items.
+    pub matched: PlaceMatch,
+    /// For `item` and `inside_item`: that item, as its list row.
+    pub item: Option<ItemSummary>,
+    /// For `holds_items`: how many of the scan's items are inside. Else 0.
+    pub item_count: u64,
+    /// For `holds_items`: bytes of the Likely safe items inside. Else 0.
+    pub likely_safe_bytes: u64,
+    /// For `holds_items`: bytes of the Review first items inside. Else 0.
+    pub review_first_bytes: u64,
+}
+
 /// One row in a list. Never carries a path.
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct ItemSummary {

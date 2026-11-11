@@ -263,6 +263,65 @@ fn developer_mode_paths_are_display_strings_inside_home() {
 }
 
 #[test]
+fn explain_place_finds_the_item_a_place_is_or_is_inside() {
+    let s = setup();
+    let h = finished_scan(&s.core, Mode::Developer);
+    let detail = details(&s.core, h)
+        .into_iter()
+        .find(|d| d.rule_id == "xcode.derived_data")
+        .expect("the fixture has DerivedData");
+    let shown = detail.path.clone().expect("developer mode shows the place");
+    let place = s.root.join(shown.trim_start_matches("~/"));
+    let ask = |p: &std::path::Path| {
+        s.core
+            .explain_place(h, p.to_string_lossy().into_owned())
+            .unwrap()
+    };
+
+    let exact = ask(&place);
+    assert_eq!(exact.matched, roomy_ffi::PlaceMatch::Item);
+    assert_eq!(
+        exact.item.as_ref().map(|i| i.id.clone()),
+        Some(detail.id.clone())
+    );
+
+    let within = ask(&place.join("anything/deeper.o"));
+    assert_eq!(within.matched, roomy_ffi::PlaceMatch::InsideItem);
+    assert_eq!(within.item.map(|i| i.id), Some(detail.id));
+
+    let home = ask(&s.root);
+    assert_eq!(home.matched, roomy_ffi::PlaceMatch::HoldsItems);
+    assert!(home.item.is_none());
+    assert_eq!(home.item_count, all_items(&s.core, h).len() as u64);
+    let overview = s.core.overview(h).unwrap();
+    assert_eq!(home.likely_safe_bytes, overview.likely_safe_bytes);
+    assert_eq!(home.review_first_bytes, overview.review_first_bytes);
+}
+
+#[test]
+fn explain_place_answers_nothing_about_places_outside_home() {
+    let s = setup();
+    let h = finished_scan(&s.core, Mode::Simple);
+    let outside = [
+        "/etc/passwd".to_string(),
+        "relative/place".to_string(),
+        String::new(),
+        format!("{}/../elsewhere", s.root.display()),
+    ];
+    for path in outside {
+        let answer = s.core.explain_place(h, path.clone()).unwrap();
+        assert_eq!(answer.matched, roomy_ffi::PlaceMatch::OutsideHome, "{path}");
+        assert!(answer.item.is_none());
+        assert_eq!(answer.item_count, 0);
+    }
+    let unknown = s
+        .core
+        .explain_place(h, format!("{}/No Such Folder Here", s.root.display()))
+        .unwrap();
+    assert_eq!(unknown.matched, roomy_ffi::PlaceMatch::NotListed);
+}
+
+#[test]
 fn item_detail_matches_its_summary() {
     let s = setup();
     let h = finished_scan(&s.core, Mode::Developer);

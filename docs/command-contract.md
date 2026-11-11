@@ -13,9 +13,11 @@ Sam approves this document in the T09 pull request before the implementation is 
 1. **No path goes to Swift in simple mode.** Items are named by an opaque `ItemId`. In Developer
    mode, `ItemDetail.path` holds a display string such as `~/Library/Developer/Xcode/DerivedData/App-abc`.
    It is for showing only.
-2. **Swift never sends a path to the core.** Swift sends scan handles, item ids and enum values.
-   (The one exception is the test-only constructor described under [Testing](#testing), which is
-   not in the app build.)
+2. **Swift never sends a path to the core to act on.** Swift sends scan handles, item ids and enum
+   values. Two commands take a path, and neither can move anything: `set_protected_folders`
+   (folders to keep) and `explain_place` (Finder's "Ask Roomy What This Is", which only compares
+   the path's text with the scan's items). The test-only constructor described under
+   [Testing](#testing) also takes one, and is not in the app build.
 3. **The headline figure is exact.** `Overview.likely_safe_bytes` is the sum of `size_bytes` of
    every item whose tier is `likely_safe`, not only the items in `top_items` (requirement F2).
 4. **The home folder comes from the core.** In the app it is `dirs::home_dir()`. Tests pass a
@@ -111,6 +113,17 @@ Every item of the scan, optionally only one category and/or one tier, in the giv
 ### `item_detail(handle: ScanHandle, item_id: ItemId) -> ItemDetail` throws
 Everything the detail panel shows for one item. Throws `unknown_item` if the scan has no item
 with that id, plus the same errors as `list_items`.
+
+### `explain_place(handle: ScanHandle, path: String) -> PlaceAnswer` throws
+What the scan knows about a file or folder the user chose in Finder. Pure: it compares the path's
+text with the scan's items, reads nothing from disk, follows no links and makes no plan. A path
+that is not absolute, holds `..`, or is not inside the home folder gets `outside_home` and nothing
+else. The answer holds no path. Same errors as `list_items`.
+
+`PlaceAnswer`: `matched` (`item`, `inside_item`, `holds_items`, `not_listed`, `outside_home`);
+`item: ItemSummary?` for `item` and `inside_item` (the deepest item that is or holds the place);
+and for `holds_items` only, `item_count`, `likely_safe_bytes` and `review_first_bytes` of the
+items inside the folder.
 
 ### `libraries(handle: ScanHandle) -> [LibrarySize]` throws
 How much the Mac's own libraries take, measured from the same scan (PRD E6, E7, C1): Photos,
