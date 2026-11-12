@@ -137,3 +137,175 @@ explain = "A copy of iOS your Mac downloaded to update or restore an iPhone."
 risk = "If you update or restore an iPhone from this Mac, it downloads the software again."
 restore = "Your Mac downloads it again when needed."
 action = "trash"
+
+# ---------------------------------------------------------------------------
+# More installers and app caches (first-scan coverage, 2026-11-11).
+# Every rule below needs Sam's sign-off before release.
+# ---------------------------------------------------------------------------
+
+# Installer packages sit next to disk images in Downloads. Everything in
+# Downloads is review-only in code (protected.rs) whatever this rule says.
+[[rule]]
+id = "downloads.installer_package"
+version = 1
+match.path = "Downloads/*.pkg"
+category = "downloads"
+tier = "review_first"
+confidence = "medium"
+regenerable = false
+mode = "simple"
+per_item = true
+title = "Downloaded installer package"
+explain = "An installer package you downloaded. Once the app or driver is installed, the package is often no longer needed."
+risk = "If you still need it, you will have to download it again, and an older version may no longer be offered."
+action = "trash"
+
+# Only zips whose name says "installer". A zip in Downloads is just as often
+# the user's own photos or documents, so a plain `*.zip` rule is not used,
+# and this one is low confidence and never likely_safe.
+[[rule]]
+id = "downloads.zip_installer"
+version = 1
+match.path = "Downloads/*installer*.zip"
+category = "downloads"
+tier = "review_first"
+confidence = "low"
+regenerable = false
+mode = "simple"
+per_item = true
+title = "Downloaded installer (zip)"
+explain = "A zip file whose name says it holds an installer. Once the app is installed, it is often no longer needed."
+risk = "Check what is inside first: if it holds anything else you want, it would go too. You may have to download it again."
+action = "trash"
+
+[[rule]]
+id = "browser.edge_cache"
+version = 1
+match.path = "Library/Caches/Microsoft Edge"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Microsoft Edge cache"
+explain = "Copies of web pages and images Microsoft Edge keeps so sites load faster."
+risk = "Websites may load a little slower at first. You stay signed in and keep your bookmarks and history."
+restore = "Edge saves pages again as you browse."
+action = "trash"
+
+[[rule]]
+id = "browser.brave_cache"
+version = 1
+match.path = "Library/Caches/BraveSoftware/Brave-Browser"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Brave cache"
+explain = "Copies of web pages and images Brave keeps so sites load faster."
+risk = "Websites may load a little slower at first. You stay signed in and keep your bookmarks and history."
+restore = "Brave saves pages again as you browse."
+action = "trash"
+
+# Medium: Arc's cache folder name is from Chromium's usual layout, not yet
+# checked on a Mac with Arc installed.
+[[rule]]
+id = "browser.arc_cache"
+version = 1
+match.path = "Library/Caches/Arc"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "simple"
+title = "Arc cache"
+explain = "Copies of web pages and images Arc keeps so sites load faster."
+risk = "Websites may load a little slower at first. You stay signed in and keep your spaces, tabs and history."
+restore = "Arc saves pages again as you browse."
+action = "trash"
+
+[[rule]]
+id = "zoom.cache"
+version = 1
+match.path = "Library/Caches/us.zoom.xos"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Zoom cache"
+explain = "Images and files Zoom keeps so it opens and loads faster."
+risk = "Zoom may take a moment longer to load at first. Your meetings, chats and recordings are kept."
+restore = "Zoom saves them again as you use it."
+action = "trash"
+
+# Only the Cache folder. Discord's Local Storage (sign-in) and settings
+# beside it are never matched.
+[[rule]]
+id = "discord.cache"
+version = 1
+match.path = "Library/Application Support/discord/Cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Discord cache"
+explain = "Images and files Discord keeps so servers and chats open quickly."
+risk = "Images in chats may take a moment to appear again. Your messages are kept by Discord online."
+restore = "Discord saves them again as you use it."
+action = "trash"
+
+# The classic Teams app (retired by Microsoft in 2025) left this behind on
+# many Macs. Only its Cache folder.
+[[rule]]
+id = "teams.classic_cache"
+version = 1
+match.path = "Library/Application Support/Microsoft/Teams/Cache"
+category = "cache"
+tier = "likely_safe"
+confidence = "high"
+regenerable = true
+mode = "simple"
+title = "Microsoft Teams (classic) cache"
+explain = "Images and files the classic Microsoft Teams app kept so chats opened quickly."
+risk = "If you still use classic Teams, images in chats may take a moment to appear again. Your chats are kept by Microsoft online."
+restore = "Teams saves them again as you use it."
+action = "trash"
+
+# The new Teams app is sandboxed. Only the Caches folder inside its
+# container, never its Application Support (sign-in, settings) or the
+# Microsoft group container. Medium: not yet checked on a Mac with Teams.
+[[rule]]
+id = "teams.cache"
+version = 1
+match.path = "Library/Containers/com.microsoft.teams2/Data/Library/Caches"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "simple"
+title = "Microsoft Teams cache"
+explain = "Files Microsoft Teams keeps so it opens and loads faster."
+risk = "Teams may take a moment longer to load at first. Your chats, files and sign-in are kept."
+restore = "Teams saves them again as you use it."
+action = "trash"
+
+# WhatsApp keeps messages and photos in its group container; that is never
+# matched. Only the Caches folder inside the app's own container. Medium:
+# not yet checked on a Mac with WhatsApp.
+[[rule]]
+id = "whatsapp.cache"
+version = 1
+match.path = "Library/Containers/net.whatsapp.WhatsApp/Data/Library/Caches"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "simple"
+title = "WhatsApp cache"
+explain = "Files WhatsApp keeps so it opens and loads faster."
+risk = "WhatsApp may take a moment longer to load at first. Your chats, photos and sign-in are kept."
+restore = "WhatsApp saves them again as you use it."
+action = "trash"

@@ -119,6 +119,55 @@ const SLACK: OwnerApp = OwnerApp {
     prefixes: &[],
 };
 
+const EDGE: OwnerApp = OwnerApp {
+    name: "Microsoft Edge",
+    programs: &["Microsoft Edge"],
+    bundles: &["Microsoft Edge.app"],
+    prefixes: &[],
+};
+
+const BRAVE: OwnerApp = OwnerApp {
+    name: "Brave",
+    programs: &["Brave Browser"],
+    bundles: &["Brave Browser.app"],
+    prefixes: &[],
+};
+
+const ARC: OwnerApp = OwnerApp {
+    name: "Arc",
+    programs: &["Arc"],
+    bundles: &["Arc.app"],
+    prefixes: &[],
+};
+
+const ZOOM: OwnerApp = OwnerApp {
+    name: "Zoom",
+    programs: &["zoom.us"],
+    bundles: &["zoom.us.app"],
+    prefixes: &[],
+};
+
+const DISCORD: OwnerApp = OwnerApp {
+    name: "Discord",
+    programs: &["Discord"],
+    bundles: &["Discord.app"],
+    prefixes: &[],
+};
+
+const TEAMS: OwnerApp = OwnerApp {
+    name: "Microsoft Teams",
+    programs: &["MSTeams", "Microsoft Teams", "Microsoft Teams classic"],
+    bundles: &["Microsoft Teams.app", "Microsoft Teams classic.app"],
+    prefixes: &[],
+};
+
+const WHATSAPP: OwnerApp = OwnerApp {
+    name: "WhatsApp",
+    programs: &["WhatsApp"],
+    bundles: &["WhatsApp.app"],
+    prefixes: &[],
+};
+
 const CURSOR: OwnerApp = OwnerApp {
     name: "Cursor",
     programs: &["Cursor"],
@@ -244,6 +293,13 @@ pub fn owner_apps(rule_id: &str) -> &'static [OwnerApp] {
         "browser.firefox_cache" => &[FIREFOX],
         "spotify.cache" => &[SPOTIFY],
         "slack.cache" => &[SLACK],
+        "browser.edge_cache" => &[EDGE],
+        "browser.brave_cache" => &[BRAVE],
+        "browser.arc_cache" => &[ARC],
+        "zoom.cache" => &[ZOOM],
+        "discord.cache" => &[DISCORD],
+        "teams.cache" | "teams.classic_cache" => &[TEAMS],
+        "whatsapp.cache" => &[WHATSAPP],
         "cursor.cache" | "cursor.cached_data" | "cursor.extension_downloads" => &[CURSOR],
         "vscode.cache" | "vscode.cached_data" | "vscode.extension_downloads" => &[VSCODE],
         "jetbrains.cache" => &[JETBRAINS],

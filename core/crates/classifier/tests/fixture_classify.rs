@@ -81,6 +81,8 @@ fn expected_developer() -> BTreeMap<String, &'static str> {
         );
     }
     want.insert(paths::COCOAPODS_CACHE.to_string(), "cocoapods.cache");
+    want.insert(paths::REACT_NATIVE_CACHE.to_string(), "react_native.cache");
+    want.insert(paths::EAS_CLI_CACHE.to_string(), "eas_cli.cache");
     for p in paths::JS_PROJECTS {
         want.insert(join(p, "node_modules"), "js.node_modules");
     }
@@ -281,6 +283,26 @@ fn expected_simple() -> BTreeMap<String, &'static str> {
     want.insert(paths::FIREFOX_CACHE.to_string(), "browser.firefox_cache");
     want.insert(join(paths::CACHES, "com.spotify.client"), "spotify.cache");
     want.insert(paths::SLACK_CACHE.to_string(), "slack.cache");
+    want.insert(
+        paths::DOWNLOAD_PKG.to_string(),
+        "downloads.installer_package",
+    );
+    want.insert(
+        paths::DOWNLOAD_ZIP_INSTALLER.to_string(),
+        "downloads.zip_installer",
+    );
+    for (cache, id) in [
+        (paths::EDGE_CACHE, "browser.edge_cache"),
+        (paths::BRAVE_CACHE, "browser.brave_cache"),
+        (paths::ARC_CACHE, "browser.arc_cache"),
+        (paths::ZOOM_CACHE, "zoom.cache"),
+        (paths::DISCORD_CACHE, "discord.cache"),
+        (paths::TEAMS_CLASSIC_CACHE, "teams.classic_cache"),
+        (paths::TEAMS_CACHE, "teams.cache"),
+        (paths::WHATSAPP_CACHE, "whatsapp.cache"),
+    ] {
+        want.insert(cache.to_string(), id);
+    }
     for f in paths::USER_LOG_FOLDERS {
         want.insert(join(paths::USER_LOGS, f), "logs.user");
     }
@@ -372,12 +394,8 @@ fn file_rules_match_files_and_folder_rules_match_folders() {
             .blocks()
             * 512
     );
-    // Only .dmg: the .pkg, .zip and the document stay unknown.
-    for p in [
-        paths::DOWNLOAD_PKG,
-        paths::DOWNLOAD_ZIP,
-        paths::DOWNLOAD_NORMAL,
-    ] {
+    // The photos zip and the document stay unknown.
+    for p in [paths::DOWNLOAD_ZIP, paths::DOWNLOAD_NORMAL] {
         assert!(!items.iter().any(|i| i.path == root.join(p)), "{p}");
     }
 }
@@ -392,6 +410,13 @@ const TRAPS: &[&str] = &[
     paths::PHOTOS_LIBRARY,
     paths::MESSAGES_ATTACHMENTS,
     paths::SLACK_LOCAL_STORAGE,
+    paths::ZOOM_DATA,
+    paths::DISCORD_LOCAL_STORAGE,
+    paths::TEAMS_APP_DATA,
+    paths::WHATSAPP_MESSAGES,
+    paths::DOWNLOAD_ZIP,
+    paths::DOWNLOAD_PKG,
+    paths::DOWNLOAD_ZIP_INSTALLER,
     paths::EXPO_STATE,
     paths::DOCUMENTS,
     paths::DOWNLOADS,

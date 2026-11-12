@@ -246,3 +246,37 @@ explain = "Files the Expo tools have downloaded, such as Expo Go for the simulat
 risk = "Expo downloads them again the next time it needs them, which takes a little longer."
 restore = "Expo downloads them again when needed."
 action = "trash"
+
+# React Native and Expo build tools (first-scan coverage, 2026-11-11).
+# Needs Sam's sign-off. Metro and Watchman keep their caches in the system
+# temp folder or Homebrew's folder, outside home, so no rule can reach them.
+
+[[rule]]
+id = "react_native.cache"
+version = 1
+match.path = "Library/Caches/ReactNative"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "React Native tool cache"
+explain = "Files the React Native tools have downloaded, kept so later project setups and builds are faster."
+risk = "The next React Native setup or build downloads them again, which takes longer."
+restore = "React Native downloads them again when a project needs them."
+action = "trash"
+
+[[rule]]
+id = "eas_cli.cache"
+version = 1
+match.path = "Library/Caches/eas-cli"
+category = "cache"
+tier = "likely_safe"
+confidence = "medium"
+regenerable = true
+mode = "developer"
+title = "Expo EAS tool cache"
+explain = "Files the Expo EAS command line tool keeps so it starts and runs faster."
+risk = "The next eas command may take a little longer. Your sign-in and project settings are kept."
+restore = "EAS saves them again as you use it."
+action = "trash"

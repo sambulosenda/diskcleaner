@@ -17,6 +17,8 @@ pub const DOWNLOAD_PKG: &str = "Downloads/PrinterDriver.pkg";
 pub const DOWNLOAD_ZIP: &str = "Downloads/Photos-from-trip.zip";
 /// Ordinary document in Downloads.
 pub const DOWNLOAD_NORMAL: &str = "Downloads/Meeting notes.txt";
+/// Zip in Downloads whose name says it holds an installer.
+pub const DOWNLOAD_ZIP_INSTALLER: &str = "Downloads/VPNClient-Installer-3.1.zip";
 /// App caches root.
 pub const CACHES: &str = "Library/Caches";
 /// The three app cache folders (bundle ids).
@@ -40,6 +42,40 @@ pub const FIREFOX_CACHE: &str = "Library/Caches/Firefox";
 pub const SLACK_CACHE: &str = "Library/Application Support/Slack/Cache";
 /// Slack data next to the cache that no cache rule may match.
 pub const SLACK_LOCAL_STORAGE: &str = "Library/Application Support/Slack/Local Storage";
+/// Microsoft Edge's cache folder.
+pub const EDGE_CACHE: &str = "Library/Caches/Microsoft Edge";
+/// Brave's cache folder.
+pub const BRAVE_CACHE: &str = "Library/Caches/BraveSoftware/Brave-Browser";
+/// Arc's cache folder.
+pub const ARC_CACHE: &str = "Library/Caches/Arc";
+/// Zoom's cache folder.
+pub const ZOOM_CACHE: &str = "Library/Caches/us.zoom.xos";
+/// Zoom's own data (chats, settings), which no rule may match.
+pub const ZOOM_DATA: &str = "Library/Application Support/zoom.us/data";
+/// Discord's cache folder.
+pub const DISCORD_CACHE: &str = "Library/Application Support/discord/Cache";
+/// Discord's sign-in data next to the cache, which no rule may match.
+pub const DISCORD_LOCAL_STORAGE: &str = "Library/Application Support/discord/Local Storage";
+/// The classic Teams app's cache folder.
+pub const TEAMS_CLASSIC_CACHE: &str = "Library/Application Support/Microsoft/Teams/Cache";
+/// The new Teams app's container.
+pub const TEAMS_CONTAINER: &str = "Library/Containers/com.microsoft.teams2";
+/// The new Teams app's Caches folder inside its container.
+pub const TEAMS_CACHE: &str = "Library/Containers/com.microsoft.teams2/Data/Library/Caches";
+/// The new Teams app's own data inside its container, which no rule may match.
+pub const TEAMS_APP_DATA: &str =
+    "Library/Containers/com.microsoft.teams2/Data/Library/Application Support/Microsoft/MSTeams";
+/// WhatsApp's container.
+pub const WHATSAPP_CONTAINER: &str = "Library/Containers/net.whatsapp.WhatsApp";
+/// WhatsApp's Caches folder inside its container.
+pub const WHATSAPP_CACHE: &str = "Library/Containers/net.whatsapp.WhatsApp/Data/Library/Caches";
+/// WhatsApp's messages and photos, which no rule may match.
+pub const WHATSAPP_MESSAGES: &str =
+    "Library/Group Containers/group.net.whatsapp.WhatsApp.shared/Message";
+/// The React Native tools' cache folder.
+pub const REACT_NATIVE_CACHE: &str = "Library/Caches/ReactNative";
+/// The Expo EAS tool's cache folder.
+pub const EAS_CLI_CACHE: &str = "Library/Caches/eas-cli";
 /// The user's log folder.
 pub const USER_LOGS: &str = "Library/Logs";
 /// The two app log folders inside it.

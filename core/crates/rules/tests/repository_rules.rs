@@ -96,6 +96,19 @@ fn the_t07_rules_are_all_there() {
         "slack.cache",
         "logs.user",
         "ios.software_update",
+        // More installers and app caches (first-scan coverage)
+        "downloads.installer_package",
+        "downloads.zip_installer",
+        "browser.edge_cache",
+        "browser.brave_cache",
+        "browser.arc_cache",
+        "zoom.cache",
+        "discord.cache",
+        "teams.classic_cache",
+        "teams.cache",
+        "whatsapp.cache",
+        "react_native.cache",
+        "eas_cli.cache",
         // Android
         "android.gradle_caches",
         "android.gradle_wrapper",
@@ -501,6 +514,12 @@ fn no_rule_matches_personal_or_sign_in_data() {
         paths::SLACK_LOCAL_STORAGE,
         paths::DOWNLOAD_NORMAL,
         paths::DOWNLOAD_ZIP,
+        paths::ZOOM_DATA,
+        paths::DISCORD_LOCAL_STORAGE,
+        paths::TEAMS_CONTAINER,
+        paths::TEAMS_APP_DATA,
+        paths::WHATSAPP_CONTAINER,
+        paths::WHATSAPP_MESSAGES,
         paths::TRAP_GIT_DIR,
         paths::TRAP_ENV_FILE,
         paths::TRAP_KEYSTORE,
@@ -737,6 +756,90 @@ fn no_rule_matches_ai_tool_keys_tokens_or_chats() {
         paths::TRAP_HUGGINGFACE_TOKEN,
         paths::HUGGINGFACE_HUB,
         ".cache/huggingface",
+    ];
+    for r in repo_rules() {
+        let hits = matches_in(&r, &manifest);
+        for p in never {
+            assert!(
+                !hits
+                    .iter()
+                    .any(|h| h == p || p.starts_with(&format!("{h}/"))),
+                "{} matches {p} or a folder holding it",
+                r.id
+            );
+        }
+    }
+}
+
+#[test]
+fn installer_and_app_cache_rules_match_exactly_the_expected_items() {
+    let (_dir, manifest) = fixture_manifest();
+    let rules = repo_rules();
+    let found = |id: &str| -> BTreeSet<String> {
+        matches_in(rule(&rules, id), &manifest)
+            .into_iter()
+            .collect()
+    };
+    let one = |p: &str| -> BTreeSet<String> { [p.to_string()].into_iter().collect() };
+
+    assert_eq!(
+        found("downloads.installer_package"),
+        one(paths::DOWNLOAD_PKG)
+    );
+    // Only the zip named as an installer, never the photos zip.
+    assert_eq!(
+        found("downloads.zip_installer"),
+        one(paths::DOWNLOAD_ZIP_INSTALLER)
+    );
+    for (id, cache) in [
+        ("browser.edge_cache", paths::EDGE_CACHE),
+        ("browser.brave_cache", paths::BRAVE_CACHE),
+        ("browser.arc_cache", paths::ARC_CACHE),
+        ("zoom.cache", paths::ZOOM_CACHE),
+        ("discord.cache", paths::DISCORD_CACHE),
+        ("teams.classic_cache", paths::TEAMS_CLASSIC_CACHE),
+        ("teams.cache", paths::TEAMS_CACHE),
+        ("whatsapp.cache", paths::WHATSAPP_CACHE),
+        ("react_native.cache", paths::REACT_NATIVE_CACHE),
+        ("eas_cli.cache", paths::EAS_CLI_CACHE),
+    ] {
+        assert_eq!(found(id), one(cache), "{id}");
+    }
+}
+
+#[test]
+fn installers_in_downloads_are_review_first_and_never_permanently_deleted() {
+    let rules = repo_rules();
+    for id in ["downloads.installer_package", "downloads.zip_installer"] {
+        let r = rule(&rules, id);
+        assert_eq!(r.tier, Tier::ReviewFirst, "{id}");
+        assert!(!r.regenerable, "{id}");
+        assert_eq!(r.action, rules::Action::Trash, "{id}");
+    }
+    // A zip may hold the user's own files, so the zip rule is low confidence.
+    assert_eq!(
+        rule(&rules, "downloads.zip_installer").confidence,
+        rules::Confidence::Low
+    );
+}
+
+#[test]
+fn no_rule_matches_chat_app_messages_sign_in_or_whole_containers() {
+    let (_dir, manifest) = fixture_manifest();
+    let never = [
+        paths::DOWNLOAD_ZIP,
+        paths::ZOOM_DATA,
+        paths::DISCORD_LOCAL_STORAGE,
+        paths::TEAMS_APP_DATA,
+        paths::WHATSAPP_MESSAGES,
+        paths::TEAMS_CONTAINER,
+        paths::WHATSAPP_CONTAINER,
+        "Library/Containers",
+        "Library/Group Containers",
+        "Library/Application Support/discord",
+        "Library/Application Support/Microsoft",
+        "Library/Application Support/Microsoft/Teams",
+        "Library/Application Support/zoom.us",
     ];
     for r in repo_rules() {
         let hits = matches_in(&r, &manifest);
